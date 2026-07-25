@@ -14,6 +14,7 @@ public:
     explicit OledCanvas(QWidget *parent = nullptr);
 
     QString generateArduinoCode();
+    void generateImage(QString code);
     void clearCanvas();
 
 protected:

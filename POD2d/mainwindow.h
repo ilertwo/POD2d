@@ -21,6 +21,12 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QVBoxLayout>
+#include <QFileDialog>
+#include <QStandardPaths>
+#include <QString>
+#include <fstream>
+
+
 
 //#include "engine.h"
 

@@ -24,7 +24,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="page">
      <widget class="QPushButton" name="pushButton">
@@ -35,6 +35,9 @@
         <width>141</width>
         <height>61</height>
        </rect>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
       </property>
       <property name="text">
        <string>Create project</string>
@@ -49,6 +52,9 @@
         <height>61</height>
        </rect>
       </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
+      </property>
       <property name="text">
        <string>Open project</string>
       </property>
@@ -62,6 +68,9 @@
         <height>31</height>
        </rect>
       </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
+      </property>
       <property name="text">
        <string>project</string>
       </property>
@@ -74,6 +83,9 @@
         <width>131</width>
         <height>31</height>
        </rect>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
       </property>
       <property name="text">
        <string>examples</string>
@@ -113,6 +125,9 @@
         <height>41</height>
        </rect>
       </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
+      </property>
       <property name="text">
        <string>Save in txt</string>
       </property>
@@ -125,6 +140,9 @@
         <width>51</width>
         <height>41</height>
        </rect>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
       </property>
       <property name="text">
        <string>DEL</string>
@@ -175,6 +193,38 @@
         <height>441</height>
        </rect>
       </property>
+      <property name="cursor">
+       <cursorShape>OpenHandCursor</cursorShape>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_9">
+      <property name="geometry">
+       <rect>
+        <x>550</x>
+        <y>450</y>
+        <width>111</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
+      </property>
+      <property name="text">
+       <string>Print code</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="IsSaveLabel">
+      <property name="geometry">
+       <rect>
+        <x>762</x>
+        <y>40</y>
+        <width>21</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
      </widget>
     </widget>
    </widget>
@@ -202,6 +252,9 @@
        <height>71</height>
       </rect>
      </property>
+     <property name="cursor">
+      <cursorShape>PointingHandCursor</cursorShape>
+     </property>
      <property name="text">
       <string>Create</string>
      </property>
@@ -214,6 +267,9 @@
        <width>171</width>
        <height>71</height>
       </rect>
+     </property>
+     <property name="cursor">
+      <cursorShape>PointingHandCursor</cursorShape>
      </property>
      <property name="text">
       <string>Cancel</string>
@@ -228,6 +284,9 @@
        <height>25</height>
       </rect>
      </property>
+     <property name="cursor">
+      <cursorShape>PointingHandCursor</cursorShape>
+     </property>
     </widget>
     <widget class="QSpinBox" name="spinBox_4">
      <property name="geometry">
@@ -237,6 +296,9 @@
        <width>42</width>
        <height>25</height>
       </rect>
+     </property>
+     <property name="cursor">
+      <cursorShape>PointingHandCursor</cursorShape>
      </property>
     </widget>
     <widget class="QRadioButton" name="radioButton_2">

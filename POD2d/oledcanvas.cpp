@@ -70,3 +70,43 @@ QString OledCanvas::generateArduinoCode() {
     code += "\n};";
     return code;
 }
+
+void OledCanvas::generateImage(QString code)
+{
+
+    code = code.mid(48);
+    QStringList hexValues = code.split(",", Qt::SkipEmptyParts);
+    int byteIndex = 0;
+
+    for (int y = 0; y < 64; y++) {
+        for (int x = 0; x < 128; x += 8) {
+
+            if (byteIndex >= hexValues.size()) {
+                break;
+            }
+
+            QString hexStr = hexValues[byteIndex].trimmed();
+            bool ok;
+            uint8_t currentByte = hexStr.toInt(&ok, 16);
+
+            if (!ok) {
+                currentByte = 0;
+            }
+
+            for (int b = 0; b < 8; b++) {
+                bool isBitSet = (currentByte & (1 << (7 - b))) != 0;
+
+                if (isBitSet) {
+                    canvasImage.setPixelColor(x + b, y, Qt::white);
+                } else {
+                    canvasImage.setPixelColor(x + b, y, Qt::black);
+                }
+            }
+
+            byteIndex++;
+        }
+    }
+    update();
+}
+
+

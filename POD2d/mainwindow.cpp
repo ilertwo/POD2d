@@ -23,6 +23,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_6, &QPushButton::clicked, this, &MainWindow::clear);
     connect(ui->pushButton_7, &QPushButton::clicked, this, &MainWindow::closeFrameCreateProject);
     connect(ui->pushButton_8, &QPushButton::clicked, this, &MainWindow::buttonCreate);
+    connect(ui->pushButton_9, &QPushButton::clicked, this, &MainWindow::printCode);
 }
 
 //деструктор
@@ -39,19 +40,64 @@ void MainWindow::createProject(){
 
 
 
-void MainWindow::openProject(){}
+void MainWindow::openProject()
+{
+
+    QString path = QFileDialog::getOpenFileName(
+        this,
+        "Open project",
+        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
+        "Text Files (*.txt)"
+        );
+
+    QFile file(path);
+
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return;
+    }
+
+    QTextStream in(&file);
+    QString content = in.readAll();
+
+    file.close();
+    ui->canvasWidget->generateImage(content);
+    printCode();
+    ui->stackedWidget->setCurrentIndex(1);
+}
+
+void MainWindow::saveInTxt()
+{
+    QString path = QFileDialog::getSaveFileName(
+        this,
+        "Save project",
+        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
+        "Text Files (*.txt)"
+        );
+
+    if (path.isEmpty()) {
+        return;
+    }
+
+    QFile file(path);
+
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return;
+    }
+
+    QTextStream out(&file);
+
+    out << ui->canvasWidget->generateArduinoCode();
+
+    file.close();
+
+    QPixmap pixmap("./image/save.png");
+    ui->IsSaveLabel->setPixmap(pixmap);
+}
+
 void MainWindow::buttonProjects(){}
 void MainWindow::buttonExemples(){}
 void MainWindow::recentProject(){}
 
-void MainWindow::buttonCreate(){
-    ui->stackedWidget->setCurrentIndex(1);
-}
-void MainWindow::buttonCancel(){
-    closeFrameCreateProject();
-}
-
-void MainWindow::saveInTxt(){}//
 void MainWindow::moveLayer(){}
 void MainWindow::prevLayer(){}
 void MainWindow::nextLayer(){}
@@ -64,7 +110,13 @@ void MainWindow::showImage(){}///
 
 
 
-
+void MainWindow::buttonCreate(){
+    ui->stackedWidget->setCurrentIndex(1);
+    closeFrameCreateProject();
+}
+void MainWindow::buttonCancel(){
+    closeFrameCreateProject();
+}
 
 void MainWindow::clear() {
     ui->canvasWidget->clearCanvas();
@@ -73,7 +125,7 @@ void MainWindow::clear() {
 void MainWindow::printCode() {
     QString arduinoCode = ui->canvasWidget->generateArduinoCode();
 
-    // ui->textEdit->setPlainText(arduinoCode);
+    ui->plainTextEdit->setPlainText(arduinoCode);
 }
 
 
