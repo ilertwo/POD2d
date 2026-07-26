@@ -5,8 +5,14 @@ OledCanvas::OledCanvas(QWidget *parent) : QWidget(parent) {
 
     canvasImage = QImage(128, 64, QImage::Format_RGB32);
     canvasImage.fill(Qt::black);
+}
 
-    setFixedSize(128 * scaleFactor, 64 * scaleFactor);
+void OledCanvas::setCanvasImage(QImage image)
+{
+    canvasImage = image;
+
+    update();
+    emit imageChanged(canvasImage);
 }
 
 void OledCanvas::clearCanvas() {
@@ -15,8 +21,8 @@ void OledCanvas::clearCanvas() {
 }
 
 void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
-    int x = event->x() / scaleFactor;
-    int y = event->y() / scaleFactor;
+    int x = (event->pos().x() - offset.x()) / scaleFactor;
+    int y = (event->pos().y() - offset.y()) / scaleFactor;
 
     if (x >= 0 && x < 128 && y >= 0 && y < 64) {
         if (event->buttons() & Qt::LeftButton) {
@@ -25,27 +31,28 @@ void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
             canvasImage.setPixelColor(x, y, Qt::black);
         }
         update();
+        emit imageChanged(canvasImage);
     }
 }
 
 void OledCanvas::mousePressEvent(QMouseEvent *event) {
     mouseMoveEvent(event);
+    saveToHistory();
 }
 
 void OledCanvas::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, false);
+    painter.translate(offset);
+    painter.scale(scaleFactor, scaleFactor);
+    painter.drawImage(0, 0, canvasImage);
 
-    //полотно
-    painter.drawImage(QRect(0, 0, 128 * scaleFactor, 64 * scaleFactor), canvasImage);
+    QPen gridPen(QColor(50, 50, 50));
+    gridPen.setCosmetic(true);
+    painter.setPen(gridPen);
 
-    painter.setPen(QColor(50, 50, 50));
-    for (int i = 0; i <= 128; ++i) {
-        painter.drawLine(i * scaleFactor, 0, i * scaleFactor, 64 * scaleFactor);
-    }
-    for (int i = 0; i <= 64; ++i) {
-        painter.drawLine(0, i * scaleFactor, 128 * scaleFactor, i * scaleFactor);
-    }
+    for (int i = 0; i <= 128; ++i) painter.drawLine(i, 0, i, 64);
+    for (int i = 0; i <= 64; ++i) painter.drawLine(0, i, 128, i);
 }
 
 QString OledCanvas::generateArduinoCode() {
@@ -109,4 +116,83 @@ void OledCanvas::generateImage(QString code)
     update();
 }
 
+void OledCanvas::saveToHistory() {
+    while (history.size() > historyIndex + 1) {
+        history.removeLast();
+    }
 
+    history.append(canvasImage);
+    historyIndex++;
+}
+
+void OledCanvas::wheelEvent(QWheelEvent *event) {
+    if (event->modifiers() & Qt::ControlModifier) {
+        const double zoomStep = 1.15;
+        double oldScale = scaleFactor;
+
+        if (event->angleDelta().y() > 0) {
+            scaleFactor *= zoomStep;
+        } else {
+            scaleFactor /= zoomStep;
+        }
+        scaleFactor = qBound(1.0, scaleFactor, 40.0);
+
+        QPointF mousePos = event->position();
+        QPointF worldPos = (mousePos - offset) / oldScale;
+        offset = mousePos - worldPos * scaleFactor;
+
+        clampOffset();
+        update();
+        event->accept();
+    } else {
+        QPoint delta = event->angleDelta();
+
+        offset.setX(offset.x() + delta.x());
+        offset.setY(offset.y() + delta.y());
+
+        clampOffset();
+        update();
+        event->accept();
+    }
+}
+
+void OledCanvas::setZoom(double newScale) {
+    if (qAbs(newScale - scaleFactor) < 0.001) return;
+
+    scaleFactor = qBound(1.0, newScale, 40.0);
+    update();
+}
+
+
+void OledCanvas::clampOffset() {
+    double currentWidth = 128 * scaleFactor;
+    double currentHeight = 64 * scaleFactor;
+
+    double marginX = currentWidth * 0.2;
+    double marginY = currentHeight * 0.2;
+
+    double minX = -currentWidth + marginX;
+    double minY = -currentHeight + marginY;
+
+    double maxX = width() - marginX;
+    double maxY = height() - marginY;
+
+    offset.setX(qBound(minX, offset.x(), maxX));
+    offset.setY(qBound(minY, offset.y(), maxY));
+}
+
+void OledCanvas::undo()
+{
+    if (historyIndex > 0) {
+        historyIndex--;
+        setCanvasImage(history[historyIndex]);
+    }
+}
+
+void OledCanvas::redo()
+{
+    if (historyIndex < history.size() - 1) {
+        historyIndex++;
+        setCanvasImage(history[historyIndex]);
+    }
+}

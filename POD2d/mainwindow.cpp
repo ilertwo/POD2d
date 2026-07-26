@@ -13,7 +13,17 @@ MainWindow::MainWindow(QWidget *parent)
     ui->pushButton_3->setIcon(QIcon(basePath + "/image/lock.png"));
     ui->pushButton_2->setIcon(QIcon(basePath + "/image/waste.png"));
 
-    setWindowTitle("Canvas");
+    setWindowTitle("POD2d");
+
+    connect(ui->canvasWidget, &OledCanvas::imageChanged, this, [this](const QImage &img) {
+        QPixmap pixmap = QPixmap::fromImage(img).scaled(
+            ui->miniCanvasWidget->size(),
+            Qt::KeepAspectRatio,
+            Qt::FastTransformation
+            );
+
+        ui->miniCanvasWidget->setPixmap(pixmap);
+    });
 
     connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::createProject);
     connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::openProject);
@@ -24,6 +34,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_7, &QPushButton::clicked, this, &MainWindow::closeFrameCreateProject);
     connect(ui->pushButton_8, &QPushButton::clicked, this, &MainWindow::buttonCreate);
     connect(ui->pushButton_9, &QPushButton::clicked, this, &MainWindow::printCode);
+    connect(ui->pushButton_10, &QPushButton::clicked, this, &MainWindow::undo);
+    connect(ui->pushButton_11, &QPushButton::clicked, this, &MainWindow::redo);
+    connect(ui->pushButton_14, &QPushButton::clicked, this, &MainWindow::on_chooseColorButton_clicked);
 }
 
 //деструктор
@@ -102,13 +115,35 @@ void MainWindow::moveLayer(){}
 void MainWindow::prevLayer(){}
 void MainWindow::nextLayer(){}
 void MainWindow::allLayer(){}
-void MainWindow::undo(){}///
-void MainWindow::redo(){}///
-void MainWindow::setScale(){}///
 void MainWindow::showImage(){}///
 
+void MainWindow::setScale(int newScale)
+{
+    if (newScale < 1) return;
 
+    //ui->canvasWidget->scaleFactor = newScale;
 
+    ui->canvasWidget->update();
+}
+
+void MainWindow::undo()
+{
+    ui->canvasWidget->undo();
+}
+
+void MainWindow::redo()
+{
+    ui->canvasWidget->redo();
+}
+
+void MainWindow::on_chooseColorButton_clicked()
+{
+    QColor selectedColor = QColorDialog::getColor(Qt::white, this, "Обери колір");
+
+    if (selectedColor.isValid()) {
+        //
+    }
+}
 
 void MainWindow::buttonCreate(){
     ui->stackedWidget->setCurrentIndex(1);
@@ -127,11 +162,6 @@ void MainWindow::printCode() {
 
     ui->plainTextEdit->setPlainText(arduinoCode);
 }
-
-
-
-
-
 
 void MainWindow::openFrameCreateProject()
 {

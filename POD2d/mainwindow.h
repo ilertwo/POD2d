@@ -25,6 +25,7 @@
 #include <QStandardPaths>
 #include <QString>
 #include <fstream>
+#include <QColorDialog>
 
 
 
@@ -71,10 +72,11 @@ public:
     void clear();
     void undo();
     void redo();
-    void setScale();
+    void setScale(int newScale);
     void showImage();
     void openFrameCreateProject();
     void closeFrameCreateProject();
+    void on_chooseColorButton_clicked();
     //методи для кнопок для коректної роботи програмии
     void showMenu();    //метод який показує/ховає меню додавання трапеції
 

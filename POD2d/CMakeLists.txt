@@ -26,6 +26,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         oledcanvas.h oledcanvas.cpp
 
 
+
     )
 target_include_directories(POD2d PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # Define target properties for Android with Qt 6 as:
