@@ -63,17 +63,15 @@ public:
     void buttonCreate();
     void buttonCancel();
 
-    void saveInTxt();
+    void saveProject();
     void printCode();
-    void moveLayer();
-    void prevLayer();
-    void nextLayer();
+    void setCurrentLayer();
+    void addLayer();
     void allLayer();
     void clear();
     void undo();
     void redo();
     void setScale(int newScale);
-    void showImage();
     void openFrameCreateProject();
     void closeFrameCreateProject();
     void on_chooseColorButton_clicked();
