@@ -39,6 +39,18 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_12, &QPushButton::clicked, this, &MainWindow::addLayer);
     connect(ui->pushButton_13, &QPushButton::clicked, this, &MainWindow::setCurrentLayer);
     connect(ui->pushButton_14, &QPushButton::clicked, this, &MainWindow::on_chooseColorButton_clicked);
+
+    connect(ui->pushButton_24, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pen); });
+    connect(ui->pushButton_18, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
+    connect(ui->pushButton_20, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Rectangle); });
+    connect(ui->pushButton_19, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Circle); });
+    connect(ui->pushButton_21, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
+    connect(ui->pushButton_22, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::BrokenLine); });
+    connect(ui->pushButton_23, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
+
+    connect(ui->pushButton_17, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Copy); });
+    connect(ui->pushButton_15, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Cut); });
+    connect(ui->pushButton_16, &QPushButton::clicked, this, [this](){ ui->canvasWidget->pasteToLayer(); });
 }
 
 //деструктор

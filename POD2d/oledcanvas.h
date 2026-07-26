@@ -9,6 +9,10 @@
 #include <QGraphicsView>
 #include <QWheelEvent>
 #include <QScrollBar>
+#include <QQueue>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QClipboard>
 
 struct HistoryStep {
     int layerIndex;
@@ -16,11 +20,18 @@ struct HistoryStep {
     QImage newState;
 };
 
+enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Copy, Cut, PasteShape };
+
 class OledCanvas : public QWidget {
     Q_OBJECT
 
 public:
     explicit OledCanvas(QWidget *parent = nullptr);
+
+    void setTool(DrawTool tool);
+    void copyLayer();
+    void cutLayer();
+    void pasteToLayer();
 
     bool loadProjectData(const QByteArray &data);
     QByteArray saveProjectData();
@@ -49,6 +60,13 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void clampOffset();
 
+    DrawTool currentTool = DrawTool::Pen;
+    QPoint startPoint;
+    QPoint lastPoint;
+    bool isDrawing = false;
+
+    void floodFill(int x, int y, QColor targetColor, QColor replacementColor);
+
 private:
     QImage canvasImage;
     double scaleFactor;
@@ -58,6 +76,10 @@ private:
     int currentLayerIndex;
     QList<HistoryStep> history;
     int historyIndex = -1;
+    QRect selectionRect;
+    bool hasSelection = false;
+    QImage pastedImage;
+    QImage internalClipboard;
 };
 
 #endif // OLEDCANVAS_H

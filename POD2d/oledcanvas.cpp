@@ -22,31 +22,130 @@ void OledCanvas::setCanvasImage(QImage image)
 }
 
 void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
+    if (!isDrawing) return;
+
     int x = (event->pos().x() - offset.x()) / scaleFactor;
     int y = (event->pos().y() - offset.y()) / scaleFactor;
 
-    if (x >= 0 && x < 128 && y >= 0 && y < 64) {
-        if (event->buttons() & Qt::LeftButton) {
-            layers[currentLayerIndex].setPixelColor(x, y, Qt::white);
-        } else if (event->buttons() & Qt::RightButton) {
-            if (currentLayerIndex == 0) {
-                layers[currentLayerIndex].setPixelColor(x, y, Qt::black);
-            } else {
-                layers[currentLayerIndex].setPixelColor(x, y, Qt::transparent);
-            }
-        }
+    x = qBound(-10, x, 138);
+    y = qBound(-10, y, 74);
+    QPoint currentPoint(x, y);
+
+    QColor drawColor = (event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent;
+    if (currentLayerIndex == 0 && drawColor == Qt::transparent) drawColor = Qt::black;
+
+    if (currentTool == DrawTool::Copy || currentTool == DrawTool::Cut) {
+        selectionRect = QRect(startPoint, currentPoint).normalized();
         update();
-        emit imageChanged(getFlattenedImage());
+        return;
     }
+
+    if (currentTool == DrawTool::PasteShape) {
+        layers[currentLayerIndex] = tempState;
+        QPainter p(&layers[currentLayerIndex]);
+        p.drawImage(currentPoint, pastedImage);
+    }
+    else if (currentTool == DrawTool::Pen) {
+
+        if (x >= 0 && x < 128 && y >= 0 && y < 64) {
+            layers[currentLayerIndex].setPixelColor(x, y, drawColor);
+        }
+    }
+    else if (currentTool == DrawTool::Line || currentTool == DrawTool::Rectangle || currentTool == DrawTool::Circle) {
+        layers[currentLayerIndex] = tempState;
+
+        QPainter p(&layers[currentLayerIndex]);
+        p.setPen(QPen(drawColor, 1));
+        p.setRenderHint(QPainter::Antialiasing, false);
+
+        if (currentTool == DrawTool::Line) {
+            p.drawLine(startPoint, currentPoint);
+        } else if (currentTool == DrawTool::Rectangle) {
+            p.drawRect(QRect(startPoint, currentPoint));
+        } else if (currentTool == DrawTool::Circle) {
+            int radius = qMax(qAbs(startPoint.x() - x), qAbs(startPoint.y() - y));
+            p.drawEllipse(startPoint, radius, radius);
+        }
+    }
+
+    update();
+    emit imageChanged(getFlattenedImage());
 }
 
 void OledCanvas::mousePressEvent(QMouseEvent *event) {
+    int x = (event->pos().x() - offset.x()) / scaleFactor;
+    int y = (event->pos().y() - offset.y()) / scaleFactor;
+
+    if (x < 0 || x >= 128 || y < 0 || y >= 64) return;
+
     tempState = layers[currentLayerIndex];
-    mouseMoveEvent(event);
+    startPoint = QPoint(x, y);
+    isDrawing = true;
+
+    if (currentTool == DrawTool::Copy || currentTool == DrawTool::Cut) {
+        selectionRect = QRect(x, y, 0, 0);
+    } else if (currentTool == DrawTool::PasteShape) {
+        mouseMoveEvent(event);
+    }
+    else if (currentTool == DrawTool::Fill) {
+        QColor targetColor = layers[currentLayerIndex].pixelColor(x, y);
+        QColor replacementColor = (event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent;
+        if (targetColor != replacementColor) {
+            floodFill(x, y, targetColor, replacementColor);
+            saveToHistory();
+        }
+    } else if (currentTool == DrawTool::Text) {
+        bool ok;
+        QString text = QInputDialog::getText(this, "Ввід тексту", "Введіть текст:", QLineEdit::Normal, "", &ok);
+        if (ok && !text.isEmpty()) {
+            QPainter p(&layers[currentLayerIndex]);
+            p.setPen((event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent);
+            QFont font("Arial", 6);
+            p.setFont(font);
+            p.drawText(x, y + 6, text);
+            update();
+            emit imageChanged(getFlattenedImage());
+            saveToHistory();
+        }
+    } else if (currentTool == DrawTool::BrokenLine) {
+        if (lastPoint.x() != -1) {
+            QPainter p(&layers[currentLayerIndex]);
+            p.setPen((event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent);
+            p.drawLine(lastPoint, startPoint);
+        }
+        lastPoint = startPoint;
+        update();
+        emit imageChanged(getFlattenedImage());
+    } else {
+        mouseMoveEvent(event);
+    }
 }
 
 void OledCanvas::mouseReleaseEvent(QMouseEvent *event) {
-    saveToHistory();
+    if (!isDrawing) return;
+
+    if (currentTool == DrawTool::Copy) {
+        if (selectionRect.width() > 0 && selectionRect.height() > 0) {
+            copyLayer();
+        }
+        selectionRect = QRect();
+        setTool(DrawTool::Pen);
+    }
+
+    else if (currentTool == DrawTool::Cut) {
+        if (selectionRect.width() > 0 && selectionRect.height() > 0) {
+            cutLayer();
+        }
+        selectionRect = QRect();
+        setTool(DrawTool::Pen);
+    }
+
+    else if (currentTool != DrawTool::Fill && currentTool != DrawTool::Text && currentTool != DrawTool::BrokenLine) {
+        saveToHistory();
+    }
+
+    isDrawing = false;
+    update();
 }
 
 void OledCanvas::paintEvent(QPaintEvent *event) {
@@ -75,6 +174,14 @@ void OledCanvas::paintEvent(QPaintEvent *event) {
         }
 
         painter.drawImage(0, 0, layers[i]);
+    }
+
+    if ((currentTool == DrawTool::Copy || currentTool == DrawTool::Cut) && !selectionRect.isEmpty()) {
+        QPen selPen(Qt::white, 1, Qt::DashLine);
+        selPen.setCosmetic(true);
+        painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
+        painter.setPen(selPen);
+        painter.drawRect(selectionRect);
     }
 
     painter.setOpacity(1.0);
@@ -290,4 +397,75 @@ QImage OledCanvas::getFlattenedImage() {
     painter.end();
 
     return flatImage;
+}
+
+void OledCanvas::setTool(DrawTool tool) {
+    currentTool = tool;
+
+    if (tool != DrawTool::BrokenLine) {
+        lastPoint = QPoint(-1, -1);
+    }
+
+    selectionRect = QRect();
+
+    update();
+}
+
+void OledCanvas::floodFill(int x, int y, QColor targetColor, QColor replacementColor) {
+    if (targetColor == replacementColor) return;
+
+    QQueue<QPoint> queue;
+    queue.enqueue(QPoint(x, y));
+
+    while (!queue.isEmpty()) {
+        QPoint p = queue.dequeue();
+
+        if (p.x() < 0 || p.x() >= 128 || p.y() < 0 || p.y() >= 64) continue;
+        if (layers[currentLayerIndex].pixelColor(p) != targetColor) continue;
+
+        layers[currentLayerIndex].setPixelColor(p, replacementColor);
+
+        queue.enqueue(QPoint(p.x() + 1, p.y()));
+        queue.enqueue(QPoint(p.x() - 1, p.y()));
+        queue.enqueue(QPoint(p.x(), p.y() + 1));
+        queue.enqueue(QPoint(p.x(), p.y() - 1));
+    }
+    update();
+    emit imageChanged(getFlattenedImage());
+}
+
+void OledCanvas::copyLayer() {
+    internalClipboard = layers[currentLayerIndex].copy(selectionRect);
+
+    for (int y = 0; y < internalClipboard.height(); ++y) {
+        for (int x = 0; x < internalClipboard.width(); ++x) {
+            if (internalClipboard.pixelColor(x, y) == Qt::black) {
+                internalClipboard.setPixelColor(x, y, Qt::transparent);
+            }
+        }
+    }
+}
+
+void OledCanvas::cutLayer() {
+    copyLayer();
+
+    tempState = layers[currentLayerIndex];
+    QPainter p(&layers[currentLayerIndex]);
+    p.setCompositionMode(QPainter::CompositionMode_Source);
+
+    QColor clearColor = (currentLayerIndex == 0) ? Qt::black : Qt::transparent;
+
+    p.fillRect(selectionRect, clearColor);
+
+    saveToHistory();
+    update();
+    emit imageChanged(getFlattenedImage());
+}
+
+void OledCanvas::pasteToLayer() {
+    pastedImage = internalClipboard;
+
+    if (!pastedImage.isNull()) {
+        setTool(DrawTool::PasteShape);
+    }
 }

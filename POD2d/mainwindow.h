@@ -27,8 +27,6 @@
 #include <fstream>
 #include <QColorDialog>
 
-
-
 //#include "engine.h"
 
 QT_BEGIN_NAMESPACE
