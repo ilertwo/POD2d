@@ -14,11 +14,17 @@
 #include <QLineEdit>
 #include <QClipboard>
 #include <QDataStream>
+#include <QTimer>
 
 struct HistoryStep {
+    int frameIndex;
     int layerIndex;
     QImage previousState;
     QImage newState;
+};
+
+struct Frame {
+    QList<QImage> layers;
 };
 
 enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Select, Pan };
@@ -61,13 +67,27 @@ public:
 
     QString formatArrayToCpp(const QVector<uint8_t> &data, const QString &methodName);
     QString generateDrawImageCode(int method, int cX, int cY, int cW, int cH);
+
+    void addFrame();
+    void setCurrentFrame(int index);
+    void togglePlay();
+
+    QImage getFlattenedImage();
+
+    void deleteCurrentFrame();
+    void deleteCurrentLayer();
+
+    int getCurrentLayerIndex();
 signals:
     void imageChanged(const QImage &newImage);
+    void frameAdded(const QImage &thumbnail, int index);
+    void frameChanged(int index);
+    void isPlayingChanged(bool playing);
+    void frameDeleted(int deletedIndex);
 
 protected:
     HandleType getHandleAt(const QPoint& pos);
     void commitFloatingImage();
-    QImage getFlattenedImage();
     void saveToHistory();
     void paintEvent(QPaintEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
@@ -83,13 +103,18 @@ protected:
 
     void floodFill(int x, int y, QColor targetColor, QColor replacementColor);
 
+    void onPlayTimerTick();
 private:
+    QList<Frame> frames;
+    int currentFrameIndex = 0;
+    int currentLayerIndex = 0;
+
+    bool onionSkinEnabled = true;
     QImage canvasImage;
     double scaleFactor;
     QPointF offset;
     QImage tempState;
     QList<QImage> layers;
-    int currentLayerIndex;
     QList<HistoryStep> history;
     int historyIndex = -1;
     QRect selectionRect;
@@ -106,6 +131,7 @@ private:
     QPoint dragStartMousePos;
     QRect dragStartRect;
 
+    QTimer *playTimer;
 };
 
 #endif // OLEDCANVAS_H

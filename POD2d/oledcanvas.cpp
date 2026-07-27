@@ -3,14 +3,20 @@
 OledCanvas::OledCanvas(QWidget *parent) : QWidget(parent) {
     scaleFactor = 5.0;
 
+    Frame firstFrame;
     QImage backgroundLayer(128, 64, QImage::Format_ARGB32);
     backgroundLayer.fill(Qt::black);
+    firstFrame.layers.append(backgroundLayer);
 
-    layers.append(backgroundLayer);
+    frames.append(firstFrame);
+    currentFrameIndex = 0;
     currentLayerIndex = 0;
 
     setMinimumSize(128, 64);
     saveToHistory();
+
+    playTimer = new QTimer(this);
+    connect(playTimer, &QTimer::timeout, this, &OledCanvas::onPlayTimerTick);
 }
 
 void OledCanvas::setCanvasImage(QImage image)
@@ -86,13 +92,13 @@ void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
 
     if (currentTool == DrawTool::Pen) {
         if (x >= 0 && x < 128 && y >= 0 && y < 64) {
-            layers[currentLayerIndex].setPixelColor(x, y, drawColor);
+            frames[currentFrameIndex].layers[currentLayerIndex].setPixelColor(x, y, drawColor);
         }
     }
     else if (currentTool == DrawTool::Line || currentTool == DrawTool::Rectangle || currentTool == DrawTool::Circle) {
-        layers[currentLayerIndex] = tempState;
+        frames[currentFrameIndex].layers[currentLayerIndex] = tempState;
 
-        QPainter p(&layers[currentLayerIndex]);
+        QPainter p(&frames[currentFrameIndex].layers[currentLayerIndex]);
         p.setPen(QPen(drawColor, 1));
         p.setRenderHint(QPainter::Antialiasing, false);
 
@@ -149,12 +155,12 @@ void OledCanvas::mousePressEvent(QMouseEvent *event) {
         return;
     }
 
-    tempState = layers[currentLayerIndex];
+    tempState = frames[currentFrameIndex].layers[currentLayerIndex];
     startPoint = QPoint(x, y);
     isDrawing = true;
 
     if (currentTool == DrawTool::Fill) {
-        QColor targetColor = layers[currentLayerIndex].pixelColor(x, y);
+        QColor targetColor = frames[currentFrameIndex].layers[currentLayerIndex].pixelColor(x, y);
         QColor replacementColor = (event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent;
         if (targetColor != replacementColor) {
             floodFill(x, y, targetColor, replacementColor);
@@ -164,7 +170,7 @@ void OledCanvas::mousePressEvent(QMouseEvent *event) {
         bool ok;
         QString text = QInputDialog::getText(this, "Ввід тексту", "Введіть текст:", QLineEdit::Normal, "", &ok);
         if (ok && !text.isEmpty()) {
-            QPainter p(&layers[currentLayerIndex]);
+            QPainter p(&frames[currentFrameIndex].layers[currentLayerIndex]);
             p.setPen((event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent);
             QFont font("Arial", 6);
             p.setFont(font);
@@ -175,7 +181,7 @@ void OledCanvas::mousePressEvent(QMouseEvent *event) {
         }
     } else if (currentTool == DrawTool::BrokenLine) {
         if (lastPoint.x() != -1) {
-            QPainter p(&layers[currentLayerIndex]);
+            QPainter p(&frames[currentFrameIndex].layers[currentLayerIndex]);
             p.setPen((event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent);
             p.drawLine(lastPoint, startPoint);
         }
@@ -204,6 +210,7 @@ void OledCanvas::mouseReleaseEvent(QMouseEvent *event) {
     } else {
         if (currentTool != DrawTool::Fill && currentTool != DrawTool::Text && currentTool != DrawTool::BrokenLine) {
             saveToHistory();
+            emit imageChanged(getFlattenedImage());
         }
     }
 
@@ -220,23 +227,27 @@ void OledCanvas::paintEvent(QPaintEvent *event) {
 
     painter.fillRect(0, 0, 128, 64, Qt::black);
 
-    for (int i = 0; i < layers.size(); ++i) {
+    if (onionSkinEnabled && currentFrameIndex > 0) {
+        painter.setOpacity(0.25);
+        for (const QImage& prevLayer : frames[currentFrameIndex - 1].layers) {
+            painter.drawImage(0, 0, prevLayer);
+        }
+    }
 
+    QList<QImage>& currentLayers = frames[currentFrameIndex].layers;
+
+    for (int i = 0; i < currentLayers.size(); ++i) {
         if (i < currentLayerIndex) {
             int distance = currentLayerIndex - i;
-
             double opacity = qMax(0.1, 1.0 - (distance * 0.3));
-
             painter.setOpacity(opacity);
-
         } else if (i == currentLayerIndex) {
             painter.setOpacity(1.0);
-
         } else {
             painter.setOpacity(0.3);
         }
 
-        painter.drawImage(0, 0, layers[i]);
+        painter.drawImage(0, 0, currentLayers[i]);
     }
 
     if (hasSelection && selectionRect.width() > 0 && selectionRect.height() > 0) {
@@ -636,20 +647,6 @@ QString OledCanvas::generateDrawImageCode(int method, int cX, int cY, int cW, in
     return "";
 }
 
-void OledCanvas::saveToHistory() {
-    while (history.size() > historyIndex + 1) {
-        history.removeLast();
-    }
-
-    HistoryStep step;
-    step.layerIndex = currentLayerIndex;
-    step.previousState = tempState;
-    step.newState = layers[currentLayerIndex];
-
-    history.append(step);
-    historyIndex++;
-}
-
 void OledCanvas::wheelEvent(QWheelEvent *event) {
     if (event->modifiers() & Qt::ControlModifier) {
         const double zoomStep = 1.15;
@@ -713,11 +710,29 @@ void OledCanvas::clampOffset() {
     offset.setY(qBound(minY, offset.y(), maxY));
 }
 
+void OledCanvas::saveToHistory() {
+    while (history.size() > historyIndex + 1) {
+        history.removeLast();
+    }
+
+    HistoryStep step;
+    step.frameIndex = currentFrameIndex;
+    step.layerIndex = currentLayerIndex;
+    step.previousState = tempState;
+    step.newState = frames[currentFrameIndex].layers[currentLayerIndex];
+
+    history.append(step);
+    historyIndex++;
+}
+
 void OledCanvas::undo() {
     if (historyIndex > 0) {
         HistoryStep step = history[historyIndex];
 
-        layers[step.layerIndex] = step.previousState;
+        frames[step.frameIndex].layers[step.layerIndex] = step.previousState;
+
+        currentFrameIndex = step.frameIndex;
+        currentLayerIndex = step.layerIndex;
 
         historyIndex--;
         update();
@@ -728,42 +743,25 @@ void OledCanvas::undo() {
 void OledCanvas::redo() {
     if (historyIndex < history.size() - 1) {
         historyIndex++;
-
         HistoryStep step = history[historyIndex];
 
-        layers[step.layerIndex] = step.newState;
+        frames[step.frameIndex].layers[step.layerIndex] = step.newState;
+
+        currentFrameIndex = step.frameIndex;
+        currentLayerIndex = step.layerIndex;
 
         update();
         emit imageChanged(getFlattenedImage());
     }
 }
 
-void OledCanvas::addLayer() {
-    QImage newLayer(128, 64, QImage::Format_ARGB32);
-    newLayer.fill(Qt::transparent);
-
-    layers.append(newLayer);
-
-    currentLayerIndex = layers.size() - 1;
-
-    update();
-    saveToHistory();
-}
-
-void OledCanvas::setCurrentLayer(int index) {
-    if (index >= 0 && index < layers.size()) {
-        currentLayerIndex = index;
-    }
-    update();
-}
-
 void OledCanvas::clearCanvas() {
-    tempState = layers[currentLayerIndex];
+    tempState = frames[currentFrameIndex].layers[currentLayerIndex];
 
     if (currentLayerIndex == 0) {
-        layers[currentLayerIndex].fill(Qt::black);
+        frames[currentFrameIndex].layers[currentLayerIndex].fill(Qt::black);
     } else {
-        layers[currentLayerIndex].fill(Qt::transparent);
+        frames[currentFrameIndex].layers[currentLayerIndex].fill(Qt::transparent);
     }
 
     saveToHistory();
@@ -772,21 +770,38 @@ void OledCanvas::clearCanvas() {
     emit imageChanged(getFlattenedImage());
 }
 
-int OledCanvas::getLayerCount(){
-    return layers.size();
+void OledCanvas::addLayer() {
+    QImage newLayer(128, 64, QImage::Format_ARGB32);
+    newLayer.fill(Qt::transparent);
+
+    frames[currentFrameIndex].layers.append(newLayer);
+    currentLayerIndex = frames[currentFrameIndex].layers.size() - 1;
+
+    saveToHistory();
+    update();
+}
+
+void OledCanvas::setCurrentLayer(int index) {
+    if (index >= 0 && index < frames[currentFrameIndex].layers.size()) {
+        currentLayerIndex = index;
+        update();
+    }
+}
+
+int OledCanvas::getLayerCount() {
+    return frames[currentFrameIndex].layers.size();
 }
 
 QImage OledCanvas::getFlattenedImage() {
-    QImage flatImage(128, 64, QImage::Format_ARGB32);
-    flatImage.fill(Qt::black);
+    QImage result(128, 64, QImage::Format_ARGB32);
+    result.fill(Qt::black);
 
-    QPainter painter(&flatImage);
-    for (int i = 0; i < layers.size(); ++i) {
-        painter.drawImage(0, 0, layers[i]);
+    QPainter painter(&result);
+    for (const QImage &layer : frames[currentFrameIndex].layers) {
+        painter.drawImage(0, 0, layer);
     }
-    painter.end();
 
-    return flatImage;
+    return result;
 }
 
 void OledCanvas::setTool(DrawTool tool) {
@@ -821,9 +836,9 @@ void OledCanvas::floodFill(int x, int y, QColor targetColor, QColor replacementC
         QPoint p = queue.dequeue();
 
         if (p.x() < 0 || p.x() >= 128 || p.y() < 0 || p.y() >= 64) continue;
-        if (layers[currentLayerIndex].pixelColor(p) != targetColor) continue;
+        if (frames[currentFrameIndex].layers[currentLayerIndex].pixelColor(p) != targetColor) continue;
 
-        layers[currentLayerIndex].setPixelColor(p, replacementColor);
+        frames[currentFrameIndex].layers[currentLayerIndex].setPixelColor(p, replacementColor);
 
         queue.enqueue(QPoint(p.x() + 1, p.y()));
         queue.enqueue(QPoint(p.x() - 1, p.y()));
@@ -837,7 +852,7 @@ void OledCanvas::floodFill(int x, int y, QColor targetColor, QColor replacementC
 void OledCanvas::commitFloatingImage() {
     if (!isFloating) return;
 
-    QPainter p(&layers[currentLayerIndex]);
+    QPainter p(&frames[currentFrameIndex].layers[currentLayerIndex]);
     p.drawImage(selectionRect.topLeft(), floatingImage);
 
     isFloating = false;
@@ -849,7 +864,7 @@ void OledCanvas::commitFloatingImage() {
 
 void OledCanvas::copyLayer() {
     if (hasSelection && selectionRect.width() > 0 && selectionRect.height() > 0) {
-        internalClipboard = layers[currentLayerIndex].copy(selectionRect);
+        internalClipboard = frames[currentFrameIndex].layers[currentLayerIndex].copy(selectionRect);
 
         for (int y = 0; y < internalClipboard.height(); ++y) {
             for (int x = 0; x < internalClipboard.width(); ++x) {
@@ -870,8 +885,8 @@ void OledCanvas::cutLayer() {
 
     if (savedRect.isEmpty()) return;
 
-    tempState = layers[currentLayerIndex];
-    QPainter p(&layers[currentLayerIndex]);
+    tempState = frames[currentFrameIndex].layers[currentLayerIndex];
+    QPainter p(&frames[currentFrameIndex].layers[currentLayerIndex]);
     p.setCompositionMode(QPainter::CompositionMode_Source);
     QColor clearColor = (currentLayerIndex == 0) ? Qt::black : Qt::transparent;
 
@@ -926,4 +941,94 @@ HandleType OledCanvas::getHandleAt(const QPoint& pos) {
     if (r.contains(pos)) return HandleType::Move;
 
     return HandleType::None;
+}
+
+void OledCanvas::addFrame() {
+    if (frames.size() >= 16) return;
+
+    Frame newFrame;
+    QImage backgroundLayer(128, 64, QImage::Format_ARGB32);
+    backgroundLayer.fill(Qt::black);
+    newFrame.layers.append(backgroundLayer);
+
+    frames.append(newFrame);
+    currentFrameIndex = frames.size() - 1;
+    currentLayerIndex = 0;
+
+    saveToHistory();
+
+    emit frameAdded(getFlattenedImage(), currentFrameIndex);
+    emit frameChanged(currentFrameIndex);
+
+    update();
+}
+
+void OledCanvas::setCurrentFrame(int index) {
+    if (index >= 0 && index < frames.size()) {
+        currentFrameIndex = index;
+        update();
+        emit frameChanged(currentFrameIndex);
+    }
+}
+
+void OledCanvas::togglePlay() {
+    if (playTimer->isActive()) {
+        playTimer->stop();
+        emit isPlayingChanged(false);
+    } else {
+        if (frames.size() <= 1) return;
+        playTimer->start(200);
+        emit isPlayingChanged(true);
+    }
+}
+
+void OledCanvas::onPlayTimerTick() {
+    currentFrameIndex++;
+    if (currentFrameIndex >= frames.size()) {
+        currentFrameIndex = 0;
+    }
+
+    update();
+    emit frameChanged(currentFrameIndex);
+}
+
+void OledCanvas::deleteCurrentFrame() {
+    if (frames.size() <= 1) return;
+
+    int indexToDelete = currentFrameIndex;
+
+    frames.removeAt(indexToDelete);
+
+    if (currentFrameIndex >= frames.size()) {
+        currentFrameIndex = frames.size() - 1;
+    }
+
+    currentLayerIndex = 0;
+
+    saveToHistory();
+    update();
+
+    emit frameDeleted(indexToDelete);
+    emit frameChanged(currentFrameIndex);
+    emit imageChanged(getFlattenedImage());
+}
+
+void OledCanvas::deleteCurrentLayer() {
+    QList<QImage>& currentLayers = frames[currentFrameIndex].layers;
+
+    if (currentLayers.size() <= 1) return;
+
+    currentLayers.removeAt(currentLayerIndex);
+
+    if (currentLayerIndex >= currentLayers.size()) {
+        currentLayerIndex = currentLayers.size() - 1;
+    }
+
+    saveToHistory();
+    update();
+    emit imageChanged(getFlattenedImage());
+}
+
+int OledCanvas::getCurrentLayerIndex() {
+    return currentLayerIndex;
 }

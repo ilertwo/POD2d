@@ -8,6 +8,59 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    ui->listWidget->setFlow(QListView::LeftToRight);
+    ui->listWidget->setViewMode(QListView::IconMode);
+    ui->listWidget->setIconSize(QSize(128, 64));
+    ui->listWidget->setSpacing(5);
+    ui->listWidget->setFixedHeight(100);
+    ui->listWidget->setMovement(QListView::Static);
+
+    QListWidgetItem *firstItem = new QListWidgetItem();
+    firstItem->setIcon(QIcon(QPixmap::fromImage(ui->canvasWidget->getFlattenedImage())));
+    firstItem->setText("1");
+    ui->listWidget->addItem(firstItem);
+    ui->listWidget->setCurrentRow(0);
+
+    connect(ui->canvasWidget, &OledCanvas::frameAdded, this, [=](const QImage &thumb, int index) {
+        QListWidgetItem *item = new QListWidgetItem();
+        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+        item->setText(QString::number(index + 1));
+        ui->listWidget->addItem(item);
+    });
+
+    connect(ui->canvasWidget, &OledCanvas::imageChanged, this, [=](const QImage &updatedImage) {
+        QListWidgetItem *currentItem = ui->listWidget->currentItem();
+        if (currentItem) {
+            currentItem->setIcon(QIcon(QPixmap::fromImage(updatedImage)));
+        }
+
+        ui->miniCanvasWidget->setPixmap(QPixmap::fromImage(updatedImage));
+    });
+
+    connect(ui->canvasWidget, &OledCanvas::frameChanged, this, [=](int index) {
+        ui->listWidget->blockSignals(true);
+        ui->listWidget->setCurrentRow(index);
+        ui->listWidget->blockSignals(false);
+    });
+
+    connect(ui->listWidget, &QListWidget::currentRowChanged, this, [=](int row) {
+        if (row >= 0) ui->canvasWidget->setCurrentFrame(row);
+    });
+
+    connect(ui->canvasWidget, &OledCanvas::isPlayingChanged, this, [=](bool playing) {
+        ui->pushButton_29->setText(playing ? "Stop" : "Play");
+    });
+
+    connect(ui->canvasWidget, &OledCanvas::frameDeleted, this, [=](int deletedIndex) {
+        QListWidgetItem *item = ui->listWidget->takeItem(deletedIndex);
+        if (item) {
+            delete item;
+        }
+    });
+
+    connect(ui->pushButton_28, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::addFrame);
+    connect(ui->pushButton_29, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::togglePlay);
+
     QString basePath = QFileInfo(__FILE__).dir().absolutePath();
 
     ui->pushButton_3->setIcon(QIcon(basePath + "/image/lock.png"));
@@ -54,6 +107,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_15, &QPushButton::clicked, this, [this](){ ui->canvasWidget->cutLayer(); });
     connect(ui->pushButton_16, &QPushButton::clicked, this, [this](){ ui->canvasWidget->pasteToLayer(); });
     connect(ui->pushButton_27, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Select); });
+    connect(ui->pushButton_30, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::deleteCurrentFrame);
+    connect(ui->pushButton_31, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::deleteCurrentLayer);
 }
 
 //деструктор
@@ -145,6 +200,19 @@ void MainWindow::addLayer() {
 
     ui->spinBox->setValue(newMax);
 }
+
+void MainWindow::deleteCurrentLayer() {
+    ui->canvasWidget->deleteCurrentLayer();
+
+    int newMax = ui->canvasWidget->getLayerCount() - 1;
+
+    if (newMax < 0) newMax = 0;
+
+    ui->spinBox->setMaximum(newMax);
+
+    ui->spinBox->setValue(ui->canvasWidget->getCurrentLayerIndex());
+}
+
 
 void MainWindow::setScale(int newScale)
 {

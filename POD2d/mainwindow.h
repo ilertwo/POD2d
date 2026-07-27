@@ -66,6 +66,7 @@ public:
     void setCurrentLayer();
     void addLayer();
     void allLayer();
+    void deleteCurrentLayer();
     void clear();
     void undo();
     void redo();
