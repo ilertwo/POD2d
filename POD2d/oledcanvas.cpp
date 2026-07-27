@@ -40,6 +40,43 @@ void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
     int x = (event->pos().x() - offset.x()) / scaleFactor;
     int y = (event->pos().y() - offset.y()) / scaleFactor;
 
+    if (currentTool == DrawTool::Select && activeHandle != HandleType::None) {
+        QPoint currentPos(x, y);
+
+        if (activeHandle == HandleType::Move) {
+            QPoint delta = currentPos - dragStartMousePos;
+            selectionRect = dragStartRect.translated(delta);
+        } else {
+            QRect newRect = dragStartRect;
+            int dx = currentPos.x() - dragStartMousePos.x();
+            int dy = currentPos.y() - dragStartMousePos.y();
+
+            if (activeHandle == HandleType::TopLeft) newRect.setTopLeft(dragStartRect.topLeft() + QPoint(dx, dy));
+            else if (activeHandle == HandleType::TopRight) newRect.setTopRight(dragStartRect.topRight() + QPoint(dx, dy));
+            else if (activeHandle == HandleType::BottomLeft) newRect.setBottomLeft(dragStartRect.bottomLeft() + QPoint(dx, dy));
+            else if (activeHandle == HandleType::BottomRight) newRect.setBottomRight(dragStartRect.bottomRight() + QPoint(dx, dy));
+
+            bool flipH = newRect.width() < 0;
+            bool flipV = newRect.height() < 0;
+
+            selectionRect = newRect.normalized();
+
+            if (isFloating) {
+                int newW = qMax(1, selectionRect.width());
+                int newH = qMax(1, selectionRect.height());
+
+                QImage scaled = originalFloatingImage.scaled(newW, newH, Qt::IgnoreAspectRatio, Qt::FastTransformation);
+
+                if (flipH || flipV) {
+                    scaled = scaled.mirrored(flipH, flipV);
+                }
+                floatingImage = scaled;
+            }
+        }
+        update();
+        return;
+    }
+
     x = qBound(-10, x, 138);
     y = qBound(-10, y, 74);
     QPoint currentPoint(x, y);
@@ -47,19 +84,7 @@ void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
     QColor drawColor = (event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent;
     if (currentLayerIndex == 0 && drawColor == Qt::transparent) drawColor = Qt::black;
 
-    if (currentTool == DrawTool::Copy || currentTool == DrawTool::Cut) {
-        selectionRect = QRect(startPoint, currentPoint).normalized();
-        update();
-        return;
-    }
-
-    if (currentTool == DrawTool::PasteShape) {
-        layers[currentLayerIndex] = tempState;
-        QPainter p(&layers[currentLayerIndex]);
-        p.drawImage(currentPoint, pastedImage);
-    }
-    else if (currentTool == DrawTool::Pen) {
-
+    if (currentTool == DrawTool::Pen) {
         if (x >= 0 && x < 128 && y >= 0 && y < 64) {
             layers[currentLayerIndex].setPixelColor(x, y, drawColor);
         }
@@ -96,19 +121,39 @@ void OledCanvas::mousePressEvent(QMouseEvent *event) {
 
     int x = (event->pos().x() - offset.x()) / scaleFactor;
     int y = (event->pos().y() - offset.y()) / scaleFactor;
+    QPoint currentPos(x, y);
 
-    if (x < 0 || x >= 128 || y < 0 || y >= 64) return;
+    if (currentTool == DrawTool::Select) {
+        activeHandle = getHandleAt(currentPos);
+
+        if (activeHandle != HandleType::None) {
+            dragStartMousePos = currentPos;
+            dragStartRect = selectionRect;
+            isDrawing = true;
+        } else {
+            if (isFloating) {
+                commitFloatingImage();
+            } else {
+                hasSelection = true;
+                selectionRect = QRect(currentPos, QSize(0,0));
+                dragStartMousePos = currentPos;
+
+                dragStartRect = selectionRect;
+
+                activeHandle = HandleType::BottomRight;
+                isDrawing = true;
+
+                update();
+            }
+        }
+        return;
+    }
 
     tempState = layers[currentLayerIndex];
     startPoint = QPoint(x, y);
     isDrawing = true;
 
-    if (currentTool == DrawTool::Copy || currentTool == DrawTool::Cut) {
-        selectionRect = QRect(x, y, 0, 0);
-    } else if (currentTool == DrawTool::PasteShape) {
-        mouseMoveEvent(event);
-    }
-    else if (currentTool == DrawTool::Fill) {
+    if (currentTool == DrawTool::Fill) {
         QColor targetColor = layers[currentLayerIndex].pixelColor(x, y);
         QColor replacementColor = (event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent;
         if (targetColor != replacementColor) {
@@ -151,24 +196,15 @@ void OledCanvas::mouseReleaseEvent(QMouseEvent *event) {
         return;
     }
 
-    if (currentTool == DrawTool::Copy) {
-        if (selectionRect.width() > 0 && selectionRect.height() > 0) {
-            copyLayer();
+    if (currentTool == DrawTool::Select) {
+        activeHandle = HandleType::None;
+        if (selectionRect.width() == 0 || selectionRect.height() == 0) {
+            hasSelection = false;
         }
-        selectionRect = QRect();
-        setTool(DrawTool::Pen);
-    }
-
-    else if (currentTool == DrawTool::Cut) {
-        if (selectionRect.width() > 0 && selectionRect.height() > 0) {
-            cutLayer();
+    } else {
+        if (currentTool != DrawTool::Fill && currentTool != DrawTool::Text && currentTool != DrawTool::BrokenLine) {
+            saveToHistory();
         }
-        selectionRect = QRect();
-        setTool(DrawTool::Pen);
-    }
-
-    else if (currentTool != DrawTool::Fill && currentTool != DrawTool::Text && currentTool != DrawTool::BrokenLine) {
-        saveToHistory();
     }
 
     isDrawing = false;
@@ -203,12 +239,40 @@ void OledCanvas::paintEvent(QPaintEvent *event) {
         painter.drawImage(0, 0, layers[i]);
     }
 
-    if ((currentTool == DrawTool::Copy || currentTool == DrawTool::Cut) && !selectionRect.isEmpty()) {
+    if (hasSelection && selectionRect.width() > 0 && selectionRect.height() > 0) {
+
+        painter.setClipRect(0, 0, 128, 64);
+
+        if (isFloating && !floatingImage.isNull()) {
+            painter.setOpacity(1.0);
+            painter.drawImage(selectionRect.topLeft(), floatingImage);
+        }
+
         QPen selPen(Qt::white, 1, Qt::DashLine);
         selPen.setCosmetic(true);
         painter.setCompositionMode(QPainter::RasterOp_SourceXorDestination);
         painter.setPen(selPen);
         painter.drawRect(selectionRect);
+
+        painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+        int hs = 1;
+        QSize handleSize(hs * 2 + 1, hs * 2 + 1);
+        QColor borderColor(139, 0, 0);
+        QColor centerColor = Qt::black;
+
+        QPoint corners[4] = {
+            selectionRect.topLeft(),
+            selectionRect.topRight(),
+            selectionRect.bottomLeft(),
+            selectionRect.bottomRight()
+        };
+
+        for (int i = 0; i < 4; ++i) {
+            painter.fillRect(QRect(corners[i] - QPoint(hs, hs), handleSize), borderColor);
+            painter.fillRect(QRect(corners[i], QSize(1, 1)), centerColor);
+        }
+
+        painter.setClipping(false);
     }
 
     painter.setOpacity(1.0);
@@ -422,17 +486,22 @@ QImage OledCanvas::getFlattenedImage() {
 }
 
 void OledCanvas::setTool(DrawTool tool) {
+    if (currentTool == DrawTool::Select && tool != DrawTool::Select) {
+        if (isFloating) {
+            commitFloatingImage();
+        }
+        hasSelection = false;
+    }
+
     currentTool = tool;
 
     if (tool != DrawTool::BrokenLine) {
         lastPoint = QPoint(-1, -1);
     }
-    selectionRect = QRect();
 
-    if (tool == DrawTool::Pan) {
-        setCursor(Qt::OpenHandCursor);
-    } else {
-        setCursor(Qt::CrossCursor);
+    if (tool != DrawTool::Select) {
+        selectionRect = QRect();
+        hasSelection = false;
     }
 
     update();
@@ -461,28 +530,48 @@ void OledCanvas::floodFill(int x, int y, QColor targetColor, QColor replacementC
     emit imageChanged(getFlattenedImage());
 }
 
-void OledCanvas::copyLayer() {
-    internalClipboard = layers[currentLayerIndex].copy(selectionRect);
+void OledCanvas::commitFloatingImage() {
+    if (!isFloating) return;
 
-    for (int y = 0; y < internalClipboard.height(); ++y) {
-        for (int x = 0; x < internalClipboard.width(); ++x) {
-            if (internalClipboard.pixelColor(x, y) == Qt::black) {
-                internalClipboard.setPixelColor(x, y, Qt::transparent);
+    QPainter p(&layers[currentLayerIndex]);
+    p.drawImage(selectionRect.topLeft(), floatingImage);
+
+    isFloating = false;
+    hasSelection = false;
+    saveToHistory();
+    update();
+    emit imageChanged(getFlattenedImage());
+}
+
+void OledCanvas::copyLayer() {
+    if (hasSelection && selectionRect.width() > 0 && selectionRect.height() > 0) {
+        internalClipboard = layers[currentLayerIndex].copy(selectionRect);
+
+        for (int y = 0; y < internalClipboard.height(); ++y) {
+            for (int x = 0; x < internalClipboard.width(); ++x) {
+                if (internalClipboard.pixelColor(x, y) == Qt::black) {
+                    internalClipboard.setPixelColor(x, y, Qt::transparent);
+                }
             }
         }
     }
+
+    setTool(DrawTool::Pen);
 }
 
 void OledCanvas::cutLayer() {
+    QRect savedRect = selectionRect;
+
     copyLayer();
+
+    if (savedRect.isEmpty()) return;
 
     tempState = layers[currentLayerIndex];
     QPainter p(&layers[currentLayerIndex]);
     p.setCompositionMode(QPainter::CompositionMode_Source);
-
     QColor clearColor = (currentLayerIndex == 0) ? Qt::black : Qt::transparent;
 
-    p.fillRect(selectionRect, clearColor);
+    p.fillRect(savedRect, clearColor);
 
     saveToHistory();
     update();
@@ -490,9 +579,47 @@ void OledCanvas::cutLayer() {
 }
 
 void OledCanvas::pasteToLayer() {
-    pastedImage = internalClipboard;
+    if (internalClipboard.isNull()) return;
 
-    if (!pastedImage.isNull()) {
-        setTool(DrawTool::PasteShape);
-    }
+    if (isFloating) commitFloatingImage();
+
+    floatingImage = internalClipboard;
+    originalFloatingImage = internalClipboard;
+    isFloating = true;
+    hasSelection = true;
+
+    selectionRect = QRect(0, 0, floatingImage.width(), floatingImage.height());
+
+    setTool(DrawTool::Select);
+}
+
+void OledCanvas::rotateFloatingImage() {
+    if (!isFloating) return;
+
+    QTransform transform;
+    transform.rotate(90);
+    floatingImage = floatingImage.transformed(transform);
+    originalFloatingImage = floatingImage;
+
+    QPoint center = selectionRect.center();
+    selectionRect.setSize(QSize(selectionRect.height(), selectionRect.width()));
+    selectionRect.moveCenter(center);
+
+    update();
+}
+
+HandleType OledCanvas::getHandleAt(const QPoint& pos) {
+    if (!hasSelection) return HandleType::None;
+
+    int tolerance = 3;
+
+    QRect r = selectionRect;
+    if (QLineF(pos, r.topLeft()).length() <= tolerance) return HandleType::TopLeft;
+    if (QLineF(pos, r.topRight()).length() <= tolerance) return HandleType::TopRight;
+    if (QLineF(pos, r.bottomLeft()).length() <= tolerance) return HandleType::BottomLeft;
+    if (QLineF(pos, r.bottomRight()).length() <= tolerance) return HandleType::BottomRight;
+
+    if (r.contains(pos)) return HandleType::Move;
+
+    return HandleType::None;
 }

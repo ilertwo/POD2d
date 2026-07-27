@@ -20,7 +20,9 @@ struct HistoryStep {
     QImage newState;
 };
 
-enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Copy, Cut, PasteShape, Pan };
+enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Select, Pan };
+
+enum class HandleType { None, TopLeft, TopRight, BottomLeft, BottomRight, Move };
 
 class OledCanvas : public QWidget {
     Q_OBJECT
@@ -32,6 +34,7 @@ public:
     void copyLayer();
     void cutLayer();
     void pasteToLayer();
+    void rotateFloatingImage();
 
     bool loadProjectData(const QByteArray &data);
     QByteArray saveProjectData();
@@ -51,6 +54,8 @@ signals:
     void imageChanged(const QImage &newImage);
 
 protected:
+    HandleType getHandleAt(const QPoint& pos);
+    void commitFloatingImage();
     QImage getFlattenedImage();
     void saveToHistory();
     void paintEvent(QPaintEvent *event) override;
@@ -81,6 +86,15 @@ private:
     QImage pastedImage;
     QImage internalClipboard;
     QPoint lastPanPoint;
+
+    QImage floatingImage;
+    QImage originalFloatingImage;
+    bool isFloating = false;
+
+    HandleType activeHandle = HandleType::None;
+    QPoint dragStartMousePos;
+    QRect dragStartRect;
+
 };
 
 #endif // OLEDCANVAS_H
