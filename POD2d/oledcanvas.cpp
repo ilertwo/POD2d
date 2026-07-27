@@ -285,8 +285,6 @@ void OledCanvas::paintEvent(QPaintEvent *event) {
     for (int i = 0; i <= 64; ++i) painter.drawLine(0, i, 128, i);
 }
 
-#include <QDataStream>
-
 QByteArray OledCanvas::saveProjectData() {
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
@@ -359,27 +357,39 @@ void OledCanvas::saveToHistory() {
 }
 
 void OledCanvas::wheelEvent(QWheelEvent *event) {
-    const double zoomStep = 1.15;
-    double oldScale = scaleFactor;
+    if (event->modifiers() & Qt::ControlModifier) {
+        const double zoomStep = 1.15;
+        double oldScale = scaleFactor;
 
-    if (event->angleDelta().y() > 0) {
-        scaleFactor *= zoomStep;
-    } else if (event->angleDelta().y() < 0) {
-        scaleFactor /= zoomStep;
+        if (event->angleDelta().y() > 0) {
+            scaleFactor *= zoomStep;
+        } else if (event->angleDelta().y() < 0) {
+            scaleFactor /= zoomStep;
+        }
+
+        scaleFactor = qBound(1.0, scaleFactor, 40.0);
+        if (qFuzzyCompare(scaleFactor, oldScale)) return;
+
+        QPointF mousePos = event->position();
+        QPointF worldPos = (mousePos - offset) / oldScale;
+        offset = mousePos - worldPos * scaleFactor;
+
+        clampOffset();
+        update();
     }
+    else {
+        QPoint numPixels = event->pixelDelta();
+        QPoint numDegrees = event->angleDelta() / 8;
 
-    scaleFactor = qBound(1.0, scaleFactor, 40.0);
+        if (!numPixels.isNull()) {
+            offset += numPixels;
+        } else if (!numDegrees.isNull()) {
+            offset += QPoint(numDegrees.x(), numDegrees.y());
+        }
 
-    if (qFuzzyCompare(scaleFactor, oldScale)) return;
-
-    QPointF mousePos = event->position();
-
-    QPointF worldPos = (mousePos - offset) / oldScale;
-
-    offset = mousePos - worldPos * scaleFactor;
-
-    clampOffset();
-    update();
+        clampOffset();
+        update();
+    }
 
     event->accept();
 }

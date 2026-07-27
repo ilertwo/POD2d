@@ -13,6 +13,7 @@
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QClipboard>
+#include <QDataStream>
 
 struct HistoryStep {
     int layerIndex;
