@@ -24,6 +24,19 @@ void OledCanvas::setCanvasImage(QImage image)
 void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
     if (!isDrawing) return;
 
+    if (currentTool == DrawTool::Pan) {
+        QPoint delta = event->pos() - lastPanPoint;
+
+        offset.setX(offset.x() + delta.x());
+        offset.setY(offset.y() + delta.y());
+
+        clampOffset();
+
+        lastPanPoint = event->pos();
+        update();
+        return;
+    }
+
     int x = (event->pos().x() - offset.x()) / scaleFactor;
     int y = (event->pos().y() - offset.y()) / scaleFactor;
 
@@ -73,6 +86,14 @@ void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void OledCanvas::mousePressEvent(QMouseEvent *event) {
+
+    if (currentTool == DrawTool::Pan) {
+        lastPanPoint = event->pos();
+        isDrawing = true;
+        setCursor(Qt::ClosedHandCursor);
+        return;
+    }
+
     int x = (event->pos().x() - offset.x()) / scaleFactor;
     int y = (event->pos().y() - offset.y()) / scaleFactor;
 
@@ -123,6 +144,12 @@ void OledCanvas::mousePressEvent(QMouseEvent *event) {
 
 void OledCanvas::mouseReleaseEvent(QMouseEvent *event) {
     if (!isDrawing) return;
+
+    if (currentTool == DrawTool::Pan) {
+        setCursor(Qt::OpenHandCursor);
+        isDrawing = false;
+        return;
+    }
 
     if (currentTool == DrawTool::Copy) {
         if (selectionRect.width() > 0 && selectionRect.height() > 0) {
@@ -268,34 +295,29 @@ void OledCanvas::saveToHistory() {
 }
 
 void OledCanvas::wheelEvent(QWheelEvent *event) {
-    if (event->modifiers() & Qt::ControlModifier) {
-        const double zoomStep = 1.15;
-        double oldScale = scaleFactor;
+    const double zoomStep = 1.15;
+    double oldScale = scaleFactor;
 
-        if (event->angleDelta().y() > 0) {
-            scaleFactor *= zoomStep;
-        } else {
-            scaleFactor /= zoomStep;
-        }
-        scaleFactor = qBound(1.0, scaleFactor, 40.0);
-
-        QPointF mousePos = event->position();
-        QPointF worldPos = (mousePos - offset) / oldScale;
-        offset = mousePos - worldPos * scaleFactor;
-
-        clampOffset();
-        update();
-        event->accept();
-    } else {
-        QPoint delta = event->angleDelta();
-
-        offset.setX(offset.x() + delta.x());
-        offset.setY(offset.y() + delta.y());
-
-        clampOffset();
-        update();
-        event->accept();
+    if (event->angleDelta().y() > 0) {
+        scaleFactor *= zoomStep;
+    } else if (event->angleDelta().y() < 0) {
+        scaleFactor /= zoomStep;
     }
+
+    scaleFactor = qBound(1.0, scaleFactor, 40.0);
+
+    if (qFuzzyCompare(scaleFactor, oldScale)) return;
+
+    QPointF mousePos = event->position();
+
+    QPointF worldPos = (mousePos - offset) / oldScale;
+
+    offset = mousePos - worldPos * scaleFactor;
+
+    clampOffset();
+    update();
+
+    event->accept();
 }
 
 void OledCanvas::setZoom(double newScale) {
@@ -405,8 +427,13 @@ void OledCanvas::setTool(DrawTool tool) {
     if (tool != DrawTool::BrokenLine) {
         lastPoint = QPoint(-1, -1);
     }
-
     selectionRect = QRect();
+
+    if (tool == DrawTool::Pan) {
+        setCursor(Qt::OpenHandCursor);
+    } else {
+        setCursor(Qt::CrossCursor);
+    }
 
     update();
 }

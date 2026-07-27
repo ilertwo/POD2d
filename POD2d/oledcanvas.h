@@ -20,7 +20,7 @@ struct HistoryStep {
     QImage newState;
 };
 
-enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Copy, Cut, PasteShape };
+enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Copy, Cut, PasteShape, Pan };
 
 class OledCanvas : public QWidget {
     Q_OBJECT
@@ -80,6 +80,7 @@ private:
     bool hasSelection = false;
     QImage pastedImage;
     QImage internalClipboard;
+    QPoint lastPanPoint;
 };
 
 #endif // OLEDCANVAS_H

@@ -47,6 +47,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_21, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
     connect(ui->pushButton_22, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::BrokenLine); });
     connect(ui->pushButton_23, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
+    connect(ui->pushButton_25, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pan); });
 
     connect(ui->pushButton_17, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Copy); });
     connect(ui->pushButton_15, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Cut); });
