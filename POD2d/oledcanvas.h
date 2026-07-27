@@ -40,7 +40,6 @@ public:
     bool loadProjectData(const QByteArray &data);
     QByteArray saveProjectData();
 
-    QString generateArduinoCode();
     void clearCanvas();
     void setZoom(double scale);
     void undo();
@@ -51,6 +50,15 @@ public:
 
     void setCanvasImage(QImage image);
 
+    QString generateArduinoCode(bool optimize);
+
+    QVector<uint8_t> generateRawData(const QImage &img);
+    QVector<uint8_t> generateCropData(const QImage &img, int &cX, int &cY, int &cW, int &cH);
+    QVector<uint8_t> generatePixelRleData(const QImage &img);
+    QVector<uint8_t> generateByteRleData(const QVector<uint8_t> &rawData);
+
+    QString formatArrayToCpp(const QVector<uint8_t> &data, const QString &methodName);
+    QString generateDrawImageCode(int method, int cX, int cY, int cW, int cH);
 signals:
     void imageChanged(const QImage &newImage);
 
