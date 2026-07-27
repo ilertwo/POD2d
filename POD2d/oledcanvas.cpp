@@ -474,7 +474,7 @@ QString OledCanvas::generateDrawImageCode(int method, int cX, int cY, int cW, in
     }
 }
 
-QString OledCanvas::generateArduinoCode(bool optimize) {
+QString OledCanvas::generateExportCode(bool optimize, bool isCpp) {
     QImage img = getFlattenedImage();
     QVector<uint8_t> rawData = generateRawData(img);
 
@@ -496,29 +496,144 @@ QString OledCanvas::generateArduinoCode(bool optimize) {
         if (byteRleData.size() < minSize) { minSize = byteRleData.size(); bestMethod = 4; bestData = byteRleData; methodName = "Byte RLE Compression"; }
     }
 
-    QString includes =
-        "#include <Wire.h>\n"
-        "#include <Adafruit_GFX.h>\n"
-        "#include <Adafruit_SSD1306.h>\n\n"
-        "#define SCREEN_WIDTH 128\n"
-        "#define SCREEN_HEIGHT 64\n"
-        "#define OLED_RESET -1\n"
-        "Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);\n\n";
+    QString includes;
+    QString mainLogic;
 
-    QString arrayCode = formatArrayToCpp(bestData, methodName);
-    QString drawCode = generateDrawImageCode(bestMethod, cX, cY, cW, cH);
+    if (isCpp) {
+        includes =
+            "#include <Wire.h>\n"
+            "#include <Adafruit_GFX.h>\n"
+            "#include <Adafruit_SSD1306.h>\n\n"
+            "#define SCREEN_WIDTH 128\n"
+            "#define SCREEN_HEIGHT 64\n"
+            "#define OLED_RESET -1\n"
+            "Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);\n\n";
 
-    QString mainLogic =
-        "\nvoid setup() {\n"
-        "  Wire.begin(); // A4 = SDA, A5 = SCL\n"
-        "  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { for(;;); }\n"
-        "  display.clearDisplay();\n"
-        "  drawImage();\n"
-        "  display.display();\n"
-        "}\n\n"
-        "void loop() {\n}\n";
+        mainLogic =
+            "\nvoid setup() {\n"
+            "  Wire.begin(); // A4 = SDA, A5 = SCL\n"
+            "  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { for(;;); }\n"
+            "  display.clearDisplay();\n"
+            "  drawImage();\n"
+            "  display.display();\n"
+            "}\n\n"
+            "void loop() {\n}\n";
+    } else {
+        includes =
+            "from machine import Pin, I2C\n"
+            "import ssd1306\n\n"
+            "# Setup I2C (Adjust pins for your board. e.g. Pico: scl=5, sda=4)\n"
+            "i2c = I2C(0, scl=Pin(5), sda=Pin(4))\n"
+            "display = ssd1306.SSD1306_I2C(128, 64, i2c)\n\n";
+
+        mainLogic =
+            "\ndisplay.fill(0) # Clear display\n"
+            "draw_image()\n"
+            "display.show()\n";
+    }
+
+    QString arrayCode = formatArrayCode(bestData, methodName, isCpp);
+    QString drawCode = generateDrawImageCode(bestMethod, cX, cY, cW, cH, isCpp);
 
     return includes + arrayCode + "\n" + drawCode + mainLogic;
+}
+
+QString OledCanvas::formatArrayCode(const QVector<uint8_t> &data, const QString &methodName, bool isCpp) {
+    QString code;
+
+    if (isCpp) {
+        code = QString("// Method: %1\n// Size: %2 bytes\nconst unsigned char optimized_data[] PROGMEM = {\n  ")
+        .arg(methodName).arg(data.size());
+    } else {
+        code = QString("# Method: %1\n# Size: %2 bytes\noptimized_data = bytearray([\n  ")
+        .arg(methodName).arg(data.size());
+    }
+
+    for (int i = 0; i < data.size(); i++) {
+        code += QString("0x%1, ").arg(data[i], 2, 16, QChar('0'));
+        if ((i + 1) % 16 == 0) code += "\n  ";
+    }
+
+    return code + (isCpp ? "\n};\n" : "\n])\n");
+}
+
+QString OledCanvas::generateDrawImageCode(int method, int cX, int cY, int cW, int cH, bool isCpp) {
+    if (isCpp) {
+        // C++
+        switch (method) {
+        case 1: return "void drawImage() {\n  display.drawBitmap(0, 0, optimized_data, 128, 64, WHITE);\n}\n";
+        case 2: return QString("void drawImage() {\n  display.drawBitmap(%1, %2, optimized_data, %3, %4, WHITE);\n}\n").arg(cX).arg(cY).arg(cW).arg(cH);
+        case 3:
+            return "void drawImage() {\n"
+                   "  bool isWhite = false;\n"
+                   "  int x = 0, y = 0;\n"
+                   "  for (int i = 0; i < sizeof(optimized_data); i++) {\n"
+                   "    uint8_t count = pgm_read_byte(&optimized_data[i]);\n"
+                   "    for (int p = 0; p < count; p++) {\n"
+                   "      if (isWhite) display.drawPixel(x, y, WHITE);\n"
+                   "      x++;\n"
+                   "      if (x >= 128) { x = 0; y++; }\n"
+                   "    }\n"
+                   "    isWhite = !isWhite;\n"
+                   "  }\n"
+                   "}\n";
+        case 4:
+            return "void drawImage() {\n"
+                   "  int x = 0, y = 0;\n"
+                   "  for (int i = 0; i < sizeof(optimized_data); i += 2) {\n"
+                   "    uint8_t count = pgm_read_byte(&optimized_data[i]);\n"
+                   "    uint8_t val = pgm_read_byte(&optimized_data[i+1]);\n"
+                   "    for (int c = 0; c < count; c++) {\n"
+                   "      for (int b = 0; b < 8; b++) {\n"
+                   "        if (val & (1 << (7 - b))) display.drawPixel(x + b, y, WHITE);\n"
+                   "      }\n"
+                   "      x += 8;\n"
+                   "      if (x >= 128) { x = 0; y++; }\n"
+                   "    }\n"
+                   "  }\n"
+                   "}\n";
+        }
+    } else {
+        // MICROPYTHON
+        switch (method) {
+        case 1: // RAW
+            return "import framebuf\n\n"
+                   "def draw_image():\n"
+                   "    fb = framebuf.FrameBuffer(optimized_data, 128, 64, framebuf.MONO_HLSB)\n"
+                   "    display.blit(fb, 0, 0)\n";
+        case 2: // Crop
+            return QString("import framebuf\n\n"
+                           "def draw_image():\n"
+                           "    fb = framebuf.FrameBuffer(optimized_data, %1, %2, framebuf.MONO_HLSB)\n"
+                           "    display.blit(fb, %3, %4)\n").arg(cW).arg(cH).arg(cX).arg(cY);
+        case 3: // Pixel RLE
+            return "def draw_image():\n"
+                   "    is_white = False\n"
+                   "    x, y = 0, 0\n"
+                   "    for count in optimized_data:\n"
+                   "        for _ in range(count):\n"
+                   "            if is_white:\n"
+                   "                display.pixel(x, y, 1)\n"
+                   "            x += 1\n"
+                   "            if x >= 128:\n"
+                   "                x, y = 0, y + 1\n"
+                   "        is_white = not is_white\n";
+        case 4: // Byte RLE
+            return "def draw_image():\n"
+                   "    x, y = 0, 0\n"
+                   "    for i in range(0, len(optimized_data), 2):\n"
+                   "        count = optimized_data[i]\n"
+                   "        val = optimized_data[i+1]\n"
+                   "        for _ in range(count):\n"
+                   "            for b in range(8):\n"
+                   "                if val & (1 << (7 - b)):\n"
+                   "                    display.pixel(x + b, y, 1)\n"
+                   "            x += 8\n"
+                   "            if x >= 128:\n"
+                   "                x, y = 0, y + 1\n";
+        }
+    }
+    return "";
 }
 
 void OledCanvas::saveToHistory() {

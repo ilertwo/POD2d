@@ -549,7 +549,7 @@
        <cursorShape>PointingHandCursor</cursorShape>
       </property>
       <property name="text">
-       <string>full program</string>
+       <string>MicroPython</string>
       </property>
      </widget>
     </widget>

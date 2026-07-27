@@ -50,7 +50,9 @@ public:
 
     void setCanvasImage(QImage image);
 
-    QString generateArduinoCode(bool optimize);
+    QString formatArrayCode(const QVector<uint8_t> &data, const QString &methodName, bool isCpp);
+    QString generateDrawImageCode(int method, int cX, int cY, int cW, int cH, bool isCpp);
+    QString generateExportCode(bool optimize, bool isCpp);
 
     QVector<uint8_t> generateRawData(const QImage &img);
     QVector<uint8_t> generateCropData(const QImage &img, int &cX, int &cY, int &cW, int &cH);

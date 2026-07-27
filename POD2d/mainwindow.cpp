@@ -186,7 +186,8 @@ void MainWindow::clear() {
 
 void MainWindow::printCode() {
     bool isOptimize = ui->checkBox->checkState();
-    QString arduinoCode = ui->canvasWidget->generateArduinoCode(isOptimize);
+    bool language = ui->checkBox_2->checkState();
+    QString arduinoCode = ui->canvasWidget->generateExportCode(isOptimize, language);
 
     ui->plainTextEdit->setPlainText(arduinoCode);
 }
