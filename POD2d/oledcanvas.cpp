@@ -216,6 +216,9 @@ void OledCanvas::mouseReleaseEvent(QMouseEvent *event) {
 
     isDrawing = false;
     update();
+
+    emit layersListChanged();
+    emit activeLayerChanged(currentLayerIndex);
 }
 
 void OledCanvas::paintEvent(QPaintEvent *event) {
@@ -703,6 +706,8 @@ void OledCanvas::undo() {
         historyIndex--;
         update();
         emit imageChanged(getFlattenedImage());
+        emit layersListChanged();
+        emit activeLayerChanged(currentLayerIndex);
     }
 }
 
@@ -718,6 +723,8 @@ void OledCanvas::redo() {
 
         update();
         emit imageChanged(getFlattenedImage());
+        emit layersListChanged();
+        emit activeLayerChanged(currentLayerIndex);
     }
 }
 
@@ -745,13 +752,20 @@ void OledCanvas::addLayer() {
 
     saveToHistory();
     update();
+
+    emit layersListChanged();
+    emit activeLayerChanged(currentLayerIndex);
 }
 
 void OledCanvas::setCurrentLayer(int index) {
-    if (index >= 0 && index < frames[currentFrameIndex].layers.size()) {
-        currentLayerIndex = index;
-        update();
+    if (frames.isEmpty() || index < 0 || index >= frames[currentFrameIndex].layers.size()) {
+        return;
     }
+    currentLayerIndex = index;
+    frames[currentFrameIndex].activeLayerIndex = index;
+
+    update();
+    emit activeLayerChanged(currentLayerIndex);
 }
 
 int OledCanvas::getLayerCount() {
@@ -930,11 +944,21 @@ void OledCanvas::addFrame() {
 }
 
 void OledCanvas::setCurrentFrame(int index) {
-    if (index >= 0 && index < frames.size()) {
-        currentFrameIndex = index;
-        update();
-        emit frameChanged(currentFrameIndex);
+    if (index < 0 || index >= frames.size()) {
+        return;
     }
+
+    currentFrameIndex = index;
+    currentLayerIndex = frames[currentFrameIndex].activeLayerIndex;
+
+    int maxLayer = frames[currentFrameIndex].layers.size() - 1;
+    if (currentLayerIndex > maxLayer) {
+        currentLayerIndex = maxLayer;
+        frames[currentFrameIndex].activeLayerIndex = maxLayer;
+    }
+
+    update();
+    emit frameChanged(currentFrameIndex);
 }
 
 void OledCanvas::togglePlay() {
@@ -977,6 +1001,8 @@ void OledCanvas::deleteCurrentFrame() {
     emit frameDeleted(indexToDelete);
     emit frameChanged(currentFrameIndex);
     emit imageChanged(getFlattenedImage());
+    emit layersListChanged();
+    emit activeLayerChanged(currentLayerIndex);
 }
 
 void OledCanvas::deleteCurrentLayer() {
@@ -993,6 +1019,7 @@ void OledCanvas::deleteCurrentLayer() {
     saveToHistory();
     update();
     emit imageChanged(getFlattenedImage());
+    emit layerThumbnailUpdated(currentLayerIndex);
 }
 
 int OledCanvas::getCurrentLayerIndex() {
@@ -1062,4 +1089,18 @@ bool OledCanvas::loadProjectData(const QByteArray &data) {
     emit frameChanged(currentFrameIndex);
 
     return true;
+}
+
+QImage OledCanvas::getLayerThumbnail(int index) {
+    QImage result(128, 64, QImage::Format_ARGB32);
+    result.fill(Qt::black); // Глухий чорний фон
+
+    if (frames.isEmpty() || index < 0 || index >= frames[currentFrameIndex].layers.size()) {
+        return result;
+    }
+
+    QPainter painter(&result);
+    painter.drawImage(0, 0, frames[currentFrameIndex].layers[index]);
+
+    return result;
 }

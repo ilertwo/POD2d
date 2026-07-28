@@ -25,6 +25,7 @@ struct HistoryStep {
 
 struct Frame {
     QList<QImage> layers;
+    int activeLayerIndex = 0;
 };
 
 enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Select, Pan };
@@ -84,12 +85,18 @@ public:
     QString formatArrayCode(const QVector<uint8_t> &data, const QString &methodName, bool isCpp, int frameIndex = -1);
     QImage getFlattenedFrame(int index);
     QString generateDrawImageCode(int method, bool isCpp);
+
+    QImage getLayerThumbnail(int index);
 signals:
     void imageChanged(const QImage &newImage);
     void frameAdded(const QImage &thumbnail, int index);
     void frameChanged(int index);
     void isPlayingChanged(bool playing);
     void frameDeleted(int deletedIndex);
+
+    void layersListChanged();
+    void layerThumbnailUpdated(int index);
+    void activeLayerChanged(int index);
 
 protected:
     HandleType getHandleAt(const QPoint& pos);

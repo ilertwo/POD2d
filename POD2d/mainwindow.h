@@ -85,6 +85,9 @@ public:
     //void update();//оновлення зображення на сцені
 
 private:
+
+    void rebuildLayersList();
+
     Ui::MainWindow *ui;
     QGraphicsScene *scene;
 

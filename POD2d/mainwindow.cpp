@@ -58,6 +58,12 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
+    ui->listWidget->setViewMode(QListView::IconMode);
+    ui->listWidget->setFlow(QListView::TopToBottom);
+    ui->listWidget->setGridSize(QSize(140, 90));
+    //ui->listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+
     connect(ui->pushButton_28, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::addFrame);
     connect(ui->pushButton_29, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::togglePlay);
 
@@ -77,6 +83,36 @@ MainWindow::MainWindow(QWidget *parent)
 
         ui->miniCanvasWidget->setPixmap(pixmap);
     });
+
+
+    connect(ui->listWidget_2, &QListWidget::currentRowChanged, ui->canvasWidget, &OledCanvas::setCurrentLayer);
+
+    connect(ui->canvasWidget, &OledCanvas::layersListChanged, this, &MainWindow::rebuildLayersList);
+
+    connect(ui->canvasWidget, &OledCanvas::activeLayerChanged, this, [=](int index) {
+        ui->listWidget_2->blockSignals(true);
+        if (index >= 0 && index < ui->listWidget_2->count()) {
+            ui->listWidget_2->setCurrentRow(index);
+        }
+        ui->listWidget_2->blockSignals(false);
+    });
+
+    connect(ui->canvasWidget, &OledCanvas::layerThumbnailUpdated, this, [=](int index) {
+        if (index >= 0 && index < ui->listWidget_2->count()) {
+            QImage thumb = ui->canvasWidget->getLayerThumbnail(index);
+            ui->listWidget_2->item(index)->setIcon(QIcon(QPixmap::fromImage(thumb)));
+        }
+    });
+
+    connect(ui->canvasWidget, &OledCanvas::frameChanged, this, [=](int index) {
+        rebuildLayersList();
+    });
+
+    ui->listWidget_2->setViewMode(QListView::ListMode);
+    ui->listWidget_2->setIconSize(QSize(64, 32));
+    ui->listWidget_2->setSpacing(3);
+
+    rebuildLayersList();
 
     connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::createProject);
     connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::openProject);
@@ -308,4 +344,24 @@ void MainWindow::closeFrameCreateProject()
 {
     if (windowCreateProject != nullptr)
         windowCreateProject->close();
+}
+
+void MainWindow::rebuildLayersList() {
+    ui->listWidget_2->blockSignals(true);
+    ui->listWidget_2->clear();
+
+    int count = ui->canvasWidget->getLayerCount();
+    for (int i = 0; i < count; ++i) {
+        QImage thumb = ui->canvasWidget->getLayerThumbnail(i);
+        QListWidgetItem *item = new QListWidgetItem();
+        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+
+        if (i == 0) item->setText("0");
+        else item->setText("" + QString::number(i));
+
+        ui->listWidget_2->addItem(item);
+    }
+
+    ui->listWidget_2->setCurrentRow(ui->canvasWidget->getCurrentLayerIndex());
+    ui->listWidget_2->blockSignals(false);
 }
