@@ -56,8 +56,6 @@ public:
 
     void setCanvasImage(QImage image);
 
-    QString formatArrayCode(const QVector<uint8_t> &data, const QString &methodName, bool isCpp);
-    QString generateDrawImageCode(int method, int cX, int cY, int cW, int cH, bool isCpp);
     QString generateExportCode(bool optimize, bool isCpp);
 
     QVector<uint8_t> generateRawData(const QImage &img);
@@ -66,7 +64,6 @@ public:
     QVector<uint8_t> generateByteRleData(const QVector<uint8_t> &rawData);
 
     QString formatArrayToCpp(const QVector<uint8_t> &data, const QString &methodName);
-    QString generateDrawImageCode(int method, int cX, int cY, int cW, int cH);
 
     void addFrame();
     void setCurrentFrame(int index);
@@ -78,6 +75,15 @@ public:
     void deleteCurrentLayer();
 
     int getCurrentLayerIndex();
+
+    int getFrameCount();
+    int getCurrentFrameIndex();
+    QImage getFrameThumbnail(int index);
+
+    QString generateExportCode(bool optimize, bool isCpp, bool exportAnimation = false);
+    QString formatArrayCode(const QVector<uint8_t> &data, const QString &methodName, bool isCpp, int frameIndex = -1);
+    QImage getFlattenedFrame(int index);
+    QString generateDrawImageCode(int method, bool isCpp);
 signals:
     void imageChanged(const QImage &newImage);
     void frameAdded(const QImage &thumbnail, int index);

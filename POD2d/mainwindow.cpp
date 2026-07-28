@@ -172,9 +172,24 @@ void MainWindow::openProject()
     file.close();
 
     if (ui->canvasWidget->loadProjectData(data)) {
+
         int maxLayer = ui->canvasWidget->getLayerCount() - 1;
-        ui->spinBox->setMaximum(maxLayer);
-        ui->spinBox->setValue(maxLayer);
+        ui->spinBox->setMaximum(qMax(0, maxLayer));
+        ui->spinBox->setValue(qMax(0, maxLayer));
+
+        ui->listWidget->clear();
+
+        for (int i = 0; i < ui->canvasWidget->getFrameCount(); ++i) {
+            QImage thumb = ui->canvasWidget->getFrameThumbnail(i);
+            QListWidgetItem *item = new QListWidgetItem();
+            item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+            item->setText(QString::number(i + 1));
+            ui->listWidget->addItem(item);
+        }
+
+        ui->listWidget->blockSignals(true);
+        ui->listWidget->setCurrentRow(ui->canvasWidget->getCurrentFrameIndex());
+        ui->listWidget->blockSignals(false);
 
         ui->stackedWidget->setCurrentIndex(1);
     }
@@ -255,9 +270,10 @@ void MainWindow::clear() {
 void MainWindow::printCode() {
     bool isOptimize = ui->checkBox->checkState();
     bool language = ui->checkBox_2->checkState();
-    QString arduinoCode = ui->canvasWidget->generateExportCode(isOptimize, language);
+    bool exportAnimation = ui->checkBox_3->isChecked();
 
-    ui->plainTextEdit->setPlainText(arduinoCode);
+    QString finalCode = ui->canvasWidget->generateExportCode(isOptimize, language, exportAnimation);
+    ui->plainTextEdit->setPlainText(finalCode);
 }
 
 void MainWindow::openFrameCreateProject()
