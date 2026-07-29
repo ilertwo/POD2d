@@ -47,10 +47,6 @@ MainWindow::MainWindow(QWidget *parent)
         if (row >= 0) ui->canvasWidget->setCurrentFrame(row);
     });
 
-    connect(ui->canvasWidget, &OledCanvas::isPlayingChanged, this, [=](bool playing) {
-        ui->pushButton_29->setText(playing ? "Stop" : "Play");
-    });
-
     connect(ui->canvasWidget, &OledCanvas::frameDeleted, this, [=](int deletedIndex) {
         QListWidgetItem *item = ui->listWidget->takeItem(deletedIndex);
         if (item) {
@@ -65,12 +61,38 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     connect(ui->pushButton_28, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::addFrame);
-    connect(ui->pushButton_29, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::togglePlay);
+    connect(ui->btm_Play, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::togglePlay);
 
     QString basePath = QFileInfo(__FILE__).dir().absolutePath();
 
     ui->pushButton_3->setIcon(QIcon(basePath + "/image/lock.png"));
     ui->pushButton_2->setIcon(QIcon(basePath + "/image/waste.png"));
+
+    ui->btn_Undo->setIcon(QIcon(basePath + "/image/undo.png"));
+    ui->btn_Redo->setIcon(QIcon(basePath + "/image/redo.png"));
+    ui->btn_Paste->setIcon(QIcon(basePath + "/image/paste.png"));
+    ui->btn_Copy->setIcon(QIcon(basePath + "/image/copy.png"));
+    ui->btn_Cut->setIcon(QIcon(basePath + "/image/cut.png"));
+
+    ui->btn_Pen->setIcon(QIcon(basePath + "/image/pen.png"));
+
+    ui->btn_Dithering->setIcon(QIcon(basePath + "/image/dithering.png"));
+    ui->btn_Pain->setIcon(QIcon(basePath + "/image/pain.png"));
+    ui->btn_Text->setIcon(QIcon(basePath + "/image/text.png"));
+    ui->btn_Line->setIcon(QIcon(basePath + "/image/line.png"));
+    ui->btn_BrokenLine->setIcon(QIcon(basePath + "/image/brokenLine.png"));
+    ui->btn_Circle->setIcon(QIcon(basePath + "/image/circle.png"));
+    ui->btn_Rectangle->setIcon(QIcon(basePath + "/image/rectangle.png"));
+    ui->btn_Pan->setIcon(QIcon(basePath + "/image/pan.png"));
+    ui->btn_Rotate->setIcon(QIcon(basePath + "/image/rotate.png"));
+    ui->btn_MiniCanvasWidget->setIcon(QIcon(basePath + "/image/miniCanvas.png"));
+    ui->btn_FrameList->setIcon(QIcon(basePath + "/image/frame.png"));
+    ui->btn_LayerList->setIcon(QIcon(basePath + "/image/layer.png"));
+    ui->btm_Play->setIcon(QIcon(basePath + "/image/play.png"));
+
+    connect(ui->canvasWidget, &OledCanvas::isPlayingChanged, this, [=](bool playing) {
+        ui->btm_Play->setIcon(playing ? QIcon(basePath + "/image/stop.png") : QIcon(basePath + "/image/play.png"));
+    });
 
     setWindowTitle("POD2d");
 
@@ -119,30 +141,30 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_3, &QPushButton::clicked, this, &MainWindow::buttonProjects);
     connect(ui->pushButton_4, &QPushButton::clicked, this, &MainWindow::buttonExemples);
     connect(ui->pushButton_5, &QPushButton::clicked, this, &MainWindow::saveProject);
-    connect(ui->pushButton_6, &QPushButton::clicked, this, &MainWindow::clear);
+    connect(ui->btn_Clear, &QPushButton::clicked, this, &MainWindow::clear);
     connect(ui->pushButton_7, &QPushButton::clicked, this, &MainWindow::closeFrameCreateProject);
     connect(ui->pushButton_8, &QPushButton::clicked, this, &MainWindow::buttonCreate);
     connect(ui->pushButton_9, &QPushButton::clicked, this, &MainWindow::printCode);
-    connect(ui->pushButton_10, &QPushButton::clicked, this, &MainWindow::undo);
-    connect(ui->pushButton_11, &QPushButton::clicked, this, &MainWindow::redo);
+    connect(ui->btn_Undo, &QPushButton::clicked, this, &MainWindow::undo);
+    connect(ui->btn_Redo, &QPushButton::clicked, this, &MainWindow::redo);
     connect(ui->pushButton_12, &QPushButton::clicked, this, &MainWindow::addLayer);
     connect(ui->pushButton_13, &QPushButton::clicked, this, &MainWindow::setCurrentLayer);
-    connect(ui->pushButton_14, &QPushButton::clicked, this, &MainWindow::on_chooseColorButton_clicked);
+    connect(ui->btn_SetColor, &QPushButton::clicked, this, &MainWindow::on_chooseColorButton_clicked);
 
-    connect(ui->pushButton_24, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pen); });
-    connect(ui->pushButton_18, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
-    connect(ui->pushButton_20, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Rectangle); });
-    connect(ui->pushButton_19, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Circle); });
-    connect(ui->pushButton_21, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
-    connect(ui->pushButton_22, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::BrokenLine); });
-    connect(ui->pushButton_23, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
-    connect(ui->pushButton_25, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pan); });
-    connect(ui->pushButton_26, &QPushButton::clicked, this, [this](){ ui->canvasWidget->rotateFloatingImage(); });
+    connect(ui->btn_Pen, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pen); });
+    connect(ui->btn_Line, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
+    connect(ui->btn_Rectangle, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Rectangle); });
+    connect(ui->btn_Circle, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Circle); });
+    connect(ui->btn_Pain, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
+    connect(ui->btn_BrokenLine, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::BrokenLine); });
+    connect(ui->btn_Text, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
+    connect(ui->btn_Pan, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pan); });
+    connect(ui->btn_Rotate, &QPushButton::clicked, this, [this](){ ui->canvasWidget->rotateFloatingImage(); });
 
-    connect(ui->pushButton_17, &QPushButton::clicked, this, [this](){ ui->canvasWidget->copyLayer(); });
-    connect(ui->pushButton_15, &QPushButton::clicked, this, [this](){ ui->canvasWidget->cutLayer(); });
-    connect(ui->pushButton_16, &QPushButton::clicked, this, [this](){ ui->canvasWidget->pasteToLayer(); });
-    connect(ui->pushButton_27, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Select); });
+    connect(ui->btn_Copy, &QPushButton::clicked, this, [this](){ ui->canvasWidget->copyLayer(); });
+    connect(ui->btn_Cut, &QPushButton::clicked, this, [this](){ ui->canvasWidget->cutLayer(); });
+    connect(ui->btn_Paste, &QPushButton::clicked, this, [this](){ ui->canvasWidget->pasteToLayer(); });
+    connect(ui->btn_Select, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Select); });
     connect(ui->pushButton_30, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::deleteCurrentFrame);
     connect(ui->pushButton_31, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::deleteCurrentLayer);
 }

@@ -744,6 +744,10 @@ void OledCanvas::clearCanvas() {
 }
 
 void OledCanvas::addLayer() {
+    if (frames.isEmpty()) return;
+    if (frames[currentFrameIndex].layers.size() >= 16) {
+        return;
+    }
     QImage newLayer(128, 64, QImage::Format_ARGB32);
     newLayer.fill(Qt::transparent);
 
