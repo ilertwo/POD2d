@@ -148,10 +148,12 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btn_Undo, &QPushButton::clicked, this, &MainWindow::undo);
     connect(ui->btn_Redo, &QPushButton::clicked, this, &MainWindow::redo);
     connect(ui->pushButton_12, &QPushButton::clicked, this, &MainWindow::addLayer);
-    connect(ui->pushButton_13, &QPushButton::clicked, this, &MainWindow::setCurrentLayer);
     connect(ui->btn_SetColor, &QPushButton::clicked, this, &MainWindow::on_chooseColorButton_clicked);
 
-    connect(ui->btn_Pen, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pen); });
+    connect(ui->btn_Pen, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Brush); });
+    connect(ui->spinBox_2, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::on_spin_brushSize_valueChanged);
+
+    connect(ui->btn_Dithering, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Dithering); });
     connect(ui->btn_Line, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
     connect(ui->btn_Rectangle, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Rectangle); });
     connect(ui->btn_Circle, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Circle); });
@@ -232,8 +234,6 @@ void MainWindow::openProject()
     if (ui->canvasWidget->loadProjectData(data)) {
 
         int maxLayer = ui->canvasWidget->getLayerCount() - 1;
-        ui->spinBox->setMaximum(qMax(0, maxLayer));
-        ui->spinBox->setValue(qMax(0, maxLayer));
 
         ui->listWidget->clear();
 
@@ -260,8 +260,7 @@ void MainWindow::allLayer(){}
 
 
 void MainWindow::setCurrentLayer(){
-    int index = ui->spinBox->value();
-    ui->canvasWidget->setCurrentLayer(index);
+    //ui->canvasWidget->setCurrentLayer(index);
 }
 
 void MainWindow::addLayer() {
@@ -269,21 +268,12 @@ void MainWindow::addLayer() {
 
     int newMax = ui->canvasWidget->getLayerCount() - 1;
 
-    ui->spinBox->setMaximum(newMax);
-
-    ui->spinBox->setValue(newMax);
 }
 
 void MainWindow::deleteCurrentLayer() {
     ui->canvasWidget->deleteCurrentLayer();
 
     int newMax = ui->canvasWidget->getLayerCount() - 1;
-
-    if (newMax < 0) newMax = 0;
-
-    ui->spinBox->setMaximum(newMax);
-
-    ui->spinBox->setValue(ui->canvasWidget->getCurrentLayerIndex());
 }
 
 
@@ -311,6 +301,10 @@ void MainWindow::on_chooseColorButton_clicked()
     if (selectedColor.isValid()) {
         //
     }
+}
+
+void MainWindow::on_spin_brushSize_valueChanged(int value) {
+    ui->canvasWidget->setBrushSize(value);
 }
 
 void MainWindow::buttonCreate(){

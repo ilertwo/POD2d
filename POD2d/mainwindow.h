@@ -74,6 +74,7 @@ public:
     void openFrameCreateProject();
     void closeFrameCreateProject();
     void on_chooseColorButton_clicked();
+    void on_spin_brushSize_valueChanged(int value);
     //методи для кнопок для коректної роботи програмии
     void showMenu();    //метод який показує/ховає меню додавання трапеції
 

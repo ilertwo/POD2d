@@ -28,7 +28,7 @@ struct Frame {
     int activeLayerIndex = 0;
 };
 
-enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Select, Pan };
+enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Select, Pan, Brush, Dithering };
 
 enum class HandleType { None, TopLeft, TopRight, BottomLeft, BottomRight, Move };
 
@@ -87,6 +87,9 @@ public:
     QString generateDrawImageCode(int method, bool isCpp);
 
     QImage getLayerThumbnail(int index);
+
+    void setBrushSize(int size) { brushSize = size; update(); }
+    int getBrushSize() const { return brushSize; }
 signals:
     void imageChanged(const QImage &newImage);
     void frameAdded(const QImage &thumbnail, int index);
@@ -117,6 +120,7 @@ protected:
     void floodFill(int x, int y, QColor targetColor, QColor replacementColor);
 
     void onPlayTimerTick();
+    void leaveEvent(QEvent *event) override;
 private:
     QList<Frame> frames;
     int currentFrameIndex = 0;
@@ -145,6 +149,13 @@ private:
     QRect dragStartRect;
 
     QTimer *playTimer;
+
+    int brushSize = 1;
+    QPoint currentMousePos;
+    bool isMouseOnCanvas = false;
+
+    void drawBrush(int centerX, int centerY, QColor color);
+    void floodFillDithering(int x, int y, QColor targetColor, QColor replacementColor);
 };
 
 #endif // OLEDCANVAS_H

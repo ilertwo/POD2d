@@ -8,6 +8,8 @@ OledCanvas::OledCanvas(QWidget *parent) : QWidget(parent) {
     backgroundLayer.fill(Qt::black);
     firstFrame.layers.append(backgroundLayer);
 
+    setMouseTracking(true);
+
     frames.append(firstFrame);
     currentFrameIndex = 0;
     currentLayerIndex = 0;
@@ -28,6 +30,12 @@ void OledCanvas::setCanvasImage(QImage image)
 }
 
 void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
+    currentMousePos = event->pos();
+    isMouseOnCanvas = true;
+    if (!isDrawing) {
+        if (currentTool == DrawTool::Brush) update();
+        return;
+    }
     if (!isDrawing) return;
 
     if (currentTool == DrawTool::Pan) {
@@ -94,6 +102,9 @@ void OledCanvas::mouseMoveEvent(QMouseEvent *event) {
         if (x >= 0 && x < 128 && y >= 0 && y < 64) {
             frames[currentFrameIndex].layers[currentLayerIndex].setPixelColor(x, y, drawColor);
         }
+    }
+    else if (currentTool == DrawTool::Brush) {
+        drawBrush(x, y, drawColor);
     }
     else if (currentTool == DrawTool::Line || currentTool == DrawTool::Rectangle || currentTool == DrawTool::Circle) {
         frames[currentFrameIndex].layers[currentLayerIndex] = tempState;
@@ -166,7 +177,16 @@ void OledCanvas::mousePressEvent(QMouseEvent *event) {
             floodFill(x, y, targetColor, replacementColor);
             saveToHistory();
         }
-    } else if (currentTool == DrawTool::Text) {
+    }
+    else if (currentTool == DrawTool::Dithering) {
+        QColor targetColor = frames[currentFrameIndex].layers[currentLayerIndex].pixelColor(x, y);
+        QColor replacementColor = (event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent;
+        if (targetColor != replacementColor) {
+            floodFillDithering(x, y, targetColor, replacementColor);
+            saveToHistory();
+        }
+    }
+    else if (currentTool == DrawTool::Text) {
         bool ok;
         QString text = QInputDialog::getText(this, "Ввід тексту", "Введіть текст:", QLineEdit::Normal, "", &ok);
         if (ok && !text.isEmpty()) {
@@ -208,7 +228,7 @@ void OledCanvas::mouseReleaseEvent(QMouseEvent *event) {
             hasSelection = false;
         }
     } else {
-        if (currentTool != DrawTool::Fill && currentTool != DrawTool::Text && currentTool != DrawTool::BrokenLine) {
+        if (currentTool != DrawTool::Fill && currentTool != DrawTool::Text && currentTool != DrawTool::BrokenLine && currentTool != DrawTool::Dithering) {
             saveToHistory();
             emit imageChanged(getFlattenedImage());
         }
@@ -293,6 +313,16 @@ void OledCanvas::paintEvent(QPaintEvent *event) {
 
     for (int i = 0; i <= 128; ++i) painter.drawLine(i, 0, i, 64);
     for (int i = 0; i <= 64; ++i) painter.drawLine(0, i, 128, i);
+
+    if (isMouseOnCanvas && currentTool == DrawTool::Brush && brushSize > 0) {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(QPen(QColor(180, 180, 180), 1));
+        painter.setBrush(Qt::NoBrush);
+
+        float radius = (brushSize * scaleFactor) / 2.0f;
+        painter.drawEllipse(currentMousePos, qRound(radius), qRound(radius));
+    }
 }
 
 QVector<uint8_t> OledCanvas::generateRawData(const QImage &img) {
@@ -1107,4 +1137,66 @@ QImage OledCanvas::getLayerThumbnail(int index) {
     painter.drawImage(0, 0, frames[currentFrameIndex].layers[index]);
 
     return result;
+}
+
+void OledCanvas::drawBrush(int centerX, int centerY, QColor color) {
+    QImage &currentLayer = frames[currentFrameIndex].layers[currentLayerIndex];
+    int radius = brushSize / 2;
+
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            if (dx * dx + dy * dy <= radius * radius) {
+                int px = centerX + dx;
+                int py = centerY + dy;
+                if (px >= 0 && px < 128 && py >= 0 && py < 64) {
+                    currentLayer.setPixelColor(px, py, color);
+                }
+            }
+        }
+    }
+}
+
+void OledCanvas::floodFillDithering(int startX, int startY, QColor targetColor, QColor replacementColor) {
+    if (startX < 0 || startX >= 128 || startY < 0 || startY >= 64) return;
+    if (targetColor == replacementColor) return;
+
+    QImage &image = frames[currentFrameIndex].layers[currentLayerIndex];
+    QQueue<QPoint> queue;
+    queue.enqueue(QPoint(startX, startY));
+
+    bool visited[128][64] = {{false}};
+    visited[startX][startY] = true;
+
+    while (!queue.isEmpty()) {
+        QPoint p = queue.dequeue();
+        int x = p.x();
+        int y = p.y();
+
+        if (image.pixelColor(x, y) == targetColor) {
+            // Шаховий порядок: ставимо тільки на парних координатах
+            if ((x + y) % 2 == 0) {
+                image.setPixelColor(x, y, replacementColor);
+            }
+
+            const int dx[] = {1, -1, 0, 0};
+            const int dy[] = {0, 0, 1, -1};
+
+            for (int i = 0; i < 4; ++i) {
+                int nx = x + dx[i];
+                int ny = y + dy[i];
+                if (nx >= 0 && nx < 128 && ny >= 0 && ny < 64 && !visited[nx][ny]) {
+                    if (image.pixelColor(nx, ny) == targetColor) {
+                        visited[nx][ny] = true;
+                        queue.enqueue(QPoint(nx, ny));
+                    }
+                }
+            }
+        }
+    }
+}
+
+void OledCanvas::leaveEvent(QEvent *event) {
+    isMouseOnCanvas = false;
+    update();
+    QWidget::leaveEvent(event);
 }
