@@ -1,72 +1,80 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "oledcanvas.h"
+#include "codegenerator.h"
+#include "projectmodel.h"
+#include "createprojectdialog.h"
+#include "exportdialog.h"
+
+#include <QFileDialog>
+#include <QStandardPaths>
+#include <QColorDialog>
+#include <QFileInfo>
+#include <QDir>
+#include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    setWindowTitle("POD2d");
 
-    ui->listWidget->setFlow(QListView::LeftToRight);
-    ui->listWidget->setViewMode(QListView::IconMode);
-    ui->listWidget->setIconSize(QSize(128, 64));
-    ui->listWidget->setSpacing(5);
-    ui->listWidget->setFixedHeight(100);
-    ui->listWidget->setMovement(QListView::Static);
+    initModels();
+    setupWidgets();
+    loadIcons();
+    setupConnections();
 
-    QListWidgetItem *firstItem = new QListWidgetItem();
-    firstItem->setIcon(QIcon(QPixmap::fromImage(ui->canvasWidget->getFlattenedImage())));
-    firstItem->setText("1");
-    ui->listWidget->addItem(firstItem);
-    ui->listWidget->setCurrentRow(0);
+    rebuildLayersList();
+}
 
-    connect(ui->canvasWidget, &OledCanvas::frameAdded, this, [=](const QImage &thumb, int index) {
-        QListWidgetItem *item = new QListWidgetItem();
-        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
-        item->setText(QString::number(index + 1));
-        ui->listWidget->addItem(item);
-    });
+MainWindow::~MainWindow() {
+    delete ui;
+    delete scene;
+}
 
-    connect(ui->canvasWidget, &OledCanvas::imageChanged, this, [=](const QImage &updatedImage) {
-        QListWidgetItem *currentItem = ui->listWidget->currentItem();
-        if (currentItem) {
-            currentItem->setIcon(QIcon(QPixmap::fromImage(updatedImage)));
-        }
+// ==========================================
+// 1. Initialization and configuration
+// ==========================================
 
-        ui->miniCanvasWidget->setPixmap(QPixmap::fromImage(updatedImage));
-    });
+void MainWindow::initModels() {
+    projectModel = new ProjectModel(this);
+    ui->canvasWidget->setModel(projectModel);
+}
 
-    connect(ui->canvasWidget, &OledCanvas::frameChanged, this, [=](int index) {
-        ui->listWidget->blockSignals(true);
-        ui->listWidget->setCurrentRow(index);
-        ui->listWidget->blockSignals(false);
-    });
+void MainWindow::setupWidgets() {
+    setupFramesListWidget();
+    setupLayersListWidget();
+}
 
-    connect(ui->listWidget, &QListWidget::currentRowChanged, this, [=](int row) {
-        if (row >= 0) ui->canvasWidget->setCurrentFrame(row);
-    });
+void MainWindow::setupFramesListWidget() {
+    QListWidget* framesList = ui->framesListWidget;
 
-    connect(ui->canvasWidget, &OledCanvas::frameDeleted, this, [=](int deletedIndex) {
-        QListWidgetItem *item = ui->listWidget->takeItem(deletedIndex);
-        if (item) {
-            delete item;
-        }
-    });
+    framesList->setViewMode(QListView::IconMode);
+    framesList->setFlow(QListView::LeftToRight);
+    framesList->setIconSize(QSize(128, 64));
+    framesList->setGridSize(QSize(140, 90));
+    framesList->setSpacing(5);
+    framesList->setFixedHeight(100);
+    framesList->setMovement(QListView::Static);
 
-    ui->listWidget->setViewMode(QListView::IconMode);
-    ui->listWidget->setFlow(QListView::TopToBottom);
-    ui->listWidget->setGridSize(QSize(140, 90));
-    //ui->listWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    QListWidgetItem *firstFrameItem = new QListWidgetItem("1");
+    firstFrameItem->setIcon(QIcon(QPixmap::fromImage(projectModel->getFlattenedImage())));
 
+    framesList->addItem(firstFrameItem);
+    framesList->setCurrentRow(0);
+}
 
-    connect(ui->pushButton_28, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::addFrame);
-    connect(ui->btm_Play, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::togglePlay);
+void MainWindow::setupLayersListWidget() {
+    QListWidget* layersList = ui->layersListWidget;
 
+    layersList->setViewMode(QListView::ListMode);
+    layersList->setIconSize(QSize(64, 32));
+    layersList->setSpacing(3);
+}
+
+void MainWindow::loadIcons() {
     QString basePath = QFileInfo(__FILE__).dir().absolutePath();
-
-    ui->pushButton_3->setIcon(QIcon(basePath + "/image/lock.png"));
-    ui->pushButton_2->setIcon(QIcon(basePath + "/image/waste.png"));
 
     ui->btn_Undo->setIcon(QIcon(basePath + "/image/undo.png"));
     ui->btn_Redo->setIcon(QIcon(basePath + "/image/redo.png"));
@@ -75,9 +83,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->btn_Cut->setIcon(QIcon(basePath + "/image/cut.png"));
 
     ui->btn_Pen->setIcon(QIcon(basePath + "/image/pen.png"));
-
     ui->btn_Dithering->setIcon(QIcon(basePath + "/image/dithering.png"));
-    ui->btn_Pain->setIcon(QIcon(basePath + "/image/pain.png"));
+    ui->btn_Fill->setIcon(QIcon(basePath + "/image/pain.png"));
     ui->btn_Text->setIcon(QIcon(basePath + "/image/text.png"));
     ui->btn_Line->setIcon(QIcon(basePath + "/image/line.png"));
     ui->btn_BrokenLine->setIcon(QIcon(basePath + "/image/brokenLine.png"));
@@ -89,295 +96,271 @@ MainWindow::MainWindow(QWidget *parent)
     ui->btn_FrameList->setIcon(QIcon(basePath + "/image/frame.png"));
     ui->btn_LayerList->setIcon(QIcon(basePath + "/image/layer.png"));
     ui->btm_Play->setIcon(QIcon(basePath + "/image/play.png"));
+}
 
-    connect(ui->canvasWidget, &OledCanvas::isPlayingChanged, this, [=](bool playing) {
-        ui->btm_Play->setIcon(playing ? QIcon(basePath + "/image/stop.png") : QIcon(basePath + "/image/play.png"));
+// ==========================================
+// 2. Connecting signals and slots
+// ==========================================
+
+void MainWindow::setupConnections() {
+    connectModelToLists();
+    connectMenuButtons();
+    connectEditorControls();
+    connectDrawingTools();
+}
+
+void MainWindow::connectModelToLists() {
+    connectFramesList();
+    connectLayersList();
+    connectMiniCanvas();
+}
+
+void MainWindow::connectFramesList() {
+    QListWidget* framesList = ui->framesListWidget;
+
+    connect(projectModel, &ProjectModel::frameAdded, this, [framesList](const QImage &thumb, int index) {
+        QListWidgetItem *item = new QListWidgetItem(QString::number(index + 1));
+        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+        framesList->addItem(item);
     });
 
-    setWindowTitle("POD2d");
-
-    connect(ui->canvasWidget, &OledCanvas::imageChanged, this, [this](const QImage &img) {
-        QPixmap pixmap = QPixmap::fromImage(img).scaled(
-            ui->miniCanvasWidget->size(),
-            Qt::KeepAspectRatio,
-            Qt::FastTransformation
-            );
-
-        ui->miniCanvasWidget->setPixmap(pixmap);
+    connect(projectModel, &ProjectModel::frameDeleted, this, [framesList](int deletedIndex) {
+        delete framesList->takeItem(deletedIndex);
     });
 
-
-    connect(ui->listWidget_2, &QListWidget::currentRowChanged, ui->canvasWidget, &OledCanvas::setCurrentLayer);
-
-    connect(ui->canvasWidget, &OledCanvas::layersListChanged, this, &MainWindow::rebuildLayersList);
-
-    connect(ui->canvasWidget, &OledCanvas::activeLayerChanged, this, [=](int index) {
-        ui->listWidget_2->blockSignals(true);
-        if (index >= 0 && index < ui->listWidget_2->count()) {
-            ui->listWidget_2->setCurrentRow(index);
-        }
-        ui->listWidget_2->blockSignals(false);
-    });
-
-    connect(ui->canvasWidget, &OledCanvas::layerThumbnailUpdated, this, [=](int index) {
-        if (index >= 0 && index < ui->listWidget_2->count()) {
-            QImage thumb = ui->canvasWidget->getLayerThumbnail(index);
-            ui->listWidget_2->item(index)->setIcon(QIcon(QPixmap::fromImage(thumb)));
-        }
-    });
-
-    connect(ui->canvasWidget, &OledCanvas::frameChanged, this, [=](int index) {
+    connect(projectModel, &ProjectModel::frameChanged, this, [this, framesList](int index) {
+        framesList->blockSignals(true);
+        framesList->setCurrentRow(index);
+        framesList->blockSignals(false);
         rebuildLayersList();
     });
 
-    ui->listWidget_2->setViewMode(QListView::ListMode);
-    ui->listWidget_2->setIconSize(QSize(64, 32));
-    ui->listWidget_2->setSpacing(3);
+    connect(framesList, &QListWidget::currentRowChanged, this, [this](int row) {
+        if (row >= 0) projectModel->setCurrentFrame(row);
+    });
+}
 
-    rebuildLayersList();
+void MainWindow::connectLayersList() {
+    QListWidget* layersList = ui->layersListWidget;
 
-    connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::createProject);
-    connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::openProject);
-    connect(ui->pushButton_3, &QPushButton::clicked, this, &MainWindow::buttonProjects);
-    connect(ui->pushButton_4, &QPushButton::clicked, this, &MainWindow::buttonExemples);
-    connect(ui->pushButton_5, &QPushButton::clicked, this, &MainWindow::saveProject);
+    connect(projectModel, &ProjectModel::layersListChanged, this, &MainWindow::rebuildLayersList);
+
+    connect(projectModel, &ProjectModel::activeLayerChanged, this, [layersList](int index) {
+        layersList->blockSignals(true);
+        if (index >= 0 && index < layersList->count()) {
+            layersList->setCurrentRow(index);
+        }
+        layersList->blockSignals(false);
+    });
+
+    connect(projectModel, &ProjectModel::layerThumbnailUpdated, this, [this, layersList](int index) {
+        if (index >= 0 && index < layersList->count()) {
+            QImage thumb = projectModel->getLayerThumbnail(index);
+            layersList->item(index)->setIcon(QIcon(QPixmap::fromImage(thumb)));
+        }
+    });
+
+    connect(layersList, &QListWidget::currentRowChanged, projectModel, &ProjectModel::setCurrentLayer);
+}
+
+void MainWindow::connectMiniCanvas() {
+    QListWidget* framesList = ui->framesListWidget;
+    QLabel* miniCanvas = ui->miniCanvasWidget;
+
+    connect(projectModel, &ProjectModel::imageChanged, this, [framesList, miniCanvas](const QImage &img) {
+        if (QListWidgetItem *currentItem = framesList->currentItem()) {
+            currentItem->setIcon(QIcon(QPixmap::fromImage(img)));
+        }
+
+        QPixmap pixmap = QPixmap::fromImage(img).scaled(
+            miniCanvas->size(),
+            Qt::KeepAspectRatio,
+            Qt::FastTransformation
+            );
+        miniCanvas->setPixmap(pixmap);
+    });
+}
+
+void MainWindow::connectMenuButtons() {
+    connect(ui->btn_CreateProject, &QPushButton::clicked, this, &MainWindow::createProject);
+    connect(ui->btn_OpenProject,   &QPushButton::clicked, this, &MainWindow::openProject);
+    connect(ui->btn_ProjectsTab,   &QPushButton::clicked, this, &MainWindow::buttonProjects);
+    connect(ui->btn_ExamplesTab,   &QPushButton::clicked, this, &MainWindow::buttonExamples);
+}
+
+void MainWindow::connectEditorControls() {
+
+    connect(ui->btn_Undo,  &QPushButton::clicked, this, &MainWindow::undo);
+    connect(ui->btn_Redo,  &QPushButton::clicked, this, &MainWindow::redo);
     connect(ui->btn_Clear, &QPushButton::clicked, this, &MainWindow::clear);
-    connect(ui->pushButton_7, &QPushButton::clicked, this, &MainWindow::closeFrameCreateProject);
-    connect(ui->pushButton_8, &QPushButton::clicked, this, &MainWindow::buttonCreate);
-    connect(ui->pushButton_9, &QPushButton::clicked, this, &MainWindow::printCode);
-    connect(ui->btn_Undo, &QPushButton::clicked, this, &MainWindow::undo);
-    connect(ui->btn_Redo, &QPushButton::clicked, this, &MainWindow::redo);
-    connect(ui->pushButton_12, &QPushButton::clicked, this, &MainWindow::addLayer);
-    connect(ui->btn_SetColor, &QPushButton::clicked, this, &MainWindow::on_chooseColorButton_clicked);
+    connect(ui->btn_SetColor, &QPushButton::clicked, this, &MainWindow::chooseAndSetColor);
 
-    connect(ui->btn_Pen, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Brush); });
-    connect(ui->spinBox_2, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::on_spin_brushSize_valueChanged);
+    connect(ui->btn_AddLayer,    &QPushButton::clicked, this, &MainWindow::addLayer);
+    connect(ui->btn_AddFrame,    &QPushButton::clicked, projectModel, &ProjectModel::addFrame);
+    connect(ui->btn_DeleteFrame, &QPushButton::clicked, projectModel, &ProjectModel::deleteCurrentFrame);
+    connect(ui->btn_DeleteLayer, &QPushButton::clicked, projectModel, &ProjectModel::deleteCurrentLayer);
 
-    connect(ui->btn_Dithering, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Dithering); });
-    connect(ui->btn_Line, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
-    connect(ui->btn_Rectangle, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Rectangle); });
-    connect(ui->btn_Circle, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Circle); });
-    connect(ui->btn_Pain, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
+    connect(ui->btn_Paste,  &QPushButton::clicked, ui->canvasWidget, &OledCanvas::pasteToLayer);
+    connect(ui->btn_Copy,   &QPushButton::clicked, ui->canvasWidget, &OledCanvas::copyLayer);
+    connect(ui->btn_Cut,    &QPushButton::clicked, ui->canvasWidget, &OledCanvas::cutLayer);
+    connect(ui->btn_Rotate, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::rotateFloatingImage);
+
+    connect(ui->btn_ExportCode, &QPushButton::clicked, this, &MainWindow::openExportMenu);
+
+    connectPlayerControls();
+}
+
+void MainWindow::connectPlayerControls() {
+    QPushButton* playBtn = ui->btm_Play;
+
+    connect(playBtn, &QPushButton::clicked, projectModel, &ProjectModel::togglePlay);
+
+    connect(projectModel, &ProjectModel::isPlayingChanged, this, [playBtn](bool playing) {
+        QString iconPath = playing ? ":/image/stop.png" : ":/image/play.png";
+        playBtn->setIcon(QIcon(iconPath));
+    });
+}
+
+void MainWindow::connectDrawingTools() {
+    connect(ui->btn_Pen,        &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Brush); });
+    connect(ui->btn_Dithering,  &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Dithering); });
+    connect(ui->btn_Line,       &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
+    connect(ui->btn_Rectangle,  &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Rectangle); });
+    connect(ui->btn_Circle,     &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Circle); });
+    connect(ui->btn_Fill,       &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
     connect(ui->btn_BrokenLine, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::BrokenLine); });
-    connect(ui->btn_Text, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
-    connect(ui->btn_Pan, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pan); });
-    connect(ui->btn_Rotate, &QPushButton::clicked, this, [this](){ ui->canvasWidget->rotateFloatingImage(); });
+    connect(ui->btn_Text,       &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
+    connect(ui->btn_Pan,        &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pan); });
+    connect(ui->btn_Select,     &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Select); });
 
-    connect(ui->btn_Copy, &QPushButton::clicked, this, [this](){ ui->canvasWidget->copyLayer(); });
-    connect(ui->btn_Cut, &QPushButton::clicked, this, [this](){ ui->canvasWidget->cutLayer(); });
-    connect(ui->btn_Paste, &QPushButton::clicked, this, [this](){ ui->canvasWidget->pasteToLayer(); });
-    connect(ui->btn_Select, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Select); });
-    connect(ui->pushButton_30, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::deleteCurrentFrame);
-    connect(ui->pushButton_31, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::deleteCurrentLayer);
+    connect(ui->spin_BrushSize, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::on_spin_brushSize_valueChanged);
 }
 
-//деструктор
-MainWindow::~MainWindow()
-{
-    delete ui;
-    delete scene;
+// ==========================================
+// 3. Logic methods and handlers
+// ==========================================
+
+void MainWindow::rebuildLayersList() {
+    QListWidget* layersList = ui->layersListWidget;
+
+    const QSignalBlocker blocker(layersList);
+
+    layersList->clear();
+
+    const int count = projectModel->getLayerCount();
+
+    for (int i = 0; i < count; ++i) {
+        QListWidgetItem *item = new QListWidgetItem(QString::number(i));
+
+        QImage thumb = projectModel->getLayerThumbnail(i);
+        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+
+        layersList->addItem(item);
+    }
+
+    layersList->setCurrentRow(projectModel->getCurrentLayerIndex());
 }
 
-void MainWindow::createProject(){
-    openFrameCreateProject();
-    //...
-}
-
-
-
-void MainWindow::saveProject()
-{
-    QString path = QFileDialog::getSaveFileName(
-        this,
-        "Save project",
+void MainWindow::openProject() {
+    const QString path = QFileDialog::getOpenFileName(
+        this, "Open project",
         QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
         "Pod2D Project (*.pod2d)"
         );
 
-    if (path.isEmpty()) {
-        return;
-    }
-
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly)) {
-        return;
-    }
-
-    file.write(ui->canvasWidget->saveProjectData());
-    file.close();
-
-    QPixmap pixmap("./image/save.png");
-    ui->IsSaveLabel->setPixmap(pixmap);
-}
-
-void MainWindow::openProject()
-{
-    QString path = QFileDialog::getOpenFileName(
-        this,
-        "Open project",
-        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
-        "Pod2D Project (*.pod2d)"
-        );
-
-    if (path.isEmpty()) {
-        return;
-    }
+    if (path.isEmpty()) return;
 
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "Error", "Failed to open the file!");
         return;
     }
 
-    QByteArray data = file.readAll();
+    const QByteArray data = file.readAll();
     file.close();
 
-    if (ui->canvasWidget->loadProjectData(data)) {
-
-        int maxLayer = ui->canvasWidget->getLayerCount() - 1;
-
-        ui->listWidget->clear();
-
-        for (int i = 0; i < ui->canvasWidget->getFrameCount(); ++i) {
-            QImage thumb = ui->canvasWidget->getFrameThumbnail(i);
-            QListWidgetItem *item = new QListWidgetItem();
-            item->setIcon(QIcon(QPixmap::fromImage(thumb)));
-            item->setText(QString::number(i + 1));
-            ui->listWidget->addItem(item);
-        }
-
-        ui->listWidget->blockSignals(true);
-        ui->listWidget->setCurrentRow(ui->canvasWidget->getCurrentFrameIndex());
-        ui->listWidget->blockSignals(false);
-
+    if (projectModel->loadProjectData(data)) {
+        rebuildFramesList();
         ui->stackedWidget->setCurrentIndex(1);
+    } else {
+        QMessageBox::warning(this, "Error", "The project file is corrupted or has an invalid format!");
     }
 }
 
-void MainWindow::buttonProjects(){}
-void MainWindow::buttonExemples(){}
-void MainWindow::recentProject(){}
-void MainWindow::allLayer(){}
+void MainWindow::rebuildFramesList() {
+    QListWidget* framesList = ui->framesListWidget;
 
+    const QSignalBlocker blocker(framesList);
+    framesList->clear();
 
-void MainWindow::setCurrentLayer(){
-    //ui->canvasWidget->setCurrentLayer(index);
+    const int frameCount = projectModel->getFrameCount();
+
+    for (int i = 0; i < frameCount; ++i) {
+        QListWidgetItem *item = new QListWidgetItem(QString::number(i + 1));
+
+        QImage thumb = projectModel->getFrameThumbnail(i);
+        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+
+        framesList->addItem(item);
+    }
+
+    framesList->setCurrentRow(projectModel->getCurrentFrameIndex());
 }
 
 void MainWindow::addLayer() {
-    ui->canvasWidget->addLayer();
-
-    int newMax = ui->canvasWidget->getLayerCount() - 1;
-
+    projectModel->addLayer();
 }
 
-void MainWindow::deleteCurrentLayer() {
-    ui->canvasWidget->deleteCurrentLayer();
-
-    int newMax = ui->canvasWidget->getLayerCount() - 1;
-}
-
-
-void MainWindow::setScale(int newScale)
-{
+void MainWindow::setScale(int newScale) {
     if (newScale < 1) return;
 
     ui->canvasWidget->update();
 }
 
-void MainWindow::undo()
-{
-    ui->canvasWidget->undo();
+void MainWindow::deleteCurrentLayer() { projectModel->deleteCurrentLayer(); }
+void MainWindow::undo() { projectModel->undo(); }
+void MainWindow::redo() { projectModel->redo(); }
+void MainWindow::clear() { projectModel->clearCanvas(); }
+void MainWindow::on_spin_brushSize_valueChanged(int value) { ui->canvasWidget->setBrushSize(value); }
+
+void MainWindow::buttonCreate() {
+    ui->stackedWidget->setCurrentIndex(1);
+
 }
 
-void MainWindow::redo()
-{
-    ui->canvasWidget->redo();
+void MainWindow::buttonCancel() {
 }
 
-void MainWindow::on_chooseColorButton_clicked()
-{
-    QColor selectedColor = QColorDialog::getColor(Qt::white, this, "Обери колір");
+void MainWindow::buttonProjects() {
+    // TODO
+}
+
+void MainWindow::buttonExamples() {
+    // TODO
+}
+
+void MainWindow::recentProject() {
+    // TODO
+}
+
+void MainWindow::chooseAndSetColor() {
+    const QColor selectedColor = QColorDialog::getColor(Qt::white, this, "Choose a color");
 
     if (selectedColor.isValid()) {
-        //
+        // ui->canvasWidget->setCurrentColor(selectedColor);
     }
 }
 
-void MainWindow::on_spin_brushSize_valueChanged(int value) {
-    ui->canvasWidget->setBrushSize(value);
-}
+void MainWindow::createProject() {
+    CreateProjectDialog dialog(this);
 
-void MainWindow::buttonCreate(){
-    ui->stackedWidget->setCurrentIndex(1);
-    closeFrameCreateProject();
-}
-void MainWindow::buttonCancel(){
-    closeFrameCreateProject();
-}
-
-void MainWindow::clear() {
-    ui->canvasWidget->clearCanvas();
-}
-
-void MainWindow::printCode() {
-    bool isOptimize = ui->checkBox->checkState();
-    bool language = ui->checkBox_2->checkState();
-    bool exportAnimation = ui->checkBox_3->isChecked();
-
-    QString finalCode = ui->canvasWidget->generateExportCode(isOptimize, language, exportAnimation);
-    ui->plainTextEdit->setPlainText(finalCode);
-}
-
-void MainWindow::openFrameCreateProject()
-{
-    if (windowCreateProject != nullptr) {
-        if (windowCreateProject->isVisible())
-            return;
+    if (dialog.exec() == QDialog::Accepted) {
+        ui->stackedWidget->setCurrentIndex(1);
     }
-
-    windowCreateProject = new QWidget();
-    windowCreateProject->setWindowTitle("Create project");
-    windowCreateProject->resize(ui->frame->width() + 20, ui->frame->height() + 20);
-
-    QWidget* originalParent = ui->frame->parentWidget();
-    ui->frame->setParent(windowCreateProject);
-
-    QVBoxLayout* layout = new QVBoxLayout(windowCreateProject);
-    layout->addWidget(ui->frame);
-
-    connect(ui->pushButton_5, &QPushButton::clicked, windowCreateProject, &QWidget::close);
-
-    connect(windowCreateProject, &QWidget::destroyed, this, [=]() {
-        ui->frame->setParent(originalParent);
-        originalParent->layout()->addWidget(ui->frame);
-        windowCreateProject = nullptr;
-    });
-
-    windowCreateProject->show();
 }
 
-void MainWindow::closeFrameCreateProject()
-{
-    if (windowCreateProject != nullptr)
-        windowCreateProject->close();
-}
+void MainWindow::openExportMenu() {
+    ExportDialog dialog(projectModel, this);
 
-void MainWindow::rebuildLayersList() {
-    ui->listWidget_2->blockSignals(true);
-    ui->listWidget_2->clear();
-
-    int count = ui->canvasWidget->getLayerCount();
-    for (int i = 0; i < count; ++i) {
-        QImage thumb = ui->canvasWidget->getLayerThumbnail(i);
-        QListWidgetItem *item = new QListWidgetItem();
-        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
-
-        if (i == 0) item->setText("0");
-        else item->setText("" + QString::number(i));
-
-        ui->listWidget_2->addItem(item);
-    }
-
-    ui->listWidget_2->setCurrentRow(ui->canvasWidget->getCurrentLayerIndex());
-    ui->listWidget_2->blockSignals(false);
+    dialog.exec();
 }

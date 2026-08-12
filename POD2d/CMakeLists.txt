@@ -24,6 +24,14 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
         oledcanvas.h oledcanvas.cpp
+        projectmodel.h projectmodel.cpp
+        codegenerator.h codegenerator.cpp
+        painttools.h painttools.cpp
+        createprojectdialog.ui
+        createprojectdialog.h
+        createprojectdialog.cpp
+        exportdialog.h exportdialog.cpp exportdialog.ui
+
 
 
 
