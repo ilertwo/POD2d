@@ -1,13 +1,16 @@
-// projectmodel.h
 #ifndef PROJECTMODEL_H
 #define PROJECTMODEL_H
 
 #include <QObject>
 #include <QImage>
 #include <QList>
+#include <QRect>
+#include <QPoint>
+#include <QByteArray>
 
-enum class HandleType { None, TopLeft, TopRight, BottomLeft, BottomRight, Move };
+// TODO: У майбутньому перенеси HandleType у pixelcanvas.h,
 
+// Undo/Redo history step structure
 struct HistoryStep {
     int frameIndex;
     int layerIndex;
@@ -15,6 +18,7 @@ struct HistoryStep {
     QImage newState;
 };
 
+// Structure of a single frame (contains its own layers)
 struct Frame {
     QList<QImage> layers;
     int activeLayerIndex = 0;
@@ -25,63 +29,55 @@ class ProjectModel : public QObject {
 public:
     explicit ProjectModel(QObject *parent = nullptr);
 
-    // Управління кадрами та шарами
+    // 1. FRAME MANAGEMENT
     void addFrame();
     void deleteCurrentFrame();
+    int getFrameCount() const;
+    int getCurrentFrameIndex() const;
+    void setCurrentFrame(int index);
+
+    // 2. LAYER MANAGEMENT
     void addLayer();
     void deleteCurrentLayer();
+    int getLayerCount() const;
+    int getCurrentLayerIndex() const;
+    void setCurrentLayer(int index);
 
-    // Робота з поточним зображенням
-    QImage& activeImage();
+    // 3. DATA ACCESS (Images)
+    QImage& getActiveLayerImage();
+    const QList<QImage>& getCurrentLayers() const;
     QImage getFlattenedImage() const;
     QImage getFlattenedFrame(int index) const;
     QImage getFrameThumbnail(int index) const;
     QImage getLayerThumbnail(int index) const;
 
-    // Undo / Redo / Серіалізація
-    void saveToHistory();
+    // 4. CLIPBOARD AND EDITING
+    void setClipboardImage(const QImage &img);
+    QImage getClipboardImage() const;
+    void commitImageToCurrentLayer(const QPoint &pos, const QImage &image);
+    void clearRectOnCurrentLayer(const QRect &rect);
+    void clearCanvas();
+
+    // 5. UNDO / REDO / SERIALIZATION
+    void saveHistoryStep(const QImage &previousState);
     void undo();
     void redo();
     QByteArray saveProjectData() const;
     bool loadProjectData(const QByteArray &data);
 
-    int getCurrentFrameIndex();
-    int getFrameCount();
-    void clearCanvas();
-    void setCurrentLayer(int index);
-    int getCurrentLayerIndex();
-    void onPlayTimerTick();
-    void setCurrentFrame(int index);
-    void setCanvasImage(QImage image);
+    // 6. ANIMATION AND UI
     void togglePlay();
-    void copyLayer();
-    void cutLayer();
-    void pasteToLayer();
-    void commitImageToCurrentLayer(const QPoint &pos, const QImage &image);
-    void setClipboardImage(const QImage &img);
-    QImage getClipboardImage() const;
-    void clearRectOnCurrentLayer(const QRect &rect);
-
-    QImage& getActiveLayerImage();
-    const QList<QImage>& getCurrentLayers() const;
-    int getCurrentLayerIndex() const { return currentLayerIndex; }
-    void saveHistoryStep();
+    void onPlayTimerTick();
     void notifyImageChanged();
-
-    void initDefaultProject();
     void syncUIAfterHistoryStep();
 
-    int getLayerCount() const;
-
-    void setCanvasImage(const QImage &image);
-
 signals:
+    // Signals for updating the interface (MainWindow)
     void frameListChanged();
-    void layerListChanged();
-
     void layersListChanged();
     void layerThumbnailUpdated(int index);
     void activeLayerChanged(int index);
+    void activeFrameChanged(int index);
 
     void imageChanged(const QImage &newImage);
     void frameAdded(const QImage &thumbnail, int index);
@@ -90,42 +86,27 @@ signals:
     void frameDeleted(int deletedIndex);
 
 private:
-
+    void initDefaultProject();
     Frame createDefaultFrame() const;
 
-private:
+    // Configuration constants
     static constexpr int MAX_FRAMES = 16;
     static constexpr int MAX_LAYERS = 16;
     static constexpr int CANVAS_WIDTH = 128;
     static constexpr int CANVAS_HEIGHT = 64;
     static constexpr int PLAYBACK_SPEED_MS = 200;
 
+    // Single Source of Truth
     QList<Frame> frames;
-    QList<HistoryStep> history;
-    QList<QImage> layers;
-
     int currentFrameIndex = 0;
-    int currentLayerIndex = 0;
 
-    bool onionSkinEnabled = true;
-    QImage canvasImage;
-    QImage tempState;
+    // History and clipboard
+    QList<HistoryStep> history;
     int historyIndex = -1;
-    QRect selectionRect;
-    bool hasSelection = false;
-    QImage pastedImage;
     QImage internalClipboard;
-    QPoint lastPanPoint;
 
-    QImage floatingImage;
-    QImage originalFloatingImage;
-    bool isFloating = false;
-
-    HandleType activeHandle = HandleType::None;
-    QPoint dragStartMousePos;
-    QRect dragStartRect;
-
-    QTimer *playTimer;
+    // Animation
+    class QTimer *playTimer;
 };
 
 #endif // PROJECTMODEL_H

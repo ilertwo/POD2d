@@ -1,6 +1,6 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
-#include "oledcanvas.h"
+#include "pixelcanvas.h"
 #include "codegenerator.h"
 #include "projectmodel.h"
 #include "createprojectdialog.h"
@@ -12,6 +12,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QVBoxLayout>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -30,7 +31,6 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow() {
     delete ui;
-    delete scene;
 }
 
 // ==========================================
@@ -200,10 +200,10 @@ void MainWindow::connectEditorControls() {
     connect(ui->btn_DeleteFrame, &QPushButton::clicked, projectModel, &ProjectModel::deleteCurrentFrame);
     connect(ui->btn_DeleteLayer, &QPushButton::clicked, projectModel, &ProjectModel::deleteCurrentLayer);
 
-    connect(ui->btn_Paste,  &QPushButton::clicked, ui->canvasWidget, &OledCanvas::pasteToLayer);
-    connect(ui->btn_Copy,   &QPushButton::clicked, ui->canvasWidget, &OledCanvas::copyLayer);
-    connect(ui->btn_Cut,    &QPushButton::clicked, ui->canvasWidget, &OledCanvas::cutLayer);
-    connect(ui->btn_Rotate, &QPushButton::clicked, ui->canvasWidget, &OledCanvas::rotateFloatingImage);
+    connect(ui->btn_Paste,  &QPushButton::clicked, ui->canvasWidget, &PixelCanvas::pasteToLayer);
+    connect(ui->btn_Copy,   &QPushButton::clicked, ui->canvasWidget, &PixelCanvas::copyLayer);
+    connect(ui->btn_Cut,    &QPushButton::clicked, ui->canvasWidget, &PixelCanvas::cutLayer);
+    connect(ui->btn_Rotate, &QPushButton::clicked, ui->canvasWidget, &PixelCanvas::rotateFloatingImage);
 
     connect(ui->btn_ExportCode, &QPushButton::clicked, this, &MainWindow::openExportMenu);
 

@@ -23,7 +23,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(POD2d
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        oledcanvas.h oledcanvas.cpp
+        pixelcanvas.h pixelcanvas.cpp
         projectmodel.h projectmodel.cpp
         codegenerator.h codegenerator.cpp
         painttools.h painttools.cpp
