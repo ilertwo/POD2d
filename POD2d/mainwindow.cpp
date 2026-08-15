@@ -13,6 +13,7 @@
 #include <QDir>
 #include <QVBoxLayout>
 #include <QMessageBox>
+#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -40,6 +41,8 @@ MainWindow::~MainWindow() {
 void MainWindow::initModels() {
     projectModel = new ProjectModel(this);
     ui->canvasWidget->setModel(projectModel);
+
+    this->showMaximized();
 }
 
 void MainWindow::setupWidgets() {
@@ -357,6 +360,8 @@ void MainWindow::createProject() {
     if (dialog.exec() == QDialog::Accepted) {
         ui->stackedWidget->setCurrentIndex(1);
     }
+
+    QTimer::singleShot(50, this, [this]() { ui->canvasWidget->fitToScreen(); });
 }
 
 void MainWindow::openExportMenu() {

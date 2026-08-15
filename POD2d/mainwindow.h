@@ -9,7 +9,7 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-// Клас для роботи з UI
+// Class for working with the UI
 class MainWindow : public QMainWindow
 {
     Q_OBJECT

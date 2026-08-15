@@ -34,6 +34,7 @@ public:
     void copyLayer();
     void cutLayer();
     void pasteToLayer();
+    void fitToScreen();
 
 protected:
     // Qt Events

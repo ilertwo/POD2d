@@ -544,3 +544,20 @@ void PixelCanvas::setBrushSize(int size) {
 int PixelCanvas::getBrushSize() const {
     return brushSize;
 }
+
+void PixelCanvas::fitToScreen() {
+    double scaleX = (this->width() * 0.85) / 128.0;
+    double scaleY = (this->height() * 0.85) / 64.0;
+
+    scaleFactor = qBound(1.0, qMin(scaleX, scaleY), 40.0);
+
+    const double canvasPhysicalWidth = 128.0 * scaleFactor;
+    const double canvasPhysicalHeight = 64.0 * scaleFactor;
+
+    double offsetX = (this->width() - canvasPhysicalWidth) / 2.0;
+    double offsetY = (this->height() - canvasPhysicalHeight) / 2.0;
+
+    offset = QPointF(offsetX, offsetY);
+
+    update();
+}
