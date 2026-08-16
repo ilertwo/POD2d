@@ -14,6 +14,8 @@ ExportDialog::ExportDialog(ProjectModel *model, QWidget *parent)
 {
     ui->setupUi(this);
 
+
+    this->setWindowTitle("Export");
     Q_ASSERT_X(projectModel != nullptr, "ExportDialog", "Critical error: ProjectModel was not passed!");
 
     // CODE GENERATION

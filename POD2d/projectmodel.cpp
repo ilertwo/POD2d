@@ -246,6 +246,19 @@ QImage ProjectModel::getLayerThumbnail(int index) const {
     return result;
 }
 
+QImage ProjectModel::getCurrentLayerImage() const {
+    if (frames.isEmpty()) {
+        return QImage();
+    }
+
+    int layerIndex = getCurrentLayerIndex();
+    if (layerIndex >= 0 && layerIndex < frames[currentFrameIndex].layers.size()) {
+        return frames[currentFrameIndex].layers[layerIndex];
+    }
+
+    return QImage();
+}
+
 // ==========================================
 // 4. CLIPBOARD AND EDITING
 // ==========================================
@@ -332,6 +345,8 @@ void ProjectModel::saveHistoryStep(const QImage &previousState) {
         history.removeFirst();
         historyIndex--;
     }
+
+    emit projectModified();
 }
 
 void ProjectModel::saveStructuralHistoryStep(const QList<Frame>& oldFrames, int oldFrameIdx) {
@@ -354,6 +369,8 @@ void ProjectModel::saveStructuralHistoryStep(const QList<Frame>& oldFrames, int 
         history.removeFirst();
         historyIndex--;
     }
+
+    emit projectModified();
 }
 
 void ProjectModel::undo() {

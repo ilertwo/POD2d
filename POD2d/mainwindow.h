@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QString>
 
 class ProjectModel;
 
@@ -28,6 +29,10 @@ private slots:
     void buttonCreate();
     void buttonCancel();
 
+    // File actions
+    void saveProject();
+    void saveProjectAs();
+
     // Editor actions
     void addLayer();
     void deleteCurrentLayer();
@@ -37,8 +42,16 @@ private slots:
     void setScale(int newScale);
     void chooseAndSetColor();
     void on_spin_brushSize_valueChanged(int value);
+    void selectAll();
 
     void openExportMenu();
+
+    void setEditorUIEnabled(bool enabled);
+
+    void markProjectAsModified();
+    bool maybeSave();
+    void closeProject();
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
@@ -49,11 +62,17 @@ private:
     // Additional windows
     QWidget *windowCreateProject = nullptr;
 
+    // Current file
+    QString currentFilePath;
+    QString currentProjectName;
+    bool isProjectModified = false;
+
     // Initialization Stages (Startup)
     void initModels();
     void setupWidgets();
     void loadIcons();
     void setupConnections();
+    void setupShortcuts();
 
     void setupLayersListWidget();
     void setupFramesListWidget();

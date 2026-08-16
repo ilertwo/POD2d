@@ -14,6 +14,9 @@
 #include <QVBoxLayout>
 #include <QMessageBox>
 #include <QTimer>
+#include <QClipboard>
+#include <QGuiApplication>
+#include <QCloseEvent>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -42,7 +45,9 @@ void MainWindow::initModels() {
     projectModel = new ProjectModel(this);
     ui->canvasWidget->setModel(projectModel);
 
+    this->setWindowTitle("POD2d");
     this->showMaximized();
+    setEditorUIEnabled(false);
 }
 
 void MainWindow::setupWidgets() {
@@ -110,6 +115,7 @@ void MainWindow::setupConnections() {
     connectMenuButtons();
     connectEditorControls();
     connectDrawingTools();
+    setupShortcuts();
 }
 
 void MainWindow::connectModelToLists() {
@@ -120,20 +126,11 @@ void MainWindow::connectModelToLists() {
     connect(projectModel, &ProjectModel::imageChanged, this, [this]() {
         ui->canvasWidget->update();
     });
+    connect(projectModel, &ProjectModel::projectModified, this, &MainWindow::markProjectAsModified);
 }
 
 void MainWindow::connectFramesList() {
     QListWidget* framesList = ui->framesListWidget;
-
-    /*connect(projectModel, &ProjectModel::frameAdded, this, [framesList](const QImage &thumb, int index) {
-        QListWidgetItem *item = new QListWidgetItem(QString::number(index + 1));
-        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
-        framesList->addItem(item);
-    });
-
-    connect(projectModel, &ProjectModel::frameDeleted, this, [framesList](int deletedIndex) {
-        delete framesList->takeItem(deletedIndex);
-    });*/
 
     connect(projectModel, &ProjectModel::framesListChanged, this, &MainWindow::rebuildFramesList);
 
@@ -290,29 +287,91 @@ void MainWindow::connectDrawingTools() {
     connect(ui->spin_BrushSize, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::on_spin_brushSize_valueChanged);
 }
 
+void MainWindow::setupShortcuts() {
+    ui->act_NewFile->setShortcut(QKeySequence::New);
+    ui->act_Save->setShortcut(QKeySequence::Save);
+    ui->act_SaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
+    ui->act_OpenFile->setShortcut(QKeySequence::Open);
+    ui->act_Close->setShortcut(QKeySequence("Ctrl+W"));
+    ui->act_Exit->setShortcut(QKeySequence("Alt+F4"));
+
+    ui->act_Undo->setShortcut(QKeySequence::Undo);
+    ui->act_Redo->setShortcut(QKeySequence::Redo);
+
+    ui->act_Select->setShortcut(QKeySequence::SelectAll);
+    ui->act_Cut->setShortcut(QKeySequence::Cut);
+    ui->act_Copy->setShortcut(QKeySequence::Copy);
+    ui->act_Paste->setShortcut(QKeySequence::Paste);
+
+    ui->act_Pen->setShortcut(QKeySequence("P"));
+    ui->act_Line->setShortcut(QKeySequence("L"));
+    ui->act_Text->setShortcut(QKeySequence("T"));
+    ui->act_Fill->setShortcut(QKeySequence("F"));
+
+
+    connect(ui->act_NewFile, &QAction::triggered, this, &MainWindow::createProject);
+    connect(ui->act_Save, &QAction::triggered, this, &MainWindow::saveProject);
+    connect(ui->act_SaveAs, &QAction::triggered, this, &MainWindow::saveProjectAs);
+    connect(ui->act_OpenFile, &QAction::triggered, this, &MainWindow::openProject);
+    connect(ui->act_Close, &QAction::triggered, this, &MainWindow::closeProject);
+    connect(ui->act_Exit, &QAction::triggered, this, &QWidget::close);
+
+    connect(ui->act_Undo, &QAction::triggered, projectModel, &ProjectModel::undo);
+    connect(ui->act_Redo, &QAction::triggered, projectModel, &ProjectModel::redo);
+
+    connect(ui->act_Select, &QAction::triggered, this, &MainWindow::selectAll);
+    connect(ui->act_Cut, &QAction::triggered, ui->canvasWidget, &PixelCanvas::cutLayer);
+    connect(ui->act_Copy, &QAction::triggered, ui->canvasWidget, &PixelCanvas::copyLayer);
+    connect(ui->act_Paste, &QAction::triggered, ui->canvasWidget, &PixelCanvas::pasteToLayer);
+
+    connect(ui->act_Pen, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pen); });
+    connect(ui->act_Line, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
+    connect(ui->act_Text, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
+    connect(ui->act_Fill, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
+}
+
 // ==========================================
 // 3. Logic methods and handlers
 // ==========================================
 
-void MainWindow::rebuildLayersList() {
-    QListWidget* layersList = ui->layersListWidget;
+// Group A: File & Project Management
+// ====================================
+void MainWindow::createProject() {
+    CreateProjectDialog dialog(this);
 
-    const QSignalBlocker blocker(layersList);
+    if (dialog.exec() == QDialog::Accepted) {
 
-    layersList->clear();
+        currentFilePath.clear();
 
-    const int count = projectModel->getLayerCount();
+        currentProjectName = dialog.getProjectName();
 
-    for (int i = 0; i < count; ++i) {
-        QListWidgetItem *item = new QListWidgetItem(QString::number(i));
+        if (currentProjectName.isEmpty()) {
+            currentProjectName = "Untitled";
+        }
 
-        QImage thumb = projectModel->getLayerThumbnail(i);
-        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+        this->setWindowTitle("POD2d - " + currentProjectName);
 
-        layersList->addItem(item);
+        if (projectModel) {
+            projectModel->initDefaultProject();
+        }
+
+        ui->canvasWidget->resetToolState();
+        ui->canvasWidget->setTool(DrawTool::Brush);
+
+        rebuildFramesList();
+        rebuildLayersList();
+
+        setEditorUIEnabled(true);
+
+        ui->stackedWidget->setCurrentIndex(1);
+
+        QTimer::singleShot(50, this, [this]() {
+            ui->canvasWidget->fitToScreen();
+            ui->canvasWidget->update();
+        });
+
+        isProjectModified = false;
     }
-
-    layersList->setCurrentRow(projectModel->getCurrentLayerIndex());
 }
 
 void MainWindow::openProject() {
@@ -334,15 +393,163 @@ void MainWindow::openProject() {
     file.close();
 
     if (projectModel->loadProjectData(data)) {
+        currentFilePath = path;
+        QFileInfo fileInfo(path);
+        currentProjectName = fileInfo.baseName();
+        this->setWindowTitle("POD2d - " + currentProjectName);
+
+        ui->canvasWidget->resetToolState();
+        ui->canvasWidget->setTool(DrawTool::Brush);
+        rebuildLayersList();
+
         rebuildFramesList();
+
+        setEditorUIEnabled(true);
+
         ui->stackedWidget->setCurrentIndex(1);
 
         QTimer::singleShot(50, this, [this]() {
             ui->canvasWidget->fitToScreen();
+            ui->canvasWidget->update();
         });
+
+        isProjectModified = false;
     } else {
         QMessageBox::warning(this, "Error", "The project file is corrupted or has an invalid format!");
     }
+}
+
+void MainWindow::saveProjectAs() {
+    QString defaultFileName = currentProjectName;
+    if (defaultFileName.isEmpty()) {
+        defaultFileName = "Untitled";
+    }
+    defaultFileName += ".pod2d";
+
+    QString filePath = QFileDialog::getSaveFileName(
+        this,
+        "Save project as...",
+        defaultFileName,
+        "POD2d Project (*.pod2d);;All Files (*)"
+        );
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    currentFilePath = filePath;
+    QFileInfo fileInfo(filePath);
+    currentProjectName = fileInfo.baseName();
+
+    saveProject();
+}
+
+void MainWindow::saveProject() {
+    if (currentFilePath.isEmpty()) {
+        saveProjectAs();
+        return;
+    }
+
+    QByteArray projectData = projectModel->saveProjectData();
+
+    QFile file(currentFilePath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        QMessageBox::critical(this, "Error", "Failed to save the file. Check access permissions.");
+        return;
+    }
+
+    file.write(projectData);
+    file.close();
+
+    QFileInfo fileInfo(currentFilePath);
+    this->setWindowTitle("POD2d - " + fileInfo.fileName());
+    isProjectModified = false;
+}
+
+void MainWindow::closeProject() {
+    if (!maybeSave()) {
+        return;
+    }
+
+    ui->stackedWidget->setCurrentIndex(0);
+
+    setEditorUIEnabled(false);
+
+    currentFilePath.clear();
+    currentProjectName.clear();
+    isProjectModified = false;
+    this->setWindowTitle("POD2d");
+
+    if (projectModel) {
+        projectModel->initDefaultProject();
+
+        projectModel->notifyImageChanged();
+
+        rebuildFramesList();
+        rebuildLayersList();
+
+        ui->canvasWidget->resetToolState();
+        ui->canvasWidget->update();
+    }
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    if (maybeSave()) {
+        event->accept();
+    } else {
+        event->ignore();
+    }
+}
+
+bool MainWindow::maybeSave() {
+    if (ui->stackedWidget->currentIndex() == 0 || !isProjectModified) {
+        return true;
+    }
+
+    QMessageBox::StandardButton ret;
+    ret = QMessageBox::warning(this, "POD2d",
+                               "You have unsaved changes. Do you want to save them before exiting?",
+                               QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+
+    if (ret == QMessageBox::Save) {
+        saveProject();
+        return true;
+    } else if (ret == QMessageBox::Cancel) {
+        return false;
+    }
+
+    return true;
+}
+
+void MainWindow::markProjectAsModified() {
+    if (!isProjectModified) {
+        isProjectModified = true;
+        QString titleName = currentProjectName.isEmpty() ? "Untitled" : currentProjectName;
+        this->setWindowTitle("POD2d - " + titleName + "*");
+    }
+}
+
+// Group B: UI & State Updates
+// ====================================
+void MainWindow::rebuildLayersList() {
+    QListWidget* layersList = ui->layersListWidget;
+
+    const QSignalBlocker blocker(layersList);
+
+    layersList->clear();
+
+    const int count = projectModel->getLayerCount();
+
+    for (int i = 0; i < count; ++i) {
+        QListWidgetItem *item = new QListWidgetItem(QString::number(i));
+
+        QImage thumb = projectModel->getLayerThumbnail(i);
+        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+
+        layersList->addItem(item);
+    }
+
+    layersList->setCurrentRow(projectModel->getCurrentLayerIndex());
 }
 
 void MainWindow::rebuildFramesList() {
@@ -365,18 +572,24 @@ void MainWindow::rebuildFramesList() {
     framesList->setCurrentRow(projectModel->getCurrentFrameIndex());
 }
 
-void MainWindow::addLayer() {
-    projectModel->addLayer();
+void MainWindow::setEditorUIEnabled(bool enabled) {
+    ui->act_Save->setEnabled(enabled);
+    ui->act_SaveAs->setEnabled(enabled);
+    ui->act_Undo->setEnabled(enabled);
+    ui->act_Redo->setEnabled(enabled);
+    ui->act_Select->setEnabled(enabled);
+    ui->act_Cut->setEnabled(enabled);
+    ui->act_Copy->setEnabled(enabled);
+    ui->act_Paste->setEnabled(enabled);
+
+    ui->act_Pen->setEnabled(enabled);
+    ui->act_Line->setEnabled(enabled);
+    ui->act_Text->setEnabled(enabled);
+    ui->act_Fill->setEnabled(enabled);
 }
 
-void MainWindow::setScale(int newScale) {
-    if (newScale < 1) return;
-
-    ui->canvasWidget->update();
-}
-
-void MainWindow::deleteCurrentLayer() { projectModel->deleteCurrentLayer(); }
-
+// Group C: Editor Controls & Tools
+// ====================================
 void MainWindow::undo() {
     projectModel->undo();
     ui->canvasWidget->update();
@@ -392,8 +605,43 @@ void MainWindow::clear() {
     ui->canvasWidget->resetToolState();
 }
 
+void MainWindow::selectAll() {
+    QImage currentLayerImage = projectModel->getCurrentLayerImage();
+
+    if (currentLayerImage.isNull()) {
+        return;
+    }
+
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    clipboard->setImage(currentLayerImage);
+}
+
+void MainWindow::setScale(int newScale) {
+    if (newScale < 1) return;
+
+    ui->canvasWidget->update();
+}
+
 void MainWindow::on_spin_brushSize_valueChanged(int value) { ui->canvasWidget->setBrushSize(value); }
 
+void MainWindow::chooseAndSetColor() {
+    const QColor selectedColor = QColorDialog::getColor(Qt::white, this, "Choose a color");
+
+    if (selectedColor.isValid()) {
+        // ui->canvasWidget->setCurrentColor(selectedColor);
+    }
+}
+
+// Group D: Layer Management (Delegations to ProjectModel)
+// ====================================
+void MainWindow::addLayer() {
+    projectModel->addLayer();
+}
+
+void MainWindow::deleteCurrentLayer() { projectModel->deleteCurrentLayer(); }
+
+// Group E: Navigation & Dialogs
+// ====================================
 void MainWindow::buttonCreate() {
     ui->stackedWidget->setCurrentIndex(1);
 
@@ -412,26 +660,6 @@ void MainWindow::buttonExamples() {
 
 void MainWindow::recentProject() {
     // TODO
-}
-
-void MainWindow::chooseAndSetColor() {
-    const QColor selectedColor = QColorDialog::getColor(Qt::white, this, "Choose a color");
-
-    if (selectedColor.isValid()) {
-        // ui->canvasWidget->setCurrentColor(selectedColor);
-    }
-}
-
-void MainWindow::createProject() {
-    CreateProjectDialog dialog(this);
-
-    if (dialog.exec() == QDialog::Accepted) {
-        ui->stackedWidget->setCurrentIndex(1);
-
-        QTimer::singleShot(50, this, [this]() {
-            ui->canvasWidget->fitToScreen();
-        });
-    }
 }
 
 void MainWindow::openExportMenu() {

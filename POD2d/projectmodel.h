@@ -37,6 +37,7 @@ class ProjectModel : public QObject {
     Q_OBJECT
 public:
     explicit ProjectModel(QObject *parent = nullptr);
+    void initDefaultProject();
 
     // 1. FRAME MANAGEMENT
     void addFrame();
@@ -59,6 +60,7 @@ public:
     QImage getFlattenedFrame(int index) const;
     QImage getFrameThumbnail(int index) const;
     QImage getLayerThumbnail(int index) const;
+    QImage getCurrentLayerImage() const;
 
     // 4. CLIPBOARD AND EDITING
     void setClipboardImage(const QImage &img);
@@ -88,6 +90,7 @@ signals:
     void layerThumbnailUpdated(int index);
     void activeLayerChanged(int index);
     void activeFrameChanged(int index);
+    void projectModified();
 
     void imageChanged(const QImage &newImage);
     void frameAdded(const QImage &thumbnail, int index);
@@ -99,7 +102,6 @@ signals:
     void framesListChanged();
 
 private:
-    void initDefaultProject();
     Frame createDefaultFrame() const;
 
     // Configuration constants

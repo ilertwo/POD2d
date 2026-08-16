@@ -15,6 +15,8 @@ public:
     explicit CreateProjectDialog(QWidget *parent = nullptr);
     ~CreateProjectDialog();
 
+    QString getProjectName() const;
+
 private:
     Ui::CreateProjectDialog *ui;
 };

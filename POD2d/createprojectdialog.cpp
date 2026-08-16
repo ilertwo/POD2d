@@ -7,6 +7,8 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    this->setWindowTitle("Create project");
+
     connect(ui->btn_ConfirmCreate, &QPushButton::clicked, this, &QDialog::accept);
     connect(ui->btn_Cancel, &QPushButton::clicked, this, &QDialog::reject);
 }
@@ -14,4 +16,8 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
 CreateProjectDialog::~CreateProjectDialog()
 {
     delete ui;
+}
+
+QString CreateProjectDialog::getProjectName() const {
+    return ui->input_ProjectName->toPlainText().trimmed();
 }

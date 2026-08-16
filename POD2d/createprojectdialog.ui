@@ -107,7 +107,7 @@
      <string>Size:</string>
     </property>
    </widget>
-   <widget class="QPlainTextEdit" name="plainTextEdit_2">
+   <widget class="QPlainTextEdit" name="input_ProjectName">
     <property name="geometry">
      <rect>
       <x>80</x>
