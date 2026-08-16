@@ -50,6 +50,7 @@ void ProjectModel::addFrame() {
 
     emit frameAdded(getFlattenedImage(), currentFrameIndex);
     emit frameChanged(currentFrameIndex);
+    notifyImageChanged();
 }
 
 Frame ProjectModel::createDefaultFrame() const {
@@ -235,7 +236,6 @@ QImage ProjectModel::getLayerThumbnail(int index) const {
     return result;
 }
 
-
 // ==========================================
 // 4. CLIPBOARD AND EDITING
 // ==========================================
@@ -324,7 +324,7 @@ void ProjectModel::saveHistoryStep(const QImage &previousState) {
 }
 
 void ProjectModel::undo() {
-    if (historyIndex <= 0) return;
+    if (historyIndex < 0) return;
 
     const HistoryStep &step = history[historyIndex];
 
@@ -339,7 +339,7 @@ void ProjectModel::undo() {
 }
 
 void ProjectModel::redo() {
-    if (historyIndex >= history.size() - 1) return;
+    if (historyIndex + 1 >= history.size()) return;
 
     historyIndex++;
     const HistoryStep &step = history[historyIndex];
@@ -426,6 +426,8 @@ void ProjectModel::notifyImageChanged() {
 }
 
 void ProjectModel::syncUIAfterHistoryStep() {
+    emit forceUIFrameSelection(currentFrameIndex);
+    emit forceUILayerSelection(getCurrentLayerIndex());
     emit imageChanged(getFlattenedImage());
     emit frameChanged(currentFrameIndex);
     emit activeLayerChanged(getCurrentLayerIndex());

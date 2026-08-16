@@ -84,6 +84,8 @@ signals:
     void frameChanged(int index);
     void isPlayingChanged(bool playing);
     void frameDeleted(int deletedIndex);
+    void forceUIFrameSelection(int frameIndex);
+    void forceUILayerSelection(int layerIndex);
 
 private:
     void initDefaultProject();

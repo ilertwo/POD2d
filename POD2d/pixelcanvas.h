@@ -35,6 +35,7 @@ public:
     void cutLayer();
     void pasteToLayer();
     void fitToScreen();
+    void resetToolState();
 
 protected:
     // Qt Events

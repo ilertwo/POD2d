@@ -162,7 +162,6 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
             QColor targetColor = layerImg.pixelColor(x, y);
 
             if (targetColor != replacementColor) {
-                m_model->saveHistoryStep(tempState);
 
                 if (currentTool == DrawTool::Fill) {
                     PaintTools::floodFill(layerImg, x, y, targetColor, replacementColor);
@@ -170,6 +169,7 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
                     PaintTools::floodFillDithering(layerImg, x, y, targetColor, replacementColor);
                 }
 
+                m_model->saveHistoryStep(tempState);
                 m_model->notifyImageChanged();
                 update();
             }
@@ -179,8 +179,8 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
 
     if (currentTool == DrawTool::BrokenLine) {
         if (lastPoint.x() != -1) {
-            m_model->saveHistoryStep(tempState);
             PaintTools::drawLine(layerImg, lastPoint, startPoint, replacementColor);
+            m_model->saveHistoryStep(tempState);
         }
         lastPoint = startPoint;
         m_model->notifyImageChanged();
@@ -190,16 +190,24 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
 
     if (currentTool == DrawTool::Text) {
         bool ok;
-        QString text = QInputDialog::getText(this, "Ввід тексту", "Введіть текст:", QLineEdit::Normal, "", &ok);
+        QString text = QInputDialog::getText(this, "Text input", "Enter text:", QLineEdit::Normal, "", &ok);
 
         if (ok && !text.isEmpty()) {
-            m_model->saveHistoryStep(tempState);
-
             QPainter p(&layerImg);
+
+            p.setRenderHint(QPainter::TextAntialiasing, false);
+            p.setRenderHint(QPainter::Antialiasing, false);
+
+            QFont pixelFont("Arial", 6);
+            pixelFont.setStyleStrategy(QFont::NoAntialias);
+            pixelFont.setWeight(QFont::Light);
+
             p.setPen(replacementColor);
-            p.setFont(QFont("Arial", 6));
+            p.setFont(pixelFont);
+
             p.drawText(x, y + 6, text);
 
+            m_model->saveHistoryStep(tempState);
             m_model->notifyImageChanged();
             update();
         }
@@ -233,9 +241,10 @@ void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
         case DrawTool::Brush:
         case DrawTool::Line:
         case DrawTool::Rectangle:
+            m_model->saveHistoryStep(tempState);
+            break;
         case DrawTool::Circle:
             m_model->saveHistoryStep(tempState);
-            m_model->notifyImageChanged();
             break;
 
         default:
@@ -560,4 +569,8 @@ void PixelCanvas::fitToScreen() {
     offset = QPointF(offsetX, offsetY);
 
     update();
+}
+
+void PixelCanvas::resetToolState() {
+    lastPoint = QPoint(-1, -1);
 }

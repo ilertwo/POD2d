@@ -116,6 +116,10 @@ void MainWindow::connectModelToLists() {
     connectFramesList();
     connectLayersList();
     connectMiniCanvas();
+
+    connect(projectModel, &ProjectModel::imageChanged, this, [this]() {
+        ui->canvasWidget->update();
+    });
 }
 
 void MainWindow::connectFramesList() {
@@ -139,7 +143,22 @@ void MainWindow::connectFramesList() {
     });
 
     connect(framesList, &QListWidget::currentRowChanged, this, [this](int row) {
-        if (row >= 0) projectModel->setCurrentFrame(row);
+        if (row >= 0) {
+            projectModel->setCurrentFrame(row);
+            ui->canvasWidget->update();
+        }
+    });
+
+    connect(projectModel, &ProjectModel::forceUIFrameSelection, this, [this](int index) {
+        ui->framesListWidget->blockSignals(true);
+        ui->framesListWidget->setCurrentRow(index);
+        ui->framesListWidget->blockSignals(false);
+    });
+
+    connect(projectModel, &ProjectModel::imageChanged, this, [this](const QImage &flatImg) {
+        if (QListWidgetItem *frameItem = ui->framesListWidget->currentItem()) {
+            frameItem->setIcon(QIcon(QPixmap::fromImage(flatImg)));
+        }
     });
 }
 
@@ -163,12 +182,40 @@ void MainWindow::connectLayersList() {
         }
     });
 
-    connect(layersList, &QListWidget::currentRowChanged, projectModel, &ProjectModel::setCurrentLayer);
+    connect(layersList, &QListWidget::currentRowChanged, this, [this](int row) {
+        if (row >= 0) {
+            projectModel->setCurrentLayer(row);
+            ui->canvasWidget->update();
+        }
+    });
+
+    connect(projectModel, &ProjectModel::forceUILayerSelection, this, [this](int index) {
+        ui->layersListWidget->blockSignals(true);
+        ui->layersListWidget->setCurrentRow(index);
+        ui->layersListWidget->blockSignals(false);
+    });
+
+    connect(projectModel, &ProjectModel::imageChanged, this, [this](const QImage &/*flatImg*/) {
+        if (QListWidgetItem *layerItem = ui->layersListWidget->currentItem()) {
+            int activeIdx = projectModel->getCurrentLayerIndex();
+            QImage layerThumb = projectModel->getLayerThumbnail(activeIdx);
+
+            layerItem->setIcon(QIcon(QPixmap::fromImage(layerThumb)));
+        }
+    });
 }
 
 void MainWindow::connectMiniCanvas() {
     QListWidget* framesList = ui->framesListWidget;
     QLabel* miniCanvas = ui->miniCanvasWidget;
+
+    QImage initialImg = projectModel->getFlattenedImage();
+    QPixmap initialPixmap = QPixmap::fromImage(initialImg).scaled(
+        miniCanvas->size(),
+        Qt::KeepAspectRatio,
+        Qt::FastTransformation
+        );
+    miniCanvas->setPixmap(initialPixmap);
 
     connect(projectModel, &ProjectModel::imageChanged, this, [framesList, miniCanvas](const QImage &img) {
         if (QListWidgetItem *currentItem = framesList->currentItem()) {
@@ -180,6 +227,7 @@ void MainWindow::connectMiniCanvas() {
             Qt::KeepAspectRatio,
             Qt::FastTransformation
             );
+
         miniCanvas->setPixmap(pixmap);
     });
 }
@@ -285,6 +333,10 @@ void MainWindow::openProject() {
     if (projectModel->loadProjectData(data)) {
         rebuildFramesList();
         ui->stackedWidget->setCurrentIndex(1);
+
+        QTimer::singleShot(50, this, [this]() {
+            ui->canvasWidget->fitToScreen();
+        });
     } else {
         QMessageBox::warning(this, "Error", "The project file is corrupted or has an invalid format!");
     }
@@ -321,9 +373,22 @@ void MainWindow::setScale(int newScale) {
 }
 
 void MainWindow::deleteCurrentLayer() { projectModel->deleteCurrentLayer(); }
-void MainWindow::undo() { projectModel->undo(); }
-void MainWindow::redo() { projectModel->redo(); }
-void MainWindow::clear() { projectModel->clearCanvas(); }
+
+void MainWindow::undo() {
+    projectModel->undo();
+    ui->canvasWidget->update();
+}
+
+void MainWindow::redo() {
+    projectModel->redo();
+    ui->canvasWidget->update();
+}
+
+void MainWindow::clear() {
+    projectModel->clearCanvas();
+    ui->canvasWidget->resetToolState();
+}
+
 void MainWindow::on_spin_brushSize_valueChanged(int value) { ui->canvasWidget->setBrushSize(value); }
 
 void MainWindow::buttonCreate() {
@@ -359,9 +424,11 @@ void MainWindow::createProject() {
 
     if (dialog.exec() == QDialog::Accepted) {
         ui->stackedWidget->setCurrentIndex(1);
-    }
 
-    QTimer::singleShot(50, this, [this]() { ui->canvasWidget->fitToScreen(); });
+        QTimer::singleShot(50, this, [this]() {
+            ui->canvasWidget->fitToScreen();
+        });
+    }
 }
 
 void MainWindow::openExportMenu() {
