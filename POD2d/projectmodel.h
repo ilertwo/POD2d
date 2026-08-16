@@ -8,20 +8,29 @@
 #include <QPoint>
 #include <QByteArray>
 
-// TODO: У майбутньому перенеси HandleType у pixelcanvas.h,
 
-// Undo/Redo history step structure
-struct HistoryStep {
-    int frameIndex;
-    int layerIndex;
-    QImage previousState;
-    QImage newState;
-};
 
 // Structure of a single frame (contains its own layers)
 struct Frame {
     QList<QImage> layers;
     int activeLayerIndex = 0;
+};
+
+// Undo/Redo history step structure
+struct HistoryStep {
+    bool isStructuralChange;
+
+    // isStructuralChange = false
+    int frameIndex;
+    int layerIndex;
+    QImage previousState;
+    QImage newState;
+
+    // isStructuralChange = true
+    QList<Frame> oldFrames;
+    QList<Frame> newFrames;
+    int oldCurrentFrame;
+    int newCurrentFrame;
 };
 
 class ProjectModel : public QObject {
@@ -60,6 +69,7 @@ public:
 
     // 5. UNDO / REDO / SERIALIZATION
     void saveHistoryStep(const QImage &previousState);
+    void saveStructuralHistoryStep(const QList<Frame>& oldFrames, int oldFrameIdx);
     void undo();
     void redo();
     QByteArray saveProjectData() const;
@@ -86,6 +96,7 @@ signals:
     void frameDeleted(int deletedIndex);
     void forceUIFrameSelection(int frameIndex);
     void forceUILayerSelection(int layerIndex);
+    void framesListChanged();
 
 private:
     void initDefaultProject();

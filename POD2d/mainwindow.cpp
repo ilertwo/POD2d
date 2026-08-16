@@ -125,7 +125,7 @@ void MainWindow::connectModelToLists() {
 void MainWindow::connectFramesList() {
     QListWidget* framesList = ui->framesListWidget;
 
-    connect(projectModel, &ProjectModel::frameAdded, this, [framesList](const QImage &thumb, int index) {
+    /*connect(projectModel, &ProjectModel::frameAdded, this, [framesList](const QImage &thumb, int index) {
         QListWidgetItem *item = new QListWidgetItem(QString::number(index + 1));
         item->setIcon(QIcon(QPixmap::fromImage(thumb)));
         framesList->addItem(item);
@@ -133,7 +133,9 @@ void MainWindow::connectFramesList() {
 
     connect(projectModel, &ProjectModel::frameDeleted, this, [framesList](int deletedIndex) {
         delete framesList->takeItem(deletedIndex);
-    });
+    });*/
+
+    connect(projectModel, &ProjectModel::framesListChanged, this, &MainWindow::rebuildFramesList);
 
     connect(projectModel, &ProjectModel::frameChanged, this, [this, framesList](int index) {
         framesList->blockSignals(true);
@@ -267,7 +269,8 @@ void MainWindow::connectPlayerControls() {
     connect(playBtn, &QPushButton::clicked, projectModel, &ProjectModel::togglePlay);
 
     connect(projectModel, &ProjectModel::isPlayingChanged, this, [playBtn](bool playing) {
-        QString iconPath = playing ? ":/image/stop.png" : ":/image/play.png";
+        QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+        QString iconPath = playing ? basePath + "/image/stop.png" : basePath + "/image/play.png";
         playBtn->setIcon(QIcon(iconPath));
     });
 }

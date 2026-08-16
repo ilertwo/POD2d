@@ -39,16 +39,17 @@ void ProjectModel::initDefaultProject() {
 void ProjectModel::addFrame() {
     if (frames.size() >= MAX_FRAMES) return;
 
+    QList<Frame> backupFrames = frames;
+    int backupIndex = currentFrameIndex;
+
     frames.append(createDefaultFrame());
 
     currentFrameIndex = frames.size() - 1;
     frames[currentFrameIndex].activeLayerIndex = 0;
 
-    // TODO: Піксельний saveToHistory() тут не підходить.
-    // Щоб скасувати створення кадру, потрібно реалізувати збереження структурних змін.
-    // Тому поки що ми не зберігаємо цю дію в поточний стек історії.
+    saveStructuralHistoryStep(backupFrames, backupIndex);
 
-    emit frameAdded(getFlattenedImage(), currentFrameIndex);
+    emit framesListChanged();
     emit frameChanged(currentFrameIndex);
     notifyImageChanged();
 }
@@ -67,20 +68,23 @@ Frame ProjectModel::createDefaultFrame() const {
 void ProjectModel::deleteCurrentFrame() {
     if (frames.size() <= 1) return;
 
-    const int indexToDelete = currentFrameIndex;
+    QList<Frame> backupFrames = frames;
+    int backupIndex = currentFrameIndex;
 
+    const int indexToDelete = currentFrameIndex;
     frames.removeAt(indexToDelete);
 
     if (currentFrameIndex >= frames.size()) {
         currentFrameIndex = frames.size() - 1;
     }
 
-    frames[currentFrameIndex].activeLayerIndex = 0;
+    if (frames[currentFrameIndex].activeLayerIndex >= frames[currentFrameIndex].layers.size()) {
+        frames[currentFrameIndex].activeLayerIndex = frames[currentFrameIndex].layers.size() - 1;
+    }
 
-    // TODO: saveToHistory() тут видалено, оскільки піксельна історія не вміє
-    // відновлювати видалені кадри. Це потребує окремої логіки збереження структури проєкту.
+    saveStructuralHistoryStep(backupFrames, backupIndex);
 
-    emit frameDeleted(indexToDelete);
+    emit framesListChanged();
     emit frameChanged(currentFrameIndex);
     emit imageChanged(getFlattenedImage());
     emit layersListChanged();
@@ -119,11 +123,12 @@ int ProjectModel::getCurrentFrameIndex() const {
 // 2. LAYER MANAGEMENT
 // ==========================================
 void ProjectModel::addLayer() {
-    if (frames.isEmpty()) return;
+    if (frames.isEmpty() || frames[currentFrameIndex].layers.size() >= MAX_LAYERS) return;
+
+    QList<Frame> backupFrames = frames;
+    int backupIndex = currentFrameIndex;
 
     QList<QImage>& currentLayers = frames[currentFrameIndex].layers;
-
-    if (currentLayers.size() >= MAX_LAYERS) return;
 
     QImage newLayer(CANVAS_WIDTH, CANVAS_HEIGHT, QImage::Format_ARGB32);
     newLayer.fill(Qt::transparent);
@@ -131,7 +136,7 @@ void ProjectModel::addLayer() {
     currentLayers.append(newLayer);
     frames[currentFrameIndex].activeLayerIndex = currentLayers.size() - 1;
 
-    // TODO: Піксельна історія тут не працює. Видаляємо тимчасово saveToHistory().
+    saveStructuralHistoryStep(backupFrames, backupIndex);
 
     emit layersListChanged();
     emit activeLayerChanged(getCurrentLayerIndex());
@@ -139,17 +144,22 @@ void ProjectModel::addLayer() {
 }
 
 void ProjectModel::deleteCurrentLayer() {
+    if (frames.isEmpty() || frames[currentFrameIndex].layers.size() <= 1) return;
+
+    QList<Frame> backupFrames = frames;
+    int backupIndex = currentFrameIndex;
+
     QList<QImage>& currentLayers = frames[currentFrameIndex].layers;
 
-    if (currentLayers.size() <= 1) return;
+    int indexToDelete = frames[currentFrameIndex].activeLayerIndex;
 
-    currentLayers.removeAt(getCurrentLayerIndex());
+    currentLayers.removeAt(indexToDelete);
 
-    if (getCurrentLayerIndex() >= currentLayers.size()) {
+    if (frames[currentFrameIndex].activeLayerIndex >= currentLayers.size()) {
         frames[currentFrameIndex].activeLayerIndex = currentLayers.size() - 1;
     }
 
-    // TODO: Піксельна історія тут не працює. Видаляємо тимчасово saveToHistory().
+    saveStructuralHistoryStep(backupFrames, backupIndex);
 
     emit layersListChanged();
     emit activeLayerChanged(getCurrentLayerIndex());
@@ -308,10 +318,33 @@ void ProjectModel::saveHistoryStep(const QImage &previousState) {
     }
 
     HistoryStep step;
+    step.isStructuralChange = false;
     step.frameIndex = currentFrameIndex;
     step.layerIndex = getCurrentLayerIndex();
     step.previousState = previousState;
     step.newState = currentState;
+
+    history.append(step);
+    historyIndex++;
+
+    const int MAX_HISTORY_STEPS = 50;
+    if (history.size() > MAX_HISTORY_STEPS) {
+        history.removeFirst();
+        historyIndex--;
+    }
+}
+
+void ProjectModel::saveStructuralHistoryStep(const QList<Frame>& oldFrames, int oldFrameIdx) {
+    if (historyIndex + 1 < history.size()) {
+        history.erase(history.begin() + historyIndex + 1, history.end());
+    }
+
+    HistoryStep step;
+    step.isStructuralChange = true;
+    step.oldFrames = oldFrames;
+    step.newFrames = frames;
+    step.oldCurrentFrame = oldFrameIdx;
+    step.newCurrentFrame = currentFrameIndex;
 
     history.append(step);
     historyIndex++;
@@ -328,10 +361,14 @@ void ProjectModel::undo() {
 
     const HistoryStep &step = history[historyIndex];
 
-    frames[step.frameIndex].layers[step.layerIndex] = step.previousState;
-
-    currentFrameIndex = step.frameIndex;
-    frames[currentFrameIndex].activeLayerIndex = step.layerIndex;
+    if (step.isStructuralChange) {
+        frames = step.oldFrames;
+        currentFrameIndex = step.oldCurrentFrame;
+    } else {
+        frames[step.frameIndex].layers[step.layerIndex] = step.previousState;
+        currentFrameIndex = step.frameIndex;
+        frames[currentFrameIndex].activeLayerIndex = step.layerIndex;
+    }
 
     historyIndex--;
 
@@ -344,10 +381,14 @@ void ProjectModel::redo() {
     historyIndex++;
     const HistoryStep &step = history[historyIndex];
 
-    frames[step.frameIndex].layers[step.layerIndex] = step.newState;
-
-    currentFrameIndex = step.frameIndex;
-    frames[currentFrameIndex].activeLayerIndex = step.layerIndex;
+    if (step.isStructuralChange) {
+        frames = step.newFrames;
+        currentFrameIndex = step.newCurrentFrame;
+    } else {
+        frames[step.frameIndex].layers[step.layerIndex] = step.newState;
+        currentFrameIndex = step.frameIndex;
+        frames[currentFrameIndex].activeLayerIndex = step.layerIndex;
+    }
 
     syncUIAfterHistoryStep();
 }
@@ -426,6 +467,7 @@ void ProjectModel::notifyImageChanged() {
 }
 
 void ProjectModel::syncUIAfterHistoryStep() {
+    emit framesListChanged();
     emit forceUIFrameSelection(currentFrameIndex);
     emit forceUILayerSelection(getCurrentLayerIndex());
     emit imageChanged(getFlattenedImage());
