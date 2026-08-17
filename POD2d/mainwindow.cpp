@@ -5,6 +5,7 @@
 #include "projectmodel.h"
 #include "createprojectdialog.h"
 #include "exportdialog.h"
+#include "settingsdialog.h"
 
 #include <QFileDialog>
 #include <QStandardPaths>
@@ -17,6 +18,8 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QCloseEvent>
+#include <QDesktopServices>
+#include <QUrl>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -100,9 +103,6 @@ void MainWindow::loadIcons() {
     ui->btn_Rectangle->setIcon(QIcon(basePath + "/image/rectangle.png"));
     ui->btn_Pan->setIcon(QIcon(basePath + "/image/pan.png"));
     ui->btn_Rotate->setIcon(QIcon(basePath + "/image/rotate.png"));
-    ui->btn_MiniCanvasWidget->setIcon(QIcon(basePath + "/image/miniCanvas.png"));
-    ui->btn_FrameList->setIcon(QIcon(basePath + "/image/frame.png"));
-    ui->btn_LayerList->setIcon(QIcon(basePath + "/image/layer.png"));
     ui->btm_Play->setIcon(QIcon(basePath + "/image/play.png"));
 }
 
@@ -115,7 +115,7 @@ void MainWindow::setupConnections() {
     connectMenuButtons();
     connectEditorControls();
     connectDrawingTools();
-    setupShortcuts();
+    connectActions();
 }
 
 void MainWindow::connectModelToLists() {
@@ -243,7 +243,6 @@ void MainWindow::connectEditorControls() {
     connect(ui->btn_Undo,  &QPushButton::clicked, this, &MainWindow::undo);
     connect(ui->btn_Redo,  &QPushButton::clicked, this, &MainWindow::redo);
     connect(ui->btn_Clear, &QPushButton::clicked, this, &MainWindow::clear);
-    connect(ui->btn_SetColor, &QPushButton::clicked, this, &MainWindow::chooseAndSetColor);
 
     connect(ui->btn_AddLayer,    &QPushButton::clicked, this, &MainWindow::addLayer);
     connect(ui->btn_AddFrame,    &QPushButton::clicked, projectModel, &ProjectModel::addFrame);
@@ -287,14 +286,33 @@ void MainWindow::connectDrawingTools() {
     connect(ui->spin_BrushSize, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::on_spin_brushSize_valueChanged);
 }
 
-void MainWindow::setupShortcuts() {
+void MainWindow::connectActions() {
+    connectFileActions();
+    connectEditActions();
+    connectViewActions();
+    connectPreferencesActions();
+    connectHelpActions();
+}
+
+void MainWindow::connectFileActions() {
     ui->act_NewFile->setShortcut(QKeySequence::New);
     ui->act_Save->setShortcut(QKeySequence::Save);
     ui->act_SaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
+    ui->act_ExportCode->setShortcut(QKeySequence("Ctrl+E"));
     ui->act_OpenFile->setShortcut(QKeySequence::Open);
     ui->act_Close->setShortcut(QKeySequence("Ctrl+W"));
     ui->act_Exit->setShortcut(QKeySequence("Alt+F4"));
 
+    connect(ui->act_NewFile, &QAction::triggered, this, &MainWindow::createProject);
+    connect(ui->act_Save, &QAction::triggered, this, &MainWindow::saveProject);
+    connect(ui->act_SaveAs, &QAction::triggered, this, &MainWindow::saveProjectAs);
+    connect(ui->act_ExportCode, &QAction::triggered, this, &MainWindow::openExportMenu);
+    connect(ui->act_OpenFile, &QAction::triggered, this, &MainWindow::openProject);
+    connect(ui->act_Close, &QAction::triggered, this, &MainWindow::closeProject);
+    connect(ui->act_Exit, &QAction::triggered, this, &QWidget::close);
+}
+
+void MainWindow::connectEditActions() {
     ui->act_Undo->setShortcut(QKeySequence::Undo);
     ui->act_Redo->setShortcut(QKeySequence::Redo);
 
@@ -308,14 +326,6 @@ void MainWindow::setupShortcuts() {
     ui->act_Text->setShortcut(QKeySequence("T"));
     ui->act_Fill->setShortcut(QKeySequence("F"));
 
-
-    connect(ui->act_NewFile, &QAction::triggered, this, &MainWindow::createProject);
-    connect(ui->act_Save, &QAction::triggered, this, &MainWindow::saveProject);
-    connect(ui->act_SaveAs, &QAction::triggered, this, &MainWindow::saveProjectAs);
-    connect(ui->act_OpenFile, &QAction::triggered, this, &MainWindow::openProject);
-    connect(ui->act_Close, &QAction::triggered, this, &MainWindow::closeProject);
-    connect(ui->act_Exit, &QAction::triggered, this, &QWidget::close);
-
     connect(ui->act_Undo, &QAction::triggered, projectModel, &ProjectModel::undo);
     connect(ui->act_Redo, &QAction::triggered, projectModel, &ProjectModel::redo);
 
@@ -328,6 +338,77 @@ void MainWindow::setupShortcuts() {
     connect(ui->act_Line, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
     connect(ui->act_Text, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
     connect(ui->act_Fill, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
+}
+
+void MainWindow::connectViewActions() {
+    connect(ui->act_ViewMiniMap, &QAction::triggered, this, [this]() {
+        bool isVisible = ui->miniCanvasWidget->isVisible();
+
+        setMiniMapVisible(!isVisible);
+    });
+
+    connect(ui->act_ViewFrames, &QAction::triggered, this, [this]() {
+        bool isVisible = ui->framesListWidget->isVisible();
+        setFrameListVisible(!isVisible);
+    });
+
+    connect(ui->act_ViewLayers, &QAction::triggered, this, [this]() {
+        bool isVisible = ui->layersListWidget->isVisible();
+        setLayerListVisible(!isVisible);
+    });
+
+    connect(ui->act_ViewTools, &QAction::triggered, this, [this]() {
+        bool isVisible = ui->frm_Tools->isVisible();
+        setToolsVisible(!isVisible);
+    });
+}
+
+void MainWindow::connectPreferencesActions(){
+
+    connect(ui->act_Settings, &QAction::triggered, this, [this]() {
+        openSettings(0);
+    });
+
+    connect(ui->act_KeyBindings, &QAction::triggered, this, [this]() {
+        openSettings(1);
+    });
+
+    connect(ui->act_MouseBindings, &QAction::triggered, this, [this]() {
+        openSettings(2);
+    });
+
+    connect(ui->act_SetColor, &QAction::triggered, this, &MainWindow::chooseAndSetColor);
+}
+
+void MainWindow::connectHelpActions() {
+    connect(ui->act_HelpDocs, &QAction::triggered, this, []() {
+        QDesktopServices::openUrl(QUrl("https://github.com/ilertwo/POD2d/wiki"));
+    });
+
+    connect(ui->act_HelpBug, &QAction::triggered, this, []() {
+        QDesktopServices::openUrl(QUrl("https://github.com/ilertwo/POD2d/issues/new"));
+    });
+
+    connect(ui->act_HelpIdea, &QAction::triggered, this, []() {
+        QDesktopServices::openUrl(QUrl("https://github.com/ilertwo/POD2d/issues"));
+    });
+
+    connect(ui->act_HelpUpdates, &QAction::triggered, this, [this]() {
+        QMessageBox::information(this, "Check for Updates",
+                                 "You are using the latest version of POD2d.");// TODO:********************************************************
+    });
+
+    connect(ui->act_HelpAbout, &QAction::triggered, this, [this]() {
+        QMessageBox::about(this, "About POD2d",
+                           "<b>POD2d</b> - Pixel OLED Designer<br><br>"
+                           "Версія: 1.0.0<br>"//TODO:******************************************************************************************
+                           "Автор: Ilertwo<br><br>"
+                           "Created using C++ and Qt.");
+    });
+
+    connect(ui->act_HelpUkraine, &QAction::triggered, this, []() {
+        QDesktopServices::openUrl(QUrl("https://u24.gov.ua/"));
+    });
 }
 
 // ==========================================
@@ -529,6 +610,25 @@ void MainWindow::markProjectAsModified() {
     }
 }
 
+void MainWindow::openSettings(int tabIndex) {
+    SettingsDialog dialog(this);
+
+    dialog.setActiveTab(tabIndex);
+
+    if (dialog.exec() == QDialog::Accepted) {
+
+    }
+}
+
+void MainWindow::openKeyBindings(int tabIndex) {
+    SettingsDialog dialog(this);
+
+    dialog.setActiveTab(tabIndex);
+
+    if (dialog.exec() == QDialog::Accepted) {
+    }
+}
+
 // Group B: UI & State Updates
 // ====================================
 void MainWindow::rebuildLayersList() {
@@ -586,6 +686,46 @@ void MainWindow::setEditorUIEnabled(bool enabled) {
     ui->act_Line->setEnabled(enabled);
     ui->act_Text->setEnabled(enabled);
     ui->act_Fill->setEnabled(enabled);
+
+    ui->act_ViewMiniMap->setEnabled(enabled);
+    ui->act_ViewFrames->setEnabled(enabled);
+    ui->act_ViewLayers->setEnabled(enabled);
+    ui->act_ViewTools->setEnabled(enabled);
+}
+
+void MainWindow::setMiniMapVisible(bool visible) {
+    ui->miniCanvasFrame->setVisible(visible);
+
+    QString text = visible ? "Hide Minimap" : "Show Minimap";
+    ui->act_ViewMiniMap->setText(text);
+}
+
+void MainWindow::setFrameListVisible(bool visible) {
+    ui->framesListWidget->setVisible(visible);
+    ui->frm_AddDeleteFrame->setVisible(visible);
+
+    QString text = visible ? "Hide Frames" : "Show Frames";
+    ui->act_ViewFrames->setText(text);
+}
+
+void MainWindow::setLayerListVisible(bool visible) {
+    ui->layersListWidget->setVisible(visible);
+    ui->layersLabel->setVisible(visible);
+    ui->frm_AddDeleteLayer->setVisible(visible);
+    ui->layersPanelWidget->setVisible(visible);
+
+    QString text = visible ? "Hide Layers" : "Show Layers";
+    ui->act_ViewLayers->setText(text);
+}
+
+void MainWindow::setToolsVisible(bool visible) {
+    ui->frm_Tools->setVisible(visible);
+    ui->miniCanvasFrame->setVisible(visible);
+    ui->toolsLabel->setVisible(visible);
+
+    QString text = visible ? "Hide Tools" : "Show Tools";
+    ui->act_ViewTools->setText(text);
+    ui->act_ViewMiniMap->setEnabled(visible);
 }
 
 // Group C: Editor Controls & Tools

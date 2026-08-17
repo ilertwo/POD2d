@@ -45,6 +45,8 @@ private slots:
     void selectAll();
 
     void openExportMenu();
+    void openSettings(int tabIndex = 0);
+    void openKeyBindings(int tabIndex = 1);
 
     void setEditorUIEnabled(bool enabled);
 
@@ -52,6 +54,11 @@ private slots:
     bool maybeSave();
     void closeProject();
     void closeEvent(QCloseEvent *event) override;
+
+    void setMiniMapVisible(bool visible);
+    void setFrameListVisible(bool visible);
+    void setLayerListVisible(bool visible);
+    void setToolsVisible(bool visible);
 
 private:
     Ui::MainWindow *ui;
@@ -72,7 +79,6 @@ private:
     void setupWidgets();
     void loadIcons();
     void setupConnections();
-    void setupShortcuts();
 
     void setupLayersListWidget();
     void setupFramesListWidget();
@@ -86,6 +92,12 @@ private:
     void connectLayersList();
     void connectMiniCanvas();
     void connectPlayerControls();
+    void connectActions();
+    void connectFileActions();
+    void connectEditActions();
+    void connectViewActions();
+    void connectPreferencesActions();
+    void connectHelpActions();
 
     // Interface update
     void rebuildLayersList();

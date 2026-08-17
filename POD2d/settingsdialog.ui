@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SettingsDialog</class>
+ <widget class="QDialog" name="SettingsDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1118</width>
+    <height>576</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>1</number>
+     </property>
+     <widget class="QWidget" name="settings">
+      <attribute name="title">
+       <string>Settings</string>
+      </attribute>
+     </widget>
+     <widget class="QWidget" name="keyBindings">
+      <attribute name="title">
+       <string>Key Bindings</string>
+      </attribute>
+      <widget class="QTableWidget" name="tableWidget">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>30</y>
+         <width>971</width>
+         <height>471</height>
+        </rect>
+       </property>
+       <column>
+        <property name="text">
+         <string>Action</string>
+        </property>
+       </column>
+       <column>
+        <property name="text">
+         <string>Shortcut</string>
+        </property>
+       </column>
+      </widget>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
