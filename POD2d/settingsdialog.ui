@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>1</number>
+      <number>2</number>
      </property>
      <widget class="QWidget" name="general">
       <attribute name="title">
@@ -398,7 +398,7 @@
         <string>Variable Prefix:</string>
        </property>
       </widget>
-      <widget class="QComboBox" name="comboBox_3">
+      <widget class="QComboBox" name="cmb_Language">
        <property name="geometry">
         <rect>
          <x>270</x>
@@ -412,8 +412,13 @@
          <string>C++ (Arduino/OLED)</string>
         </property>
        </item>
+       <item>
+        <property name="text">
+         <string>Python (MicroPython)</string>
+        </property>
+       </item>
       </widget>
-      <widget class="QPlainTextEdit" name="plainTextEdit">
+      <widget class="QPlainTextEdit" name="input_VariablePrefix">
        <property name="geometry">
         <rect>
          <x>270</x>
@@ -426,7 +431,7 @@
         <string>bitmap_</string>
        </property>
       </widget>
-      <widget class="QCheckBox" name="checkBox">
+      <widget class="QCheckBox" name="chk_Progmem">
        <property name="geometry">
         <rect>
          <x>120</x>
@@ -439,7 +444,7 @@
         <string>Include PROGMEM optimization by default</string>
        </property>
       </widget>
-      <widget class="QCheckBox" name="checkBox_2">
+      <widget class="QCheckBox" name="chk_AutoCopy">
        <property name="geometry">
         <rect>
          <x>120</x>

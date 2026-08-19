@@ -1,5 +1,7 @@
 #include "codegenerator.h"
 
+#include <QSettings>
+
 QVector<uint8_t> CodeGenerator::generateRawData(const QImage &img) {
     QVector<uint8_t> data;
     // (128 / 8) * 64 = 1024
@@ -117,16 +119,20 @@ QVector<uint8_t> CodeGenerator::generateByteRleData(const QVector<uint8_t> &rawD
 }
 
 QString CodeGenerator::formatArrayCode(const QVector<uint8_t> &data, const QString &methodName, bool isCpp, int frameIndex) {
-    QString code;
+    QSettings settings("POD2d", "EditorSettings");
+    QString prefix = settings.value("export/variablePrefix", "bitmap_").toString();
+    bool useProgmem = settings.value("export/useProgmem", true).toBool();
 
+    QString code;
     code.reserve(200 + data.size() * 6);
 
-    const QString arrName = (frameIndex == -1) ? "optimized_data" : QString("frame_%1").arg(frameIndex);
+    const QString arrName = prefix + ((frameIndex == -1) ? "optimized_data" : QString("frame_%1").arg(frameIndex));
     const QString frameStr = (frameIndex == -1) ? "" : QString(" (Frame %1)").arg(frameIndex);
 
     if (isCpp) {
-        code += QString("// Method: %1%2\n// Size: %3 bytes\nconst unsigned char %4[] PROGMEM = {\n  ")
-                    .arg(methodName, frameStr, QString::number(data.size()), arrName);
+        QString progmemStr = useProgmem ? " PROGMEM" : "";
+        code += QString("// Method: %1%2\n// Size: %3 bytes\nconst unsigned char %4[]%5 = {\n  ")
+                    .arg(methodName, frameStr, QString::number(data.size()), arrName, progmemStr);
     } else {
         code += QString("# Method: %1%2\n# Size: %3 bytes\n%4 = bytearray([\n  ")
         .arg(methodName, frameStr, QString::number(data.size()), arrName);
@@ -238,11 +244,15 @@ def draw_image(frame_data):
 }
 
 QString CodeGenerator::generateExportCode(const QList<QImage>& frames, int currentFrameIndex, bool optimize, bool isCpp, bool exportAnimation) {
+    QSettings settings("POD2d", "EditorSettings");
+    QString prefix = settings.value("export/variablePrefix", "bitmap_").toString();
+    bool useProgmem = settings.value("export/useProgmem", true).toBool();
+    QString progmemStr = useProgmem ? " PROGMEM" : "";
+
     ExportMethod bestMethod = ExportMethod::Raw;
     QString methodName = "Standard RAW (Unoptimized)";
 
     QList<QVector<uint8_t>> finalFramesData;
-
     const int frameCount = exportAnimation ? frames.size() : 1;
     const int startIndex = exportAnimation ? 0 : currentFrameIndex;
     const int endIndex = exportAnimation ? frames.size() : currentFrameIndex + 1;
@@ -296,19 +306,19 @@ QString CodeGenerator::generateExportCode(const QList<QImage>& frames, int curre
 
     if (exportAnimation) {
         if (isCpp) {
-            arrayPointers = "const unsigned char* const frames[] PROGMEM = {\n  ";
-            sizesArray = "const int frame_sizes[] = {\n  ";
+            arrayPointers = QString("const unsigned char* const %1frames[]%2 = {\n  ").arg(prefix, progmemStr);
+            sizesArray = QString("const int %1frame_sizes[] = {\n  ").arg(prefix);
 
             for(int i = 0; i < frameCount; ++i) {
-                arrayPointers += QString("frame_%1%2").arg(i).arg(i == frameCount - 1 ? "" : ", ");
+                arrayPointers += QString("%1frame_%2%3").arg(prefix).arg(i).arg(i == frameCount - 1 ? "" : ", ");
                 sizesArray += QString::number(frameSizes[i]) + (i == frameCount - 1 ? "" : ", ");
             }
             arrayPointers += "\n};\n\n";
             sizesArray += "\n};\n\n";
         } else {
-            arrayPointers = "frames = [\n  ";
+            arrayPointers = QString("%1frames = [\n  ").arg(prefix);
             for(int i = 0; i < frameCount; ++i) {
-                arrayPointers += QString("frame_%1%2").arg(i).arg(i == frameCount - 1 ? "" : ", ");
+                arrayPointers += QString("%1frame_%2%3").arg(prefix).arg(i).arg(i == frameCount - 1 ? "" : ", ");
             }
             arrayPointers += "\n]\n\n";
         }
@@ -335,26 +345,26 @@ void setup() {
 void loop() {
   for(int i = 0; i < %1; i++) {
     display.clearDisplay();
-    const unsigned char* current_frame = (const unsigned char*)pgm_read_ptr(&frames[i]);
-    drawImage(current_frame, frame_sizes[i]);
+    const unsigned char* current_frame = (const unsigned char*)pgm_read_ptr(&%2frames[i]);
+    drawImage(current_frame, %2frame_sizes[i]);
     display.display();
     delay(100);
   }
 }
-)").arg(frameCount);
+)").arg(QString::number(frameCount), prefix);
         } else {
-            mainLogic = R"(
+            mainLogic = QString(R"(
 void setup() {
   Wire.begin();
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { for(;;); }
   display.clearDisplay();
-  drawImage(optimized_data, sizeof(optimized_data));
+  drawImage(%1optimized_data, sizeof(%1optimized_data));
   display.display();
 }
 
 void loop() {
 }
-)";
+)").arg(prefix);
         }
     } else {
         if (exportAnimation) {
@@ -366,14 +376,14 @@ i2c = I2C(0, scl=Pin(5), sda=Pin(4))
 display = ssd1306.SSD1306_I2C(128, 64, i2c)
 
 )";
-            mainLogic = R"(
+            mainLogic = QString(R"(
 while True:
-    for frame_data in frames:
+    for frame_data in %1frames:
         display.fill(0)
         draw_image(frame_data)
         display.show()
         time.sleep(0.1)
-)";
+)").arg(prefix);
         } else {
             includes = R"(from machine import Pin, I2C
 import ssd1306
@@ -382,11 +392,11 @@ i2c = I2C(0, scl=Pin(5), sda=Pin(4))
 display = ssd1306.SSD1306_I2C(128, 64, i2c)
 
 )";
-            mainLogic = R"(
+            mainLogic = QString(R"(
 display.fill(0)
-draw_image(optimized_data)
+draw_image(%1optimized_data)
 display.show()
-)";
+)").arg(prefix);
         }
     }
 

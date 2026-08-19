@@ -2,10 +2,13 @@
 #include "ui_exportdialog.h"
 #include "projectmodel.h"
 #include "codegenerator.h"
+
 #include <QDebug>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QStandardPaths>
+#include <QSettings>
+#include <QClipboard>
 
 ExportDialog::ExportDialog(ProjectModel *model, QWidget *parent)
     : QDialog(parent)
@@ -14,6 +17,9 @@ ExportDialog::ExportDialog(ProjectModel *model, QWidget *parent)
 {
     ui->setupUi(this);
 
+    QSettings settings("POD2d", "EditorSettings");
+    int defaultFormat = settings.value("export/defaultFormat", 0).toInt();
+    ui->cmb_Language->setCurrentIndex(defaultFormat);
 
     this->setWindowTitle("Export");
     Q_ASSERT_X(projectModel != nullptr, "ExportDialog", "Critical error: ProjectModel was not passed!");
@@ -61,9 +67,17 @@ void ExportDialog::generateCode() {
         );
 
     ui->codeOutputTextEdit->setPlainText(finalCode);
+
+    QSettings settings("POD2d", "EditorSettings");
+    if (settings.value("export/autoCopy", false).toBool()) {
+        QGuiApplication::clipboard()->setText(finalCode);
+    }
 }
 
-void ExportDialog::copyToClipboard(){}
+void ExportDialog::copyToClipboard(){
+    QString finalCode = ui->codeOutputTextEdit->toPlainText();
+    QGuiApplication::clipboard()->setText(finalCode);
+}
 
 void ExportDialog::saveProjectFile() {
     const QString path = QFileDialog::getSaveFileName(
