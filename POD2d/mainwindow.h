@@ -47,8 +47,10 @@ private slots:
     void openExportMenu();
     void openSettings(int tabIndex = 0);
     void openKeyBindings(int tabIndex = 1);
+    void applySettings();
 
     void setEditorUIEnabled(bool enabled);
+    void updateUIProportions(int projWidth, int projHeight);
 
     void markProjectAsModified();
     bool maybeSave();
@@ -70,9 +72,12 @@ private:
     QWidget *windowCreateProject = nullptr;
 
     // Current file
+    int projectWidth = 128;
+    int projectHeight = 64;
     QString currentFilePath;
     QString currentProjectName;
     bool isProjectModified = false;
+    QTimer *autoSaveTimer;
 
     // Initialization Stages (Startup)
     void initModels();
@@ -92,6 +97,7 @@ private:
     void connectLayersList();
     void connectMiniCanvas();
     void connectPlayerControls();
+    void connectAutoSaveTimer();
     void connectActions();
     void connectFileActions();
     void connectEditActions();

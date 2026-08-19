@@ -20,6 +20,7 @@
 #include <QCloseEvent>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QSettings>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -116,6 +117,7 @@ void MainWindow::setupConnections() {
     connectEditorControls();
     connectDrawingTools();
     connectActions();
+    connectAutoSaveTimer();
 }
 
 void MainWindow::connectModelToLists() {
@@ -155,8 +157,13 @@ void MainWindow::connectFramesList() {
     });
 
     connect(projectModel, &ProjectModel::imageChanged, this, [this](const QImage &flatImg) {
-        if (QListWidgetItem *frameItem = ui->framesListWidget->currentItem()) {
-            frameItem->setIcon(QIcon(QPixmap::fromImage(flatImg)));
+        if (QListWidgetItem *currentItem = ui->framesListWidget->currentItem()) {
+            if (QWidget *cellWidget = ui->framesListWidget->itemWidget(currentItem)) {
+                if (QLabel *imgLabel = cellWidget->findChild<QLabel*>("frameImage")) {
+                    QPixmap newPix = QPixmap::fromImage(flatImg).scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
+                    imgLabel->setPixmap(newPix);
+                }
+            }
         }
     });
 }
@@ -194,12 +201,12 @@ void MainWindow::connectLayersList() {
         ui->layersListWidget->blockSignals(false);
     });
 
-    connect(projectModel, &ProjectModel::imageChanged, this, [this](const QImage &/*flatImg*/) {
-        if (QListWidgetItem *layerItem = ui->layersListWidget->currentItem()) {
-            int activeIdx = projectModel->getCurrentLayerIndex();
-            QImage layerThumb = projectModel->getLayerThumbnail(activeIdx);
+    connect(projectModel, &ProjectModel::imageChanged, this, [this](const QImage &flatImg) {
+        if (QListWidgetItem *currentItem = ui->framesListWidget->currentItem()) {
 
-            layerItem->setIcon(QIcon(QPixmap::fromImage(layerThumb)));
+            QImage scaledImg = flatImg.scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
+
+            currentItem->setData(Qt::UserRole, QPixmap::fromImage(scaledImg));
         }
     });
 }
@@ -270,6 +277,18 @@ void MainWindow::connectPlayerControls() {
         playBtn->setIcon(QIcon(iconPath));
     });
 }
+
+void MainWindow::connectAutoSaveTimer() {
+    autoSaveTimer = new QTimer(this);
+    connect(autoSaveTimer, &QTimer::timeout, this, [this]() {
+        if (isProjectModified && !currentFilePath.isEmpty()) {
+            saveProject();
+        }
+    });
+
+    applySettings();
+}
+
 
 void MainWindow::connectDrawingTools() {
     connect(ui->btn_Pen,        &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Brush); });
@@ -423,8 +442,12 @@ void MainWindow::createProject() {
     if (dialog.exec() == QDialog::Accepted) {
 
         currentFilePath.clear();
+        currentFilePath = dialog.getFullFilePath();
 
         currentProjectName = dialog.getProjectName();
+
+        projectWidth = dialog.getWidth();
+        projectHeight = dialog.getHeight();
 
         if (currentProjectName.isEmpty()) {
             currentProjectName = "Untitled";
@@ -433,7 +456,11 @@ void MainWindow::createProject() {
         this->setWindowTitle("POD2d - " + currentProjectName);
 
         if (projectModel) {
-            projectModel->initDefaultProject();
+            projectModel->initDefaultProject(projectWidth, projectHeight);
+            projectModel->setCanvasSize(projectWidth, projectHeight);
+            ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
+            updateUIProportions(projectWidth, projectHeight);
+            projectModel->notifyImageChanged();
         }
 
         ui->canvasWidget->resetToolState();
@@ -478,6 +505,14 @@ void MainWindow::openProject() {
         QFileInfo fileInfo(path);
         currentProjectName = fileInfo.baseName();
         this->setWindowTitle("POD2d - " + currentProjectName);
+
+        QImage loadedImg = projectModel->getActiveLayerImage();
+        projectWidth = loadedImg.width();
+        projectHeight = loadedImg.height();
+
+        projectModel->setCanvasSize(projectWidth, projectHeight);
+        ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
+        updateUIProportions(projectWidth, projectHeight);
 
         ui->canvasWidget->resetToolState();
         ui->canvasWidget->setTool(DrawTool::Brush);
@@ -561,11 +596,7 @@ void MainWindow::closeProject() {
     isProjectModified = false;
     this->setWindowTitle("POD2d");
 
-    if (projectModel) {
-        projectModel->initDefaultProject();
-
-        projectModel->notifyImageChanged();
-
+    if (projectModel) {// DELETE*********************************************************************************
         rebuildFramesList();
         rebuildLayersList();
 
@@ -616,7 +647,7 @@ void MainWindow::openSettings(int tabIndex) {
     dialog.setActiveTab(tabIndex);
 
     if (dialog.exec() == QDialog::Accepted) {
-
+        applySettings();
     }
 }
 
@@ -627,6 +658,20 @@ void MainWindow::openKeyBindings(int tabIndex) {
 
     if (dialog.exec() == QDialog::Accepted) {
     }
+}
+
+void MainWindow::applySettings() {
+    QSettings settings("POD2d", "EditorSettings");
+    bool autoSaveEnabled = settings.value("editor/autoSave", false).toBool();
+    int intervalMinutes = settings.value("editor/autoSaveInterval", 5).toInt();
+
+    if (autoSaveEnabled) {
+        autoSaveTimer->start(intervalMinutes * 60 * 1000);
+    } else {
+        autoSaveTimer->stop();
+    }
+
+    projectModel->loadSettings();
 }
 
 // Group B: UI & State Updates
@@ -654,19 +699,51 @@ void MainWindow::rebuildLayersList() {
 
 void MainWindow::rebuildFramesList() {
     QListWidget* framesList = ui->framesListWidget;
-
     const QSignalBlocker blocker(framesList);
     framesList->clear();
 
     const int frameCount = projectModel->getFrameCount();
 
+    framesList->setSpacing(5);
+    framesList->setStyleSheet(
+        "QListWidget { outline: 0; background: transparent; }"
+        "QListWidget::item:selected { border: 2px solid #666666; border-radius: 6px; }"
+        );
+
     for (int i = 0; i < frameCount; ++i) {
-        QListWidgetItem *item = new QListWidgetItem(QString::number(i + 1));
+        QListWidgetItem *item = new QListWidgetItem();
+        item->setSizeHint(QSize(140, 100));
+        framesList->addItem(item);
+
+        QFrame *frameWidget = new QFrame();
+        frameWidget->setStyleSheet(
+            "QFrame {"
+            "   background-color: #333333;"
+            "   border-radius: 6px;"
+            "}"
+            );
+
+        QVBoxLayout *layout = new QVBoxLayout(frameWidget);
+        layout->setContentsMargins(5, 5, 5, 2);
+        layout->setSpacing(2);
+
+        QLabel *imageLabel = new QLabel();
+
+        imageLabel->setObjectName("frameImage");
 
         QImage thumb = projectModel->getFrameThumbnail(i);
-        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+        QPixmap pixmap = QPixmap::fromImage(thumb).scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
+        imageLabel->setPixmap(pixmap);
+        imageLabel->setAlignment(Qt::AlignCenter);
 
-        framesList->addItem(item);
+        QLabel *textLabel = new QLabel(QString::number(i + 1));
+        textLabel->setAlignment(Qt::AlignCenter);
+        textLabel->setStyleSheet("color: white; font-size: 10px; border: none; background: transparent;");
+
+        layout->addWidget(imageLabel);
+        layout->addWidget(textLabel);
+
+        framesList->setItemWidget(item, frameWidget);
     }
 
     framesList->setCurrentRow(projectModel->getCurrentFrameIndex());
@@ -726,6 +803,30 @@ void MainWindow::setToolsVisible(bool visible) {
     QString text = visible ? "Hide Tools" : "Show Tools";
     ui->act_ViewTools->setText(text);
     ui->act_ViewMiniMap->setEnabled(visible);
+}
+
+void MainWindow::updateUIProportions(int projWidth, int projHeight) {
+    if (projHeight == 0) return;
+
+    int baseIconHeight = 64;
+    int proportionalIconWidth = (projWidth * baseIconHeight) / projHeight;
+    QSize newIconSize(proportionalIconWidth, baseIconHeight);
+
+    //ui->framesListWidget->setIconSize(newIconSize);
+    ui->layersListWidget->setIconSize(newIconSize);
+
+    rebuildFramesList();
+    rebuildLayersList();
+
+    QImage currentImg = projectModel->getFlattenedImage();
+    if (!currentImg.isNull()) {
+        QPixmap pixmap = QPixmap::fromImage(currentImg).scaled(
+            ui->miniCanvasWidget->size(),
+            Qt::KeepAspectRatio,
+            Qt::FastTransformation
+            );
+        ui->miniCanvasWidget->setPixmap(pixmap);
+    }
 }
 
 // Group C: Editor Controls & Tools

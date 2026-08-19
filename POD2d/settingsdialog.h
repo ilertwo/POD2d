@@ -17,6 +17,9 @@ public:
 
     void setActiveTab(int index);
 
+    void loadSettings();
+    void saveSettings();
+
 private:
     Ui::SettingsDialog *ui;
 };

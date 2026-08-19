@@ -4,6 +4,7 @@
 #include <QTimer>
 #include <QtGlobal>
 #include <QIODevice>
+#include <QSettings>
 
 ProjectModel::ProjectModel(QObject *parent)
     : QObject(parent),
@@ -12,16 +13,16 @@ ProjectModel::ProjectModel(QObject *parent)
 {
     connect(playTimer, &QTimer::timeout, this, &ProjectModel::onPlayTimerTick);
 
-    initDefaultProject();
+    //initDefaultProject();
 }
 
-void ProjectModel::initDefaultProject() {
+void ProjectModel::initDefaultProject(int width, int height) {
     frames.clear();
     history.clear();
     historyIndex = -1;
 
     Frame firstFrame;
-    QImage baseLayer(128, 64, QImage::Format_ARGB32);
+    QImage baseLayer(width, height, QImage::Format_ARGB32);
     baseLayer.fill(Qt::black);
 
     firstFrame.layers.append(baseLayer);
@@ -31,6 +32,14 @@ void ProjectModel::initDefaultProject() {
 
     currentFrameIndex = 0;
     frames[currentFrameIndex].activeLayerIndex = 0;
+
+    loadSettings();
+}
+
+void ProjectModel::loadSettings() {
+    QSettings settings("POD2d", "EditorSettings");
+    int settingsHistorySteps = settings.value("editor/undoLimit", 50).toInt();
+    setMaxHistorySteps(settingsHistorySteps);
 }
 
 // ==========================================
@@ -262,6 +271,11 @@ QImage ProjectModel::getCurrentLayerImage() const {
 // ==========================================
 // 4. CLIPBOARD AND EDITING
 // ==========================================
+void ProjectModel::setCanvasSize(int width, int height) {
+    CANVAS_WIDTH = width;
+    CANVAS_HEIGHT = height;
+}
+
 void ProjectModel::setClipboardImage(const QImage &img) {
     internalClipboard = img;
 }
@@ -319,6 +333,15 @@ void ProjectModel::clearCanvas() {
 // ==========================================
 // 5. UNDO / REDO / SERIALIZATION
 // ==========================================
+void ProjectModel::setMaxHistorySteps(int limit){
+    maxHistorySteps = limit;
+
+    while (history.size() > maxHistorySteps) {
+        history.removeFirst();
+        historyIndex--;
+    }
+}
+
 void ProjectModel::saveHistoryStep(const QImage &previousState) {
     QImage currentState = getActiveLayerImage();
 
@@ -340,8 +363,7 @@ void ProjectModel::saveHistoryStep(const QImage &previousState) {
     history.append(step);
     historyIndex++;
 
-    const int MAX_HISTORY_STEPS = 50;
-    if (history.size() > MAX_HISTORY_STEPS) {
+    if (history.size() > maxHistorySteps) {
         history.removeFirst();
         historyIndex--;
     }
@@ -364,8 +386,7 @@ void ProjectModel::saveStructuralHistoryStep(const QList<Frame>& oldFrames, int 
     history.append(step);
     historyIndex++;
 
-    const int MAX_HISTORY_STEPS = 50;
-    if (history.size() > MAX_HISTORY_STEPS) {
+    if (history.size() > maxHistorySteps) {
         history.removeFirst();
         historyIndex--;
     }
@@ -434,6 +455,8 @@ bool ProjectModel::loadProjectData(const QByteArray &data) {
 
     history.clear();
     historyIndex = -1;
+
+    loadSettings();
 
     emit imageChanged(getFlattenedImage());
     emit frameChanged(currentFrameIndex);

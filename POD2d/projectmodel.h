@@ -37,7 +37,8 @@ class ProjectModel : public QObject {
     Q_OBJECT
 public:
     explicit ProjectModel(QObject *parent = nullptr);
-    void initDefaultProject();
+    void initDefaultProject(int width, int height);
+    void loadSettings();
 
     // 1. FRAME MANAGEMENT
     void addFrame();
@@ -63,6 +64,7 @@ public:
     QImage getCurrentLayerImage() const;
 
     // 4. CLIPBOARD AND EDITING
+    void setCanvasSize(int width, int height);
     void setClipboardImage(const QImage &img);
     QImage getClipboardImage() const;
     void commitImageToCurrentLayer(const QPoint &pos, const QImage &image);
@@ -70,6 +72,7 @@ public:
     void clearCanvas();
 
     // 5. UNDO / REDO / SERIALIZATION
+    void setMaxHistorySteps(int limit);
     void saveHistoryStep(const QImage &previousState);
     void saveStructuralHistoryStep(const QList<Frame>& oldFrames, int oldFrameIdx);
     void undo();
@@ -107,9 +110,11 @@ private:
     // Configuration constants
     static constexpr int MAX_FRAMES = 16;
     static constexpr int MAX_LAYERS = 16;
-    static constexpr int CANVAS_WIDTH = 128;
-    static constexpr int CANVAS_HEIGHT = 64;
     static constexpr int PLAYBACK_SPEED_MS = 200;
+
+    // Width X Height
+    int CANVAS_WIDTH = 128;
+    int CANVAS_HEIGHT = 64;
 
     // Single Source of Truth
     QList<Frame> frames;
@@ -117,6 +122,7 @@ private:
 
     // History and clipboard
     QList<HistoryStep> history;
+    int maxHistorySteps = 50;
     int historyIndex = -1;
     QImage internalClipboard;
 

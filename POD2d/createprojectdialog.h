@@ -15,7 +15,11 @@ public:
     explicit CreateProjectDialog(QWidget *parent = nullptr);
     ~CreateProjectDialog();
 
+    int getWidth() const;
+    int getHeight() const;
     QString getProjectName() const;
+    QString getFullFilePath() const;
+    void on_btn_Browse_clicked();
 
 private:
     Ui::CreateProjectDialog *ui;

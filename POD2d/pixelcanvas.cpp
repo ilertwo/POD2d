@@ -4,8 +4,6 @@
 #include <QInputDialog>
 #include <QLineEdit>
 
-constexpr int CANVAS_WIDTH = 128;
-constexpr int CANVAS_HEIGHT = 64;
 constexpr int OVERSHOOT_MARGIN = 10;
 
 PixelCanvas::PixelCanvas(QWidget *parent) : QWidget(parent) {
@@ -73,8 +71,8 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
 
     if (!m_model) return;
 
-    x = qBound(-OVERSHOOT_MARGIN, x, CANVAS_WIDTH + OVERSHOOT_MARGIN);
-    y = qBound(-OVERSHOOT_MARGIN, y, CANVAS_HEIGHT + OVERSHOOT_MARGIN);
+    x = qBound(-OVERSHOOT_MARGIN, x, canvasWidth + OVERSHOOT_MARGIN);
+    y = qBound(-OVERSHOOT_MARGIN, y, canvasHeight + OVERSHOOT_MARGIN);
     QPoint currentPoint(x, y);
 
     QColor drawColor = (event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent;
@@ -257,6 +255,7 @@ void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void PixelCanvas::paintEvent(QPaintEvent *event) {
+
     Q_UNUSED(event);
 
     QPainter painter(this);
@@ -267,7 +266,7 @@ void PixelCanvas::paintEvent(QPaintEvent *event) {
     painter.translate(offset);
     painter.scale(scaleFactor, scaleFactor);
 
-    painter.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT, Qt::black);
+    painter.fillRect(0, 0, canvasWidth, canvasHeight, Qt::black);
 
     if (m_model) {
         const QList<QImage> &currentLayers = m_model->getCurrentLayers();
@@ -290,7 +289,7 @@ void PixelCanvas::paintEvent(QPaintEvent *event) {
     painter.setOpacity(1.0);
 
     if (hasSelection && !selectionRect.isEmpty()) {
-        painter.setClipRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        painter.setClipRect(0, 0, canvasWidth, canvasHeight);
 
         if (isFloating && !floatingImage.isNull()) {
             painter.drawImage(selectionRect.topLeft(), floatingImage);
@@ -324,9 +323,9 @@ void PixelCanvas::paintEvent(QPaintEvent *event) {
         painter.setPen(gridPen);
 
         QVector<QLine> gridLines;
-        gridLines.reserve(CANVAS_WIDTH + CANVAS_HEIGHT + 2);
-        for (int i = 0; i <= CANVAS_WIDTH; ++i) gridLines.append(QLine(i, 0, i, CANVAS_HEIGHT));
-        for (int i = 0; i <= CANVAS_HEIGHT; ++i) gridLines.append(QLine(0, i, CANVAS_WIDTH, i));
+        gridLines.reserve(canvasWidth + canvasHeight + 2);
+        for (int i = 0; i <= canvasWidth; ++i) gridLines.append(QLine(i, 0, i, canvasHeight));
+        for (int i = 0; i <= canvasHeight; ++i) gridLines.append(QLine(0, i, canvasWidth, i));
 
         painter.drawLines(gridLines);
     }
@@ -398,8 +397,8 @@ void PixelCanvas::setZoom(double newScale) {
 }
 
 void PixelCanvas::clampOffset() {
-    const double currentWidth = CANVAS_WIDTH * scaleFactor;
-    const double currentHeight = CANVAS_HEIGHT * scaleFactor;
+    const double currentWidth = canvasWidth * scaleFactor;
+    const double currentHeight = canvasHeight * scaleFactor;
 
     const double marginX = currentWidth * 0.2;
     const double marginY = currentHeight * 0.2;
@@ -555,13 +554,15 @@ int PixelCanvas::getBrushSize() const {
 }
 
 void PixelCanvas::fitToScreen() {
-    double scaleX = (this->width() * 0.85) / 128.0;
-    double scaleY = (this->height() * 0.85) / 64.0;
+    double canvasWidthDouble = canvasWidth;
+    double canvasHeightDouble = canvasHeight;
+    double scaleX = (this->width() * 0.85) / canvasWidthDouble;
+    double scaleY = (this->height() * 0.85) / canvasHeightDouble;
 
     scaleFactor = qBound(1.0, qMin(scaleX, scaleY), 40.0);
 
-    const double canvasPhysicalWidth = 128.0 * scaleFactor;
-    const double canvasPhysicalHeight = 64.0 * scaleFactor;
+    const double canvasPhysicalWidth = canvasWidthDouble * scaleFactor;
+    const double canvasPhysicalHeight = canvasHeightDouble * scaleFactor;
 
     double offsetX = (this->width() - canvasPhysicalWidth) / 2.0;
     double offsetY = (this->height() - canvasPhysicalHeight) / 2.0;
@@ -573,4 +574,11 @@ void PixelCanvas::fitToScreen() {
 
 void PixelCanvas::resetToolState() {
     lastPoint = QPoint(-1, -1);
+}
+
+void PixelCanvas::setCanvasSize(int width, int height) {
+    canvasWidth = width;
+    canvasHeight = height;
+
+    update();
 }

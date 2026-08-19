@@ -26,6 +26,7 @@ public:
     void setTool(DrawTool tool);
     void setBrushSize(int size);
     void setZoom(double scale);
+    void setCanvasSize(int width, int height);
     int getBrushSize() const;
 
     // Public actions (invoked from MainWindow, for example, via menus or hotkeys)
@@ -55,6 +56,8 @@ private:
     ProjectModel *m_model = nullptr;
     DrawTool currentTool = DrawTool::Pen;
 
+    int canvasWidth = 128;
+    int canvasHeight = 64;
     int brushSize = 1;
     double scaleFactor = 5.0;
     QPointF offset;
