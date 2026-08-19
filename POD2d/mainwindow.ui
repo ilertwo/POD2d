@@ -707,7 +707,7 @@
                   <property name="frameShadow">
                    <enum>QFrame::Shadow::Raised</enum>
                   </property>
-                  <widget class="QPushButton" name="btm_Play">
+                  <widget class="QPushButton" name="btn_Play">
                    <property name="geometry">
                     <rect>
                      <x>0</x>
@@ -1004,10 +1004,6 @@
     <addaction name="act_Copy"/>
     <addaction name="act_Paste"/>
     <addaction name="separator"/>
-    <addaction name="act_Pen"/>
-    <addaction name="act_Line"/>
-    <addaction name="act_Text"/>
-    <addaction name="act_Fill"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">

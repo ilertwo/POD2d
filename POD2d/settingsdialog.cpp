@@ -2,6 +2,36 @@
 #include "ui_settingsdialog.h"
 
 #include <QSettings>
+#include <QKeySequenceEdit>
+#include <QTableWidgetItem>
+
+struct ShortcutItem {
+    QString displayName;
+    QString settingsKey;
+    QString defaultShortcut;
+};
+
+// List of all binds
+const QList<ShortcutItem> HOTKEYS = {
+    {"Pen Tool", "shortcuts/pen", "P"},
+    {"Fill Tool", "shortcuts/fill", "F"},
+    {"Line Tool", "shortcuts/line", "L"},
+    {"Undo", "shortcuts/rectangle", "R"},
+    {"Redo", "shortcuts/circle", "C"},
+    {"Text Tool", "shortcuts/text", "T"},
+    {"Dithering Tool", "shortcuts/dithering", "D"},
+    {"Broken Line Tool", "shortcuts/brokenLine", "B"},
+    {"Pan Tool", "shortcuts/pan", "Space"},
+    {"Select", "shortcuts/select", "S"},
+    {"Clear", "shortcuts/clear", "Delete"},
+    {"Add Frame", "shortcuts/addFrame", "Ctrl+N"},
+    {"Delete Frame", "shortcuts/deleteFrame", "Ctrl+Shift+D"},
+    {"Add Layer", "shortcuts/addLayer", "Ctrl+Shift+N"},
+    {"Delete Layer", "shortcuts/deleteLayer", "Ctrl+Alt+D"},
+    {"Play Animation", "shortcuts/play", "Return"}
+
+    // TODO:*********************************************************
+};
 
 SettingsDialog::SettingsDialog(QWidget *parent) :
     QDialog(parent),
@@ -12,11 +42,12 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
     this->setWindowTitle("Settings");
     loadSettings();
 
-    connect(ui->btn_OK, &QPushButton::clicked, this, &QDialog::accept);
+    connect(ui->btn_OK, &QPushButton::clicked, this, [this]() {
+        saveSettings();
+        accept();
+    });
+    connect(ui->btn_Apply, &QPushButton::clicked, this, &SettingsDialog::saveSettings);
     connect(ui->btn_Cancel, &QPushButton::clicked, this, &QDialog::reject);
-
-    connect(ui->btn_OK, &QPushButton::clicked, this, &QDialog::accept);
-    connect(ui->btn_Apply,  &QPushButton::clicked, this, &SettingsDialog::saveSettings);
 }
 
 SettingsDialog::~SettingsDialog()
@@ -47,6 +78,30 @@ void SettingsDialog::loadSettings() {
     ui->input_VariablePrefix->setPlainText(settings.value("export/variablePrefix", "bitmap_").toString());
     ui->chk_Progmem->setChecked(useProgmemEnabled);
     ui->chk_AutoCopy->setChecked(autoCopyEnabled);
+
+    ui->table_Controls->setRowCount(HOTKEYS.size());
+    ui->table_Controls->setColumnCount(2);
+
+
+    ui->table_Controls->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    ui->table_Controls->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+
+    for (int i = 0; i < HOTKEYS.size(); ++i) {
+        const auto& itemData = HOTKEYS[i];
+
+        QTableWidgetItem *nameItem = new QTableWidgetItem(itemData.displayName);
+        nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
+        ui->table_Controls->setItem(i, 0, nameItem);
+
+        QKeySequenceEdit *keyEdit = new QKeySequenceEdit(this);
+
+        QString currentKey = settings.value(itemData.settingsKey, itemData.defaultShortcut).toString();
+        keyEdit->setKeySequence(QKeySequence(currentKey));
+
+        keyEdit->setObjectName(itemData.settingsKey);
+
+        ui->table_Controls->setCellWidget(i, 1, keyEdit);
+    }
 }
 
 void SettingsDialog::saveSettings() {
@@ -63,5 +118,15 @@ void SettingsDialog::saveSettings() {
     settings.setValue("export/useProgmem", ui->chk_Progmem->isChecked());
     settings.setValue("export/autoCopy", ui->chk_AutoCopy->isChecked());
 
-    QDialog::accept();
+    for (int i = 0; i < ui->table_Controls->rowCount(); ++i) {
+        QWidget *widget = ui->table_Controls->cellWidget(i, 1);
+        QKeySequenceEdit *keyEdit = qobject_cast<QKeySequenceEdit*>(widget);
+
+        if (keyEdit) {
+            QString key = keyEdit->objectName();
+            QString sequence = keyEdit->keySequence().toString();
+
+            settings.setValue(key, sequence);
+        }
+    }
 }

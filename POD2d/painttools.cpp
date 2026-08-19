@@ -5,6 +5,9 @@
 
 void PaintTools::drawBrush(QImage &image, int centerX, int centerY, int brushSize, const QColor &color) {
     QPainter p(&image);
+
+    p.setCompositionMode(QPainter::CompositionMode_Source);
+
     p.setPen(QPen(color, brushSize, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.drawPoint(centerX, centerY);
 }

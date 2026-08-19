@@ -104,6 +104,7 @@ private:
     void connectViewActions();
     void connectPreferencesActions();
     void connectHelpActions();
+    void setupShortcuts();
 
     // Interface update
     void rebuildLayersList();

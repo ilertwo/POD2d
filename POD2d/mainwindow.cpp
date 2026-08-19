@@ -104,7 +104,7 @@ void MainWindow::loadIcons() {
     ui->btn_Rectangle->setIcon(QIcon(basePath + "/image/rectangle.png"));
     ui->btn_Pan->setIcon(QIcon(basePath + "/image/pan.png"));
     ui->btn_Rotate->setIcon(QIcon(basePath + "/image/rotate.png"));
-    ui->btm_Play->setIcon(QIcon(basePath + "/image/play.png"));
+    ui->btn_Play->setIcon(QIcon(basePath + "/image/play.png"));
 }
 
 // ==========================================
@@ -118,6 +118,8 @@ void MainWindow::setupConnections() {
     connectDrawingTools();
     connectActions();
     connectAutoSaveTimer();
+
+    setupShortcuts();
 }
 
 void MainWindow::connectModelToLists() {
@@ -267,7 +269,7 @@ void MainWindow::connectEditorControls() {
 }
 
 void MainWindow::connectPlayerControls() {
-    QPushButton* playBtn = ui->btm_Play;
+    QPushButton* playBtn = ui->btn_Play;
 
     connect(playBtn, &QPushButton::clicked, projectModel, &ProjectModel::togglePlay);
 
@@ -340,11 +342,6 @@ void MainWindow::connectEditActions() {
     ui->act_Copy->setShortcut(QKeySequence::Copy);
     ui->act_Paste->setShortcut(QKeySequence::Paste);
 
-    ui->act_Pen->setShortcut(QKeySequence("P"));
-    ui->act_Line->setShortcut(QKeySequence("L"));
-    ui->act_Text->setShortcut(QKeySequence("T"));
-    ui->act_Fill->setShortcut(QKeySequence("F"));
-
     connect(ui->act_Undo, &QAction::triggered, projectModel, &ProjectModel::undo);
     connect(ui->act_Redo, &QAction::triggered, projectModel, &ProjectModel::redo);
 
@@ -352,11 +349,6 @@ void MainWindow::connectEditActions() {
     connect(ui->act_Cut, &QAction::triggered, ui->canvasWidget, &PixelCanvas::cutLayer);
     connect(ui->act_Copy, &QAction::triggered, ui->canvasWidget, &PixelCanvas::copyLayer);
     connect(ui->act_Paste, &QAction::triggered, ui->canvasWidget, &PixelCanvas::pasteToLayer);
-
-    connect(ui->act_Pen, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pen); });
-    connect(ui->act_Line, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
-    connect(ui->act_Text, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
-    connect(ui->act_Fill, &QAction::triggered, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
 }
 
 void MainWindow::connectViewActions() {
@@ -428,6 +420,34 @@ void MainWindow::connectHelpActions() {
     connect(ui->act_HelpUkraine, &QAction::triggered, this, []() {
         QDesktopServices::openUrl(QUrl("https://u24.gov.ua/"));
     });
+}
+
+void MainWindow::setupShortcuts() {
+    QSettings settings("POD2d", "EditorSettings");
+
+    // Drawing tools
+    ui->btn_Pen->setShortcut(QKeySequence(settings.value("shortcuts/pen", "P").toString()));
+    ui->btn_Fill->setShortcut(QKeySequence(settings.value("shortcuts/fill", "F").toString()));
+    ui->btn_Line->setShortcut(QKeySequence(settings.value("shortcuts/line", "L").toString()));
+    ui->btn_Rectangle->setShortcut(QKeySequence(settings.value("shortcuts/rectangle", "R").toString()));
+    ui->btn_Circle->setShortcut(QKeySequence(settings.value("shortcuts/circle", "C").toString()));
+    ui->btn_Text->setShortcut(QKeySequence(settings.value("shortcuts/text", "T").toString()));
+    ui->btn_Dithering->setShortcut(QKeySequence(settings.value("shortcuts/dithering", "D").toString()));
+    ui->btn_BrokenLine->setShortcut(QKeySequence(settings.value("shortcuts/brokenLine", "B").toString()));
+
+    // Navigation and selection
+    ui->btn_Pan->setShortcut(QKeySequence(settings.value("shortcuts/pan", "Space").toString()));
+    ui->btn_Select->setShortcut(QKeySequence(settings.value("shortcuts/select", "S").toString()));
+    ui->btn_Clear->setShortcut(QKeySequence(settings.value("shortcuts/clear", "Delete").toString()));
+
+    // Frames and Layers
+    ui->btn_AddFrame->setShortcut(QKeySequence(settings.value("shortcuts/addFrame", "Ctrl+N").toString()));
+    ui->btn_DeleteFrame->setShortcut(QKeySequence(settings.value("shortcuts/deleteFrame", "Ctrl+Shift+D").toString()));
+    ui->btn_AddLayer->setShortcut(QKeySequence(settings.value("shortcuts/addLayer", "Ctrl+Shift+N").toString()));
+    ui->btn_DeleteLayer->setShortcut(QKeySequence(settings.value("shortcuts/deleteLayer", "Ctrl+Alt+D").toString()));
+
+    // Animation player
+    ui->btn_Play->setShortcut(QKeySequence(settings.value("shortcuts/play", "Enter").toString()));
 }
 
 // ==========================================
@@ -672,6 +692,8 @@ void MainWindow::applySettings() {
     }
 
     projectModel->loadSettings();
+
+    setupShortcuts();
 }
 
 // Group B: UI & State Updates

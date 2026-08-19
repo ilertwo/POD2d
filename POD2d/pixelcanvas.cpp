@@ -83,8 +83,10 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
 
     QImage &layerImg = m_model->getActiveLayerImage();
 
+
     switch (currentTool) {
     case DrawTool::Pen:
+        break;
     case DrawTool::Brush:
         PaintTools::drawBrush(layerImg, x, y, brushSize, drawColor);
         break;

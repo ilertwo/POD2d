@@ -504,6 +504,7 @@ void ProjectModel::onPlayTimerTick() {
 
 void ProjectModel::notifyImageChanged() {
     emit imageChanged(getFlattenedImage());
+    emit layerThumbnailUpdated(getCurrentLayerIndex());
 }
 
 void ProjectModel::syncUIAfterHistoryStep() {
