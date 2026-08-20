@@ -28,8 +28,10 @@ private slots:
     void recentProject();
     void buttonCreate();
     void buttonCancel();
+    void addRecentProject(const QString &path);
 
     // File actions
+    void loadProjectFromFile(const QString &path);
     void saveProject();
     void saveProjectAs();
 
@@ -51,6 +53,7 @@ private slots:
 
     void setEditorUIEnabled(bool enabled);
     void updateUIProportions(int projWidth, int projHeight);
+    void updateRecentProjectsUI();
 
     void markProjectAsModified();
     bool maybeSave();
@@ -98,6 +101,7 @@ private:
     void connectMiniCanvas();
     void connectPlayerControls();
     void connectAutoSaveTimer();
+    void connectRecentProjects();
     void connectActions();
     void connectFileActions();
     void connectEditActions();

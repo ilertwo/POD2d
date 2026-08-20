@@ -35,6 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupConnections();
 
     rebuildLayersList();
+    updateRecentProjectsUI();
 }
 
 MainWindow::~MainWindow() {
@@ -118,6 +119,7 @@ void MainWindow::setupConnections() {
     connectDrawingTools();
     connectActions();
     connectAutoSaveTimer();
+    connectRecentProjects();
 
     setupShortcuts();
 }
@@ -291,6 +293,13 @@ void MainWindow::connectAutoSaveTimer() {
     applySettings();
 }
 
+void MainWindow::connectRecentProjects() {
+    connect(ui->list_RecentProjects, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
+        QString filePath = item->data(Qt::UserRole).toString();
+
+        loadProjectFromFile(filePath);
+    });
+}
 
 void MainWindow::connectDrawingTools() {
     connect(ui->btn_Pen,        &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Brush); });
@@ -499,6 +508,7 @@ void MainWindow::createProject() {
         });
 
         isProjectModified = false;
+        saveProject();
     }
 }
 
@@ -509,8 +519,12 @@ void MainWindow::openProject() {
         "Pod2D Project (*.pod2d)"
         );
 
-    if (path.isEmpty()) return;
+    if (!path.isEmpty()) {
+        loadProjectFromFile(path);
+    }
+}
 
+void MainWindow::loadProjectFromFile(const QString &path) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) {
         QMessageBox::warning(this, "Error", "Failed to open the file!");
@@ -520,39 +534,40 @@ void MainWindow::openProject() {
     const QByteArray data = file.readAll();
     file.close();
 
-    if (projectModel->loadProjectData(data)) {
-        currentFilePath = path;
-        QFileInfo fileInfo(path);
-        currentProjectName = fileInfo.baseName();
-        this->setWindowTitle("POD2d - " + currentProjectName);
-
-        QImage loadedImg = projectModel->getActiveLayerImage();
-        projectWidth = loadedImg.width();
-        projectHeight = loadedImg.height();
-
-        projectModel->setCanvasSize(projectWidth, projectHeight);
-        ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
-        updateUIProportions(projectWidth, projectHeight);
-
-        ui->canvasWidget->resetToolState();
-        ui->canvasWidget->setTool(DrawTool::Brush);
-        rebuildLayersList();
-
-        rebuildFramesList();
-
-        setEditorUIEnabled(true);
-
-        ui->stackedWidget->setCurrentIndex(1);
-
-        QTimer::singleShot(50, this, [this]() {
-            ui->canvasWidget->fitToScreen();
-            ui->canvasWidget->update();
-        });
-
-        isProjectModified = false;
-    } else {
+    if (!projectModel->loadProjectData(data)) {
         QMessageBox::warning(this, "Error", "The project file is corrupted or has an invalid format!");
+        return;
     }
+
+    currentFilePath = path;
+    currentProjectName = QFileInfo(path).baseName();
+    this->setWindowTitle("POD2d - " + currentProjectName);
+
+    QImage loadedImg = projectModel->getActiveLayerImage();
+    projectWidth = loadedImg.width();
+    projectHeight = loadedImg.height();
+
+    projectModel->setCanvasSize(projectWidth, projectHeight);
+    ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
+    updateUIProportions(projectWidth, projectHeight);
+
+    ui->canvasWidget->resetToolState();
+    ui->canvasWidget->setTool(DrawTool::Brush);
+
+    rebuildLayersList();
+    rebuildFramesList();
+
+    setEditorUIEnabled(true);
+    ui->stackedWidget->setCurrentIndex(1);
+
+    QTimer::singleShot(50, this, [this]() {
+        ui->canvasWidget->fitToScreen();
+        ui->canvasWidget->update();
+    });
+
+    isProjectModified = false;
+
+    addRecentProject(path);
 }
 
 void MainWindow::saveProjectAs() {
@@ -600,6 +615,9 @@ void MainWindow::saveProject() {
     QFileInfo fileInfo(currentFilePath);
     this->setWindowTitle("POD2d - " + fileInfo.fileName());
     isProjectModified = false;
+
+
+    addRecentProject(currentFilePath);
 }
 
 void MainWindow::closeProject() {
@@ -694,6 +712,21 @@ void MainWindow::applySettings() {
     projectModel->loadSettings();
 
     setupShortcuts();
+}
+
+void MainWindow::addRecentProject(const QString &path) {
+    QSettings settings("POD2d", "EditorSettings");
+    QStringList recentFiles = settings.value("recentProjects").toStringList();
+
+    recentFiles.removeAll(path); // Видаляємо дублікати
+    recentFiles.prepend(path);   // Додаємо на самий верх
+
+    if (recentFiles.size() > 10) {
+        recentFiles.removeLast(); // Зберігаємо лише 10 останніх
+    }
+
+    settings.setValue("recentProjects", recentFiles);
+    updateRecentProjectsUI(); // Одразу оновлюємо список
 }
 
 // Group B: UI & State Updates
@@ -848,6 +881,39 @@ void MainWindow::updateUIProportions(int projWidth, int projHeight) {
             Qt::FastTransformation
             );
         ui->miniCanvasWidget->setPixmap(pixmap);
+    }
+}
+
+void MainWindow::updateRecentProjectsUI() {
+    ui->list_RecentProjects->clear();
+
+    QSettings settings("POD2d", "EditorSettings");
+    QStringList recentFiles = settings.value("recentProjects").toStringList();
+
+    for (const QString &filePath : recentFiles) {
+        QFileInfo fileInfo(filePath);
+        if (!fileInfo.exists()) continue;
+
+        QListWidgetItem *item = new QListWidgetItem(ui->list_RecentProjects);
+        item->setSizeHint(QSize(400, 55));
+
+        QWidget *rowWidget = new QWidget();
+        QVBoxLayout *layout = new QVBoxLayout(rowWidget);
+        layout->setContentsMargins(10, 5, 10, 5);
+        layout->setSpacing(2);
+
+        QLabel *nameLabel = new QLabel(fileInfo.fileName());
+        nameLabel->setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 14px; background: transparent;");
+
+        QLabel *pathLabel = new QLabel(fileInfo.absoluteFilePath());
+        pathLabel->setStyleSheet("color: #888888; font-size: 11px; background: transparent;");
+
+        layout->addWidget(nameLabel);
+        layout->addWidget(pathLabel);
+
+        ui->list_RecentProjects->setItemWidget(item, rowWidget);
+
+        item->setData(Qt::UserRole, filePath);
     }
 }
 
