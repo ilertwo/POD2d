@@ -16,10 +16,12 @@ ProjectModel::ProjectModel(QObject *parent)
     //initDefaultProject();
 }
 
-void ProjectModel::initDefaultProject(int width, int height) {
+void ProjectModel::initDefaultProject(int width, int height, bool isRGBMode) {
     frames.clear();
     history.clear();
     historyIndex = -1;
+
+    isRGB = isRGBMode;
 
     Frame firstFrame;
     QImage baseLayer(width, height, QImage::Format_ARGB32);
@@ -29,7 +31,6 @@ void ProjectModel::initDefaultProject(int width, int height) {
     firstFrame.activeLayerIndex = 0;
 
     frames.append(firstFrame);
-
     currentFrameIndex = 0;
     frames[currentFrameIndex].activeLayerIndex = 0;
 
@@ -198,6 +199,10 @@ int ProjectModel::getLayerCount() const {
 // ==========================================
 // 3. DATA ACCESS (Images)
 // ==========================================
+bool ProjectModel::getIsRGB() const {
+    return isRGB;
+}
+
 QImage& ProjectModel::getActiveLayerImage() {
     Q_ASSERT_X(!frames.isEmpty(), "getActiveLayerImage", "Critical error: frame array is empty!");
 
@@ -433,8 +438,18 @@ void ProjectModel::redo() {
 
 bool ProjectModel::loadProjectData(const QByteArray &data) {
     QDataStream stream(data);
-    QList<QList<QImage>> loadedFramesData;
 
+    QString header;
+    stream >> header;
+
+    if (header == "POD2D_V2") {
+        stream >> isRGB;
+    } else {
+        isRGB = false;
+        stream.device()->seek(0);
+    }
+
+    QList<QList<QImage>> loadedFramesData;
     stream >> loadedFramesData;
 
     if (stream.status() != QDataStream::Ok || loadedFramesData.isEmpty()) {
@@ -443,7 +458,6 @@ bool ProjectModel::loadProjectData(const QByteArray &data) {
 
     frames.clear();
     frames.reserve(loadedFramesData.size());
-
     for (const QList<QImage> &layers : loadedFramesData) {
         Frame f;
         f.layers = layers;
@@ -452,7 +466,6 @@ bool ProjectModel::loadProjectData(const QByteArray &data) {
 
     currentFrameIndex = 0;
     frames[currentFrameIndex].activeLayerIndex = frames[0].layers.size() - 1;
-
     history.clear();
     historyIndex = -1;
 
@@ -472,12 +485,14 @@ QByteArray ProjectModel::saveProjectData() const {
 
     QList<QList<QImage>> framesData;
     framesData.reserve(frames.size());
-
     for (const Frame &f : frames) {
         framesData.append(f.layers);
     }
 
+    stream << QString("POD2D_V2");
+    stream << isRGB;
     stream << framesData;
+
     return data;
 }
 

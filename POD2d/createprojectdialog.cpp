@@ -80,3 +80,7 @@ QString CreateProjectDialog::getFullFilePath() const {
 
     return QDir(currentPath).filePath(name + ".pod2d");
 }
+
+bool CreateProjectDialog::isRGBMode() const {
+    return ui->cmb_ColorMode->currentIndex() == 1;
+}

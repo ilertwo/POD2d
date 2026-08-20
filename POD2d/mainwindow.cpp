@@ -484,8 +484,10 @@ void MainWindow::createProject() {
 
         this->setWindowTitle("POD2d - " + currentProjectName);
 
+        bool isRGB = dialog.isRGBMode();
+
         if (projectModel) {
-            projectModel->initDefaultProject(projectWidth, projectHeight);
+            projectModel->initDefaultProject(projectWidth, projectHeight, isRGB);
             projectModel->setCanvasSize(projectWidth, projectHeight);
             ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
             updateUIProportions(projectWidth, projectHeight);

@@ -21,6 +21,8 @@ public:
     QString getFullFilePath() const;
     void on_btn_Browse_clicked();
 
+    bool isRGBMode() const;
+
 private:
     Ui::CreateProjectDialog *ui;
 };

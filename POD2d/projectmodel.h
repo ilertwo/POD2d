@@ -37,7 +37,7 @@ class ProjectModel : public QObject {
     Q_OBJECT
 public:
     explicit ProjectModel(QObject *parent = nullptr);
-    void initDefaultProject(int width, int height);
+    void initDefaultProject(int width, int height, bool isRGBMode = false);
     void loadSettings();
 
     // 1. FRAME MANAGEMENT
@@ -55,6 +55,7 @@ public:
     void setCurrentLayer(int index);
 
     // 3. DATA ACCESS (Images)
+    bool getIsRGB() const;
     QImage& getActiveLayerImage();
     const QList<QImage>& getCurrentLayers() const;
     QImage getFlattenedImage() const;
@@ -112,9 +113,10 @@ private:
     static constexpr int MAX_LAYERS = 16;
     static constexpr int PLAYBACK_SPEED_MS = 200;
 
-    // Width X Height
+    // Width X Height, Color mode
     int CANVAS_WIDTH = 128;
     int CANVAS_HEIGHT = 64;
+    bool isRGB = false;
 
     // Single Source of Truth
     QList<Frame> frames;
