@@ -54,6 +54,7 @@ private slots:
     void setEditorUIEnabled(bool enabled);
     void updateUIProportions(int projWidth, int projHeight);
     void updateRecentProjectsUI();
+    void updateColorIndicators();
 
     void markProjectAsModified();
     bool maybeSave();
@@ -65,6 +66,8 @@ private slots:
     void setLayerListVisible(bool visible);
     void setToolsVisible(bool visible);
 
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     Ui::MainWindow *ui;
 
@@ -74,12 +77,17 @@ private:
     // Additional windows
     QWidget *windowCreateProject = nullptr;
 
+    // Color
+    QColor currentPrimaryColor = Qt::white;
+    QColor currentSecondaryColor = Qt::black;
+
     // Current file
     int projectWidth = 128;
     int projectHeight = 64;
     QString currentFilePath;
     QString currentProjectName;
     bool isProjectModified = false;
+    QList<QColor> customPalette;
     QTimer *autoSaveTimer;
 
     // Initialization Stages (Startup)
@@ -87,6 +95,7 @@ private:
     void setupWidgets();
     void loadIcons();
     void setupConnections();
+    void setupPalette();
 
     void setupLayersListWidget();
     void setupFramesListWidget();
@@ -113,6 +122,7 @@ private:
     // Interface update
     void rebuildLayersList();
     void rebuildFramesList();
+    void rebuildPaletteGrid();
 };
 
 #endif // MAINWINDOW_H

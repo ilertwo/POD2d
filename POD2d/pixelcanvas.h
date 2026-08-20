@@ -9,7 +9,7 @@
 #include "projectmodel.h"
 
 // Enum
-enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Select, Pan, Brush, Dithering };
+enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Select, Pan, Brush, Dithering, Eraser };
 
 enum class HandleType { None, TopLeft, TopRight, BottomLeft, BottomRight, Move };
 
@@ -28,6 +28,12 @@ public:
     void setZoom(double scale);
     void setCanvasSize(int width, int height);
     int getBrushSize() const;
+
+    // Methods for setting colors
+    void setPrimaryColor(const QColor &color);
+    void setSecondaryColor(const QColor &color);
+    QColor getPrimaryColor() const;
+    QColor getSecondaryColor() const;
 
     // Public actions (invoked from MainWindow, for example, via menus or hotkeys)
     void rotateFloatingImage();
@@ -56,6 +62,8 @@ private:
     ProjectModel *m_model = nullptr;
     DrawTool currentTool = DrawTool::Pen;
 
+    QColor primaryColor = Qt::white;
+    QColor secondaryColor = Qt::black;
     int canvasWidth = 128;
     int canvasHeight = 64;
     int brushSize = 1;

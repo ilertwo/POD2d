@@ -75,10 +75,22 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     y = qBound(-OVERSHOOT_MARGIN, y, canvasHeight + OVERSHOOT_MARGIN);
     QPoint currentPoint(x, y);
 
-    QColor drawColor = (event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent;
+    QColor drawColor;
 
-    if (m_model->getCurrentLayerIndex() == 0 && drawColor == Qt::transparent) {
-        drawColor = Qt::black;
+    if (currentTool == DrawTool::Eraser) {
+        if (!m_model->getIsRGB() && m_model->getCurrentLayerIndex() == 0) {
+            drawColor = Qt::black;
+        } else {
+            drawColor = Qt::transparent;
+        }
+    } else {
+        if (event->buttons() & Qt::LeftButton) {
+            drawColor = primaryColor;
+        } else if (event->buttons() & Qt::RightButton) {
+            drawColor = secondaryColor;
+        } else {
+            return;
+        }
     }
 
     QImage &layerImg = m_model->getActiveLayerImage();
@@ -86,6 +98,8 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
 
     switch (currentTool) {
     case DrawTool::Pen:
+        break;
+    case DrawTool::Eraser:
         break;
     case DrawTool::Brush:
         PaintTools::drawBrush(layerImg, x, y, brushSize, drawColor);
@@ -155,7 +169,23 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
     isDrawing = true;
 
     QImage &layerImg = m_model->getActiveLayerImage();
-    const QColor replacementColor = (event->buttons() & Qt::LeftButton) ? Qt::white : Qt::transparent;
+
+    QColor replacementColor;
+    if (currentTool == DrawTool::Eraser) {
+        if (!m_model->getIsRGB() && m_model->getCurrentLayerIndex() == 0) {
+            replacementColor = Qt::black;
+        } else {
+            replacementColor = Qt::transparent;
+        }
+    } else {
+        if (event->buttons() & Qt::LeftButton) {
+            replacementColor = primaryColor;
+        } else if (event->buttons() & Qt::RightButton) {
+            replacementColor = secondaryColor;
+        } else {
+            return;
+        }
+    }
 
     if (currentTool == DrawTool::Fill || currentTool == DrawTool::Dithering) {
         if (x >= 0 && x < layerImg.width() && y >= 0 && y < layerImg.height()) {
@@ -238,6 +268,7 @@ void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
     else if (m_model) {
         switch (currentTool) {
         case DrawTool::Pen:
+        case DrawTool::Eraser:
         case DrawTool::Brush:
         case DrawTool::Line:
         case DrawTool::Rectangle:
@@ -446,6 +477,18 @@ void PixelCanvas::commitFloatingImage() {
     hasSelection = false;
     update();
 }
+
+void PixelCanvas::setPrimaryColor(const QColor &color) {
+    primaryColor = color;
+}
+
+void PixelCanvas::setSecondaryColor(const QColor &color) {
+    secondaryColor = color;
+}
+
+QColor PixelCanvas::getPrimaryColor() const { return primaryColor; }
+
+QColor PixelCanvas::getSecondaryColor() const { return secondaryColor; }
 
 void PixelCanvas::rotateFloatingImage() {
     if (!isFloating) return;
