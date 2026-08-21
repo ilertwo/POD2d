@@ -100,7 +100,6 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     case DrawTool::Pen:
         break;
     case DrawTool::Eraser:
-        break;
     case DrawTool::Brush:
         PaintTools::drawBrush(layerImg, x, y, brushSize, drawColor);
         break;

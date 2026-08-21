@@ -125,6 +125,8 @@ void MainWindow::setupPalette() {
         updateColorIndicators();
     });
 
+    ui->slider_Opacity->setValue(255);
+
     rebuildPaletteGrid();
 }
 
@@ -394,6 +396,8 @@ void MainWindow::connectEditActions() {
     ui->act_Copy->setShortcut(QKeySequence::Copy);
     ui->act_Paste->setShortcut(QKeySequence::Paste);
 
+    ui->act_Clear->setShortcut(QKeySequence("Delete"));
+
     connect(ui->act_Undo, &QAction::triggered, projectModel, &ProjectModel::undo);
     connect(ui->act_Redo, &QAction::triggered, projectModel, &ProjectModel::redo);
 
@@ -401,6 +405,8 @@ void MainWindow::connectEditActions() {
     connect(ui->act_Cut, &QAction::triggered, ui->canvasWidget, &PixelCanvas::cutLayer);
     connect(ui->act_Copy, &QAction::triggered, ui->canvasWidget, &PixelCanvas::copyLayer);
     connect(ui->act_Paste, &QAction::triggered, ui->canvasWidget, &PixelCanvas::pasteToLayer);
+
+    connect(ui->act_Paste, &QAction::triggered, this, &MainWindow::clear);
 }
 
 void MainWindow::connectViewActions() {

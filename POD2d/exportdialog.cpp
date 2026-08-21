@@ -24,6 +24,11 @@ ExportDialog::ExportDialog(ProjectModel *model, QWidget *parent)
     this->setWindowTitle("Export");
     Q_ASSERT_X(projectModel != nullptr, "ExportDialog", "Critical error: ProjectModel was not passed!");
 
+    if (projectModel->getIsRGB()) {
+        ui->chk_Optimize->setEnabled(false);
+        ui->chk_Optimize->setToolTip("Optimization is currently supported only for Monochrome projects.");
+    }
+
     // CODE GENERATION
     connect(ui->btn_Generate, &QPushButton::clicked, this, &ExportDialog::generateCode);
     connect(ui->btn_CopyCode, &QPushButton::clicked, this, &ExportDialog::copyToClipboard);
@@ -47,9 +52,10 @@ void ExportDialog::generateCode() {
     bool language = (ui->cmb_Language->currentIndex() == 0);
     bool exportAnimation = ui->chk_Animation->isChecked();
 
+    bool isRGBMode = projectModel->getIsRGB();
+
     const int frameCount = projectModel->getFrameCount();
     QList<QImage> flattenedFrames;
-
     flattenedFrames.reserve(frameCount);
 
     for (int i = 0; i < frameCount; ++i) {
@@ -63,7 +69,8 @@ void ExportDialog::generateCode() {
         currentIndex,
         isOptimize,
         language,
-        exportAnimation
+        exportAnimation,
+        isRGBMode
         );
 
     ui->codeOutputTextEdit->setPlainText(finalCode);

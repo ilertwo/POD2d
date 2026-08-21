@@ -1026,6 +1026,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <addaction name="act_Copy"/>
     <addaction name="act_Paste"/>
     <addaction name="separator"/>
+    <addaction name="act_Clear"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
@@ -1230,6 +1231,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
   <action name="act_ExportCode">
    <property name="text">
     <string>Export Code...</string>
+   </property>
+  </action>
+  <action name="act_Clear">
+   <property name="text">
+    <string>Clear</string>
    </property>
   </action>
  </widget>

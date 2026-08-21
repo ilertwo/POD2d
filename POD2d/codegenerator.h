@@ -5,6 +5,7 @@
 #include <QVector>
 #include <QImage>
 #include <QList>
+#include <cstdint>
 
 enum class ExportMethod {
     Raw = 1,
@@ -14,7 +15,7 @@ enum class ExportMethod {
 
 class CodeGenerator {
 public:
-    static QString generateExportCode(const QList<QImage>& frames, int currentFrameIndex, bool optimize, bool isCpp, bool exportAnimation);
+    static QString generateExportCode(const QList<QImage>& frames, int currentFrameIndex, bool optimize, bool isCpp, bool exportAnimation, bool isRGB);
 
     static QVector<uint8_t> generateRawData(const QImage &img);
     static QVector<uint8_t> generateCropData(const QImage &img, int &cX, int &cY, int &cW, int &cH);
@@ -22,6 +23,10 @@ public:
     static QVector<uint8_t> generateByteRleData(const QVector<uint8_t> &rawData);
     static QString formatArrayCode(const QVector<uint8_t> &data, const QString &methodName, bool isCpp, int frameIndex = -1);
     static QString generateDrawImageCode(ExportMethod method, bool isCpp);
+
+    static QVector<uint16_t> generateRawDataRGB(const QImage &img);
+    static QString formatArrayCodeRGB(const QVector<uint16_t> &data, const QString &methodName, bool isCpp, int frameIndex = -1);
+    static QString generateDrawImageCodeRGB(bool isCpp);
 
 private:
     static constexpr int CANVAS_WIDTH = 128;
