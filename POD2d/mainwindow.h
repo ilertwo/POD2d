@@ -34,6 +34,8 @@ private slots:
     void loadProjectFromFile(const QString &path);
     void saveProject();
     void saveProjectAs();
+    void loadPalette();
+    void savePalette();
 
     // Editor actions
     void addLayer();

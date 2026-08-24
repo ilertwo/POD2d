@@ -547,7 +547,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                    <x>0</x>
                    <y>300</y>
                    <width>151</width>
-                   <height>321</height>
+                   <height>351</height>
                   </rect>
                  </property>
                  <property name="frameShape">
@@ -618,6 +618,32 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                     <y>200</y>
                     <width>131</width>
                     <height>51</height>
+                   </rect>
+                  </property>
+                  <property name="text">
+                   <string/>
+                  </property>
+                 </widget>
+                 <widget class="QPushButton" name="btn_SavePalette">
+                  <property name="geometry">
+                   <rect>
+                    <x>120</x>
+                    <y>320</y>
+                    <width>31</width>
+                    <height>29</height>
+                   </rect>
+                  </property>
+                  <property name="text">
+                   <string/>
+                  </property>
+                 </widget>
+                 <widget class="QPushButton" name="btn_LoadPalette">
+                  <property name="geometry">
+                   <rect>
+                    <x>90</x>
+                    <y>320</y>
+                    <width>31</width>
+                    <height>29</height>
                    </rect>
                   </property>
                   <property name="text">

@@ -21,6 +21,8 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QSettings>
+#include <QTextStream>
+#include <QRegularExpression>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -311,6 +313,9 @@ void MainWindow::connectEditorControls() {
     connect(ui->btn_Rotate, &QPushButton::clicked, ui->canvasWidget, &PixelCanvas::rotateFloatingImage);
 
     //connect(ui->btn_ExportCode, &QPushButton::clicked, this, &MainWindow::openExportMenu);
+
+    connect(ui->btn_LoadPalette, &QPushButton::clicked, this, &MainWindow::loadPalette);
+    connect(ui->btn_SavePalette, &QPushButton::clicked, this, &MainWindow::savePalette);
 
     connectPlayerControls();
 }
@@ -769,15 +774,87 @@ void MainWindow::addRecentProject(const QString &path) {
     QSettings settings("POD2d", "EditorSettings");
     QStringList recentFiles = settings.value("recentProjects").toStringList();
 
-    recentFiles.removeAll(path); // Видаляємо дублікати
-    recentFiles.prepend(path);   // Додаємо на самий верх
+    recentFiles.removeAll(path);
+    recentFiles.prepend(path);
 
     if (recentFiles.size() > 10) {
-        recentFiles.removeLast(); // Зберігаємо лише 10 останніх
+        recentFiles.removeLast();
     }
 
     settings.setValue("recentProjects", recentFiles);
-    updateRecentProjectsUI(); // Одразу оновлюємо список
+    updateRecentProjectsUI();
+}
+
+void MainWindow::loadPalette() {
+    QString path = QFileDialog::getOpenFileName(this, "Load Palette", "", "GIMP Palette (*.gpl);;All Files (*)");
+    if (path.isEmpty()) return;
+
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Error", "Cannot open palette file.");
+        return;
+    }
+
+    QTextStream in(&file);
+    QString header = in.readLine();
+
+    if (!header.startsWith("GIMP Palette")) {
+        QMessageBox::warning(this, "Error", "Invalid palette file format. Only .gpl is supported.");
+        return;
+    }
+
+    QList<QColor> newPalette;
+
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+
+        if (line.isEmpty() || line.startsWith("#") || line.startsWith("Name:") || line.startsWith("Columns:")) {
+            continue;
+        }
+
+        QStringList parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+
+        if (parts.size() >= 3) {
+            int r = parts[0].toInt();
+            int g = parts[1].toInt();
+            int b = parts[2].toInt();
+            newPalette.append(QColor(r, g, b));
+        }
+    }
+
+    if (!newPalette.isEmpty()) {
+        customPalette = newPalette;
+        rebuildPaletteGrid();
+    } else {
+        QMessageBox::warning(this, "Error", "No colors found in the palette file.");
+    }
+}
+
+void MainWindow::savePalette() {
+    if (customPalette.isEmpty()) return;
+
+    QString path = QFileDialog::getSaveFileName(this, "Save Palette", "my_palette.gpl", "GIMP Palette (*.gpl)");
+    if (path.isEmpty()) return;
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, "Error", "Cannot save palette file.");
+        return;
+    }
+
+    QTextStream out(&file);
+
+    out << "GIMP Palette\n";
+    out << "Name: POD2d_Custom_Palette\n";
+    out << "Columns: 4\n";
+    out << "# Exported from POD2d\n";
+
+    for (int i = 0; i < customPalette.size(); ++i) {
+        const QColor &c = customPalette[i];
+        out << c.red() << " " << c.green() << " " << c.blue() << " Color_" << i << "\n";
+    }
+
+    file.close();
 }
 
 // Group B: UI & State Updates
