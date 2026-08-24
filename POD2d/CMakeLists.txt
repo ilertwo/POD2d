@@ -32,6 +32,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         createprojectdialog.cpp
         exportdialog.h exportdialog.cpp exportdialog.ui
         settingsdialog.h settingsdialog.cpp settingsdialog.ui
+        gif.h
 
 
 

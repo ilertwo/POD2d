@@ -3,6 +3,9 @@
 #include "projectmodel.h"
 #include "codegenerator.h"
 
+#include "gif.h"
+
+#include <QPainter>
 #include <QDebug>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -10,10 +13,11 @@
 #include <QSettings>
 #include <QClipboard>
 
-ExportDialog::ExportDialog(ProjectModel *model, QWidget *parent)
+ExportDialog::ExportDialog(ProjectModel *model, const QString &projName, QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::ExportDialog),
-    projectModel(model)
+    projectModel(model),
+    projectName(projName)
 {
     ui->setupUi(this);
 
@@ -87,9 +91,11 @@ void ExportDialog::copyToClipboard(){
 }
 
 void ExportDialog::saveProjectFile() {
+    QString defaultName = projectName.isEmpty() ? "project.pod2d" : projectName + ".pod2d";
+
     const QString path = QFileDialog::getSaveFileName(
         this, "Save project",
-        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
+        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/" + defaultName,
         "Pod2D Project (*.pod2d)"
         );
 
@@ -105,7 +111,61 @@ void ExportDialog::saveProjectFile() {
     file.close();
 
     //ui->IsSaveLabel->setPixmap(QPixmap(":/image/save.png"));
+    QMessageBox::information(this, "Success", "Project exported successfully!");
 }
 
-void ExportDialog::exportToPng(){}
-void ExportDialog::exportToGif(){}
+void ExportDialog::exportToPng() {
+    QString defaultName = projectName.isEmpty() ? "frame.png" : projectName + ".png";
+
+    QString path = QFileDialog::getSaveFileName(
+        this, "Export to PNG",
+        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/" + defaultName,
+        "PNG Image (*.png)"
+        );
+
+    if (path.isEmpty()) return;
+
+    int currentIndex = projectModel->getCurrentFrameIndex();
+
+    QImage frame = projectModel->getFlattenedFrame(currentIndex);
+
+    if (frame.save(path)) {
+        QMessageBox::information(this, "Success", "Frame exported successfully!");
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to save frame.");
+    }
+}
+
+void ExportDialog::exportToGif() {
+
+    QString defaultName = projectName.isEmpty() ? "animation.gif" : projectName + ".gif";
+    QString path = QFileDialog::getSaveFileName(
+        this, "Export to GIF",
+        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + "/" + defaultName,
+        "GIF Animation (*.gif)"
+        );
+
+    if (path.isEmpty()) return;
+
+    int frameCount = projectModel->getFrameCount();
+    if (frameCount == 0) return;
+
+    QImage firstFrame = projectModel->getFlattenedFrame(0);
+    int width = firstFrame.width();
+    int height = firstFrame.height();
+
+    int delay = 10;
+
+    GifWriter g;
+    GifBegin(&g, path.toLocal8Bit().data(), width, height, delay);
+
+    for (int i = 0; i < frameCount; ++i) {
+        QImage img = projectModel->getFlattenedFrame(i).convertToFormat(QImage::Format_RGBA8888);
+
+        GifWriteFrame(&g, img.constBits(), width, height, delay);
+    }
+
+    GifEnd(&g);
+
+    QMessageBox::information(this, "Success", "Animation exported to GIF successfully!");
+}

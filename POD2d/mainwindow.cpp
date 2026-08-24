@@ -1225,7 +1225,7 @@ void MainWindow::recentProject() {
 }
 
 void MainWindow::openExportMenu() {
-    ExportDialog dialog(projectModel, this);
+    ExportDialog dialog(projectModel, currentProjectName, this);
 
     dialog.exec();
 }
