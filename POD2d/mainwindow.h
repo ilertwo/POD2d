@@ -57,6 +57,7 @@ private slots:
     void updateUIProportions(int projWidth, int projHeight);
     void updateRecentProjectsUI();
     void updateColorIndicators();
+    void applyTheme(const QString &themeName);
 
     void markProjectAsModified();
     bool maybeSave();
@@ -94,6 +95,7 @@ private:
 
     // Initialization Stages (Startup)
     void initModels();
+    void setupTheme();
     void setupWidgets();
     void loadIcons();
     void setupConnections();

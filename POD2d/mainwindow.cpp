@@ -23,6 +23,8 @@
 #include <QSettings>
 #include <QTextStream>
 #include <QRegularExpression>
+#include <QFile>
+#include <QApplication>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -32,6 +34,7 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("POD2d");
 
     initModels();
+    setupTheme();
     setupWidgets();
     loadIcons();
     setupConnections();
@@ -56,6 +59,12 @@ void MainWindow::initModels() {
     this->setWindowTitle("POD2d");
     this->showMaximized();
     setEditorUIEnabled(false);
+}
+
+void MainWindow::setupTheme() {
+    QSettings settings("POD2d", "EditorSettings");
+    QString currentTheme = settings.value("ui/theme", "dark").toString(); // dark - тема за замовчуванням
+    applyTheme(currentTheme);
 }
 
 void MainWindow::setupWidgets() {
@@ -435,6 +444,10 @@ void MainWindow::connectViewActions() {
         bool isVisible = ui->frm_Tools->isVisible();
         setToolsVisible(!isVisible);
     });
+
+    connect(ui->act_ThemeDark, &QAction::triggered, this, [this]() { applyTheme("dark"); });
+    connect(ui->act_ThemeLight, &QAction::triggered, this, [this]() { applyTheme("light"); });
+    connect(ui->act_Theme1Bit, &QAction::triggered, this, [this]() { applyTheme("1bit"); });
 }
 
 void MainWindow::connectPreferencesActions(){
@@ -1148,6 +1161,23 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         }
     }
     return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::applyTheme(const QString &themeName) {
+    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+
+    QString filePath = QString(basePath + "/themes/%1.qss").arg(themeName);
+
+    QFile file(filePath);
+    if (file.open(QFile::ReadOnly | QFile::Text)) {
+        QTextStream stream(&file);
+        QString styleSheet = stream.readAll();
+        qApp->setStyleSheet(styleSheet);
+        file.close();
+
+        QSettings settings("POD2d", "EditorSettings");
+        settings.setValue("ui/theme", themeName);
+    }
 }
 
 // Group C: Editor Controls & Tools

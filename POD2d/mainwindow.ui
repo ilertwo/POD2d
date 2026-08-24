@@ -1058,10 +1058,20 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <property name="title">
      <string>View</string>
     </property>
+    <widget class="QMenu" name="menuTheme">
+     <property name="title">
+      <string>Theme</string>
+     </property>
+     <addaction name="act_ThemeDark"/>
+     <addaction name="act_ThemeLight"/>
+     <addaction name="act_Theme1Bit"/>
+    </widget>
     <addaction name="act_ViewMiniMap"/>
     <addaction name="act_ViewFrames"/>
     <addaction name="act_ViewLayers"/>
     <addaction name="act_ViewTools"/>
+    <addaction name="separator"/>
+    <addaction name="menuTheme"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -1262,6 +1272,21 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
   <action name="act_Clear">
    <property name="text">
     <string>Clear</string>
+   </property>
+  </action>
+  <action name="act_ThemeDark">
+   <property name="text">
+    <string>Dark</string>
+   </property>
+  </action>
+  <action name="act_ThemeLight">
+   <property name="text">
+    <string>Light</string>
+   </property>
+  </action>
+  <action name="act_Theme1Bit">
+   <property name="text">
+    <string>1-bit</string>
    </property>
   </action>
  </widget>
