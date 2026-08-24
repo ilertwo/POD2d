@@ -52,6 +52,7 @@ private slots:
     void openSettings(int tabIndex = 0);
     void openKeyBindings(int tabIndex = 1);
     void applySettings();
+    void openPaletteEditor(int colorIndexToEdit = -1);
 
     void setEditorUIEnabled(bool enabled);
     void updateUIProportions(int projWidth, int projHeight);

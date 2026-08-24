@@ -47,11 +47,11 @@ int CreateProjectDialog::getHeight() const {
 }
 
 QString CreateProjectDialog::getProjectName() const {
-    return ui->input_ProjectName->toPlainText().trimmed();
+    return ui->input_ProjectName->text().trimmed();
 }
 
 void CreateProjectDialog::on_btn_Browse_clicked() {
-    QString currentPath = ui->input_Location->toPlainText().trimmed();
+    QString currentPath = ui->input_Location->text().trimmed();
 
     if (currentPath.isEmpty() || !QDir(currentPath).exists()) {
         currentPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
@@ -63,12 +63,12 @@ void CreateProjectDialog::on_btn_Browse_clicked() {
                                                     QFileDialog::ShowDirsOnly | QFileDialog::DontUseNativeDialog);
 
     if (!dir.isEmpty()) {
-        ui->input_Location->setPlainText(dir);
+        ui->input_Location->setText(dir);
     }
 }
 
 QString CreateProjectDialog::getFullFilePath() const {
-    QString currentPath = ui->input_Location->toPlainText().trimmed();
+    QString currentPath = ui->input_Location->text().trimmed();
     if (currentPath.isEmpty()) {
         currentPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     }

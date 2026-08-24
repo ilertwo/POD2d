@@ -6,6 +6,7 @@
 #include "createprojectdialog.h"
 #include "exportdialog.h"
 #include "settingsdialog.h"
+#include "palettedialog.h"
 
 #include <QFileDialog>
 #include <QStandardPaths>
@@ -103,42 +104,9 @@ void MainWindow::setupPalette() {
         QColor(0, 0, 0), QColor(255, 255, 255), QColor(255, 0, 0),
         QColor(0, 255, 0), QColor(0, 0, 255), QColor(255, 255, 0)
     };
-
-    int specW = 200;
-    int specH = 60;
-    QImage specImg(specW, specH, QImage::Format_RGB32);
-
-    for (int x = 0; x < specW; ++x) {
-        float h = (float)x / specW;
-        for (int y = 0; y < specH; ++y) {
-            float s = 1.0f;
-            float v = 1.0f;
-            float yNorm = (float)y / specH;
-
-            if (yNorm < 0.5f) {
-                s = yNorm * 2.0f;
-            } else {
-                v = 1.0f - ((yNorm - 0.5f) * 2.0f);
-            }
-            specImg.setPixelColor(x, y, QColor::fromHsvF(h, s, v));
-        }
-    }
-
-    ui->lbl_Spectrum->setPixmap(QPixmap::fromImage(specImg));
-    ui->lbl_Spectrum->setCursor(Qt::CrossCursor);
-    ui->lbl_Spectrum->installEventFilter(this);
-
-    connect(ui->slider_Opacity, &QSlider::valueChanged, this, [this](int value) {
-        currentPrimaryColor.setAlpha(value);
-        currentSecondaryColor.setAlpha(value);
-        ui->canvasWidget->setPrimaryColor(currentPrimaryColor);
-        ui->canvasWidget->setSecondaryColor(currentSecondaryColor);
-        updateColorIndicators();
-    });
-
-    ui->slider_Opacity->setValue(255);
-
     rebuildPaletteGrid();
+
+    ui->widget_Palette->installEventFilter(this);
 }
 
 void MainWindow::loadIcons() {
@@ -146,7 +114,7 @@ void MainWindow::loadIcons() {
 
     ui->btn_Undo->setIcon(QIcon(basePath + "/image/undo.png"));
     ui->btn_Redo->setIcon(QIcon(basePath + "/image/redo.png"));
-    ui->btn_Select->setIcon(QIcon(basePath + "/image/select.png"));
+    ui->btn_RectangleSelection->setIcon(QIcon(basePath + "/image/select.png"));
     //ui->btn_Paste->setIcon(QIcon(basePath + "/image/paste.png"));
     //ui->btn_Copy->setIcon(QIcon(basePath + "/image/copy.png"));
     //ui->btn_Cut->setIcon(QIcon(basePath + "/image/cut.png"));
@@ -323,9 +291,6 @@ void MainWindow::connectEditorControls() {
 
     //connect(ui->btn_ExportCode, &QPushButton::clicked, this, &MainWindow::openExportMenu);
 
-    connect(ui->btn_LoadPalette, &QPushButton::clicked, this, &MainWindow::loadPalette);
-    connect(ui->btn_SavePalette, &QPushButton::clicked, this, &MainWindow::savePalette);
-
     connectPlayerControls();
 }
 
@@ -370,9 +335,9 @@ void MainWindow::connectDrawingTools() {
     connect(ui->btn_BrokenLine, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::BrokenLine); });
     connect(ui->btn_Text,       &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
     connect(ui->btn_Pan,        &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pan); });
-    connect(ui->btn_Select,     &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Select); });
+    connect(ui->btn_RectangleSelection,     &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Select); });
 
-    connect(ui->spin_BrushSize, QOverload<int>::of(&QSpinBox::valueChanged), this, &MainWindow::on_spin_brushSize_valueChanged);
+    connect(ui->slider_BrushSize, QOverload<int>::of(&QSlider::valueChanged), this, &MainWindow::on_spin_brushSize_valueChanged);
 }
 
 void MainWindow::connectActions() {
@@ -513,7 +478,7 @@ void MainWindow::setupShortcuts() {
 
     // Navigation and selection
     ui->btn_Pan->setShortcut(QKeySequence(settings.value("shortcuts/pan", "Space").toString()));
-    ui->btn_Select->setShortcut(QKeySequence(settings.value("shortcuts/select", "S").toString()));
+    ui->btn_RectangleSelection->setShortcut(QKeySequence(settings.value("shortcuts/select", "S").toString()));
     //ui->btn_Clear->setShortcut(QKeySequence(settings.value("shortcuts/clear", "Delete").toString()));********************************
 
     // Frames and Layers
@@ -758,6 +723,17 @@ void MainWindow::openSettings(int tabIndex) {
     }
 }
 
+void MainWindow::openPaletteEditor(int colorIndexToEdit) {
+    PaletteDialog dialog(this);
+
+    dialog.setPaletteData(customPalette, colorIndexToEdit);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        customPalette = dialog.getPalette();
+        rebuildPaletteGrid();
+    }
+}
+
 void MainWindow::openKeyBindings(int tabIndex) {
     SettingsDialog dialog(this);
 
@@ -970,23 +946,14 @@ void MainWindow::rebuildPaletteGrid() {
         colorBtn->setFixedSize(24, 24);
         colorBtn->setCursor(Qt::PointingHandCursor);
         colorBtn->setStyleSheet(QString("background-color: %1; border: 1px solid #555; border-radius: 2px;").arg(customPalette[i].name()));
-        colorBtn->setProperty("swatchColor", customPalette[i]);
-        colorBtn->installEventFilter(this);
 
+        colorBtn->setProperty("swatchColor", customPalette[i]);
+        colorBtn->setProperty("colorIndex", i);
+
+        colorBtn->installEventFilter(this);
         gridLayout->addWidget(colorBtn, i / columns, i % columns);
     }
 
-    QPushButton *addBtn = new QPushButton("+");
-    addBtn->setFixedSize(24, 24);
-    addBtn->setStyleSheet("background-color: #333; color: white; border: 1px dashed #777; border-radius: 2px; font-weight: bold;");
-    addBtn->setCursor(Qt::PointingHandCursor);
-
-    connect(addBtn, &QPushButton::clicked, this, [this]() {
-        customPalette.append(currentPrimaryColor);
-        rebuildPaletteGrid();
-    });
-
-    gridLayout->addWidget(addBtn, customPalette.size() / columns, customPalette.size() % columns);
     updateColorIndicators();
 }
 
@@ -1117,49 +1084,47 @@ void MainWindow::updateColorIndicators() {
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
-    if (watched == ui->lbl_Spectrum && (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove)) {
-        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
-
-        if (mouseEvent->buttons() & (Qt::LeftButton | Qt::RightButton)) {
-            QImage specImg = ui->lbl_Spectrum->pixmap().toImage();
-
-            int x = qBound(0, mouseEvent->pos().x(), specImg.width() - 1);
-            int y = qBound(0, mouseEvent->pos().y(), specImg.height() - 1);
-
-            QColor pickedColor = specImg.pixelColor(x, y);
-            pickedColor.setAlpha(ui->slider_Opacity->value());
-
-            if (mouseEvent->buttons() & Qt::LeftButton) {
-                currentPrimaryColor = pickedColor;
-                ui->canvasWidget->setPrimaryColor(currentPrimaryColor);
-            } else if (mouseEvent->buttons() & Qt::RightButton) {
-                currentSecondaryColor = pickedColor;
-                ui->canvasWidget->setSecondaryColor(currentSecondaryColor);
-            }
-            updateColorIndicators();
-            return true;
-        }
+    if (watched == ui->widget_Palette && event->type() == QEvent::MouseButtonDblClick) {
+        openPaletteEditor(-1);
+        return true;
     }
 
-    if (event->type() == QEvent::MouseButtonPress) {
+    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick) {
         QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
         QPushButton *btn = qobject_cast<QPushButton*>(watched);
 
         if (btn && btn->property("swatchColor").isValid()) {
-            QColor clickedColor = btn->property("swatchColor").value<QColor>();
-            clickedColor.setAlpha(ui->slider_Opacity->value());
 
-            if (mouseEvent->button() == Qt::LeftButton) {
-                currentPrimaryColor = clickedColor;
-                ui->canvasWidget->setPrimaryColor(currentPrimaryColor);
-            } else if (mouseEvent->button() == Qt::RightButton) {
-                currentSecondaryColor = clickedColor;
-                ui->canvasWidget->setSecondaryColor(currentSecondaryColor);
+            int colorIndex = btn->property("colorIndex").toInt();
+
+            if (event->type() == QEvent::MouseButtonDblClick) {
+                openPaletteEditor(colorIndex);
+                return true;
             }
-            updateColorIndicators();
-            return true;
+
+            else if (event->type() == QEvent::MouseButtonPress) {
+                QColor clickedColor = btn->property("swatchColor").value<QColor>();
+
+                if (mouseEvent->button() == Qt::MiddleButton) {
+                    customPalette.removeAt(colorIndex);
+                    rebuildPaletteGrid();
+                    return true;
+                }
+                else if (mouseEvent->button() == Qt::LeftButton) {
+                    currentPrimaryColor = clickedColor;
+                    ui->canvasWidget->setPrimaryColor(currentPrimaryColor);
+                }
+                else if (mouseEvent->button() == Qt::RightButton) {
+                    currentSecondaryColor = clickedColor;
+                    ui->canvasWidget->setSecondaryColor(currentSecondaryColor);
+                }
+
+                updateColorIndicators();
+                return true;
+            }
         }
     }
+
     return QMainWindow::eventFilter(watched, event);
 }
 

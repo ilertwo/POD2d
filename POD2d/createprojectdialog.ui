@@ -107,25 +107,6 @@
      <string>Size:</string>
     </property>
    </widget>
-   <widget class="QPlainTextEdit" name="input_ProjectName">
-    <property name="geometry">
-     <rect>
-      <x>110</x>
-      <y>20</y>
-      <width>201</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="cursor" stdset="0">
-     <cursorShape>IBeamCursor</cursorShape>
-    </property>
-    <property name="plainText">
-     <string>image</string>
-    </property>
-    <property name="placeholderText">
-     <string>Enter roject title</string>
-    </property>
-   </widget>
    <widget class="QLabel" name="label_5">
     <property name="geometry">
      <rect>
@@ -172,25 +153,6 @@
     </property>
     <property name="text">
      <string> ×</string>
-    </property>
-   </widget>
-   <widget class="QPlainTextEdit" name="input_Location">
-    <property name="geometry">
-     <rect>
-      <x>110</x>
-      <y>50</y>
-      <width>171</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="cursor" stdset="0">
-     <cursorShape>IBeamCursor</cursorShape>
-    </property>
-    <property name="plainText">
-     <string/>
-    </property>
-    <property name="placeholderText">
-     <string/>
     </property>
    </widget>
    <widget class="QLabel" name="label_7">
@@ -253,6 +215,32 @@
     </property>
     <property name="text">
      <string>Color mode:</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="input_ProjectName">
+    <property name="geometry">
+     <rect>
+      <x>110</x>
+      <y>20</y>
+      <width>201</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>image</string>
+    </property>
+    <property name="placeholderText">
+     <string>Enter project title</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="input_Location">
+    <property name="geometry">
+     <rect>
+      <x>110</x>
+      <y>50</y>
+      <width>171</width>
+      <height>31</height>
+     </rect>
     </property>
    </widget>
   </widget>
