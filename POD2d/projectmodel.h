@@ -82,6 +82,7 @@ public:
     bool loadProjectData(const QByteArray &data);
 
     // 6. ANIMATION AND UI
+    bool isPlaying() const;
     void togglePlay();
     void onPlayTimerTick();
     void notifyImageChanged();

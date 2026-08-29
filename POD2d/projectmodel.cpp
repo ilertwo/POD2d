@@ -499,6 +499,10 @@ QByteArray ProjectModel::saveProjectData() const {
 // ==========================================
 // 6. ANIMATION AND UI
 // ==========================================
+bool ProjectModel::isPlaying() const {
+    return playTimer && playTimer->isActive();
+}
+
 void ProjectModel::togglePlay() {
     if (playTimer->isActive()) {
         playTimer->stop();

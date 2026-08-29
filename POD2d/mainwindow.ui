@@ -881,7 +881,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                    <widget class="QWidget" name="layersPanelWidget" native="true">
                     <property name="minimumSize">
                      <size>
-                      <width>120</width>
+                      <width>140</width>
                       <height>0</height>
                      </size>
                     </property>
@@ -909,15 +909,18 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                      </property>
                      <item>
                       <widget class="QFrame" name="layersLabel">
+                       <property name="enabled">
+                        <bool>true</bool>
+                       </property>
                        <property name="minimumSize">
                         <size>
-                         <width>120</width>
+                         <width>140</width>
                          <height>20</height>
                         </size>
                        </property>
                        <property name="maximumSize">
                         <size>
-                         <width>120</width>
+                         <width>140</width>
                          <height>20</height>
                         </size>
                        </property>
@@ -946,13 +949,13 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                       <widget class="QListWidget" name="layersListWidget">
                        <property name="minimumSize">
                         <size>
-                         <width>120</width>
+                         <width>140</width>
                          <height>0</height>
                         </size>
                        </property>
                        <property name="maximumSize">
                         <size>
-                         <width>120</width>
+                         <width>140</width>
                          <height>16777215</height>
                         </size>
                        </property>
@@ -962,13 +965,13 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                       <widget class="QFrame" name="frm_AddDeleteLayer">
                        <property name="minimumSize">
                         <size>
-                         <width>120</width>
+                         <width>140</width>
                          <height>40</height>
                         </size>
                        </property>
                        <property name="maximumSize">
                         <size>
-                         <width>120</width>
+                         <width>140</width>
                          <height>40</height>
                         </size>
                        </property>
@@ -1188,13 +1191,13 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                    <widget class="QFrame" name="frm_AddDeleteFrame">
                     <property name="minimumSize">
                      <size>
-                      <width>120</width>
+                      <width>140</width>
                       <height>100</height>
                      </size>
                     </property>
                     <property name="maximumSize">
                      <size>
-                      <width>120</width>
+                      <width>140</width>
                       <height>100</height>
                      </size>
                     </property>

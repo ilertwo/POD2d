@@ -59,6 +59,7 @@ private slots:
     void updateRecentProjectsUI();
     void updateColorIndicators();
     void applyTheme(const QString &themeName);
+    QIcon generate1bitIcon(const QString &text);
 
     void markProjectAsModified();
     bool maybeSave();

@@ -26,6 +26,7 @@
 #include <QRegularExpression>
 #include <QFile>
 #include <QApplication>
+#include <QPainter>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -111,25 +112,58 @@ void MainWindow::setupPalette() {
 
 void MainWindow::loadIcons() {
     QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+    QSettings settings("POD2d", "EditorSettings");
+    QString theme = settings.value("ui/theme", "dark").toString();
 
-    ui->btn_Undo->setIcon(QIcon(basePath + "/image/undo.png"));
-    ui->btn_Redo->setIcon(QIcon(basePath + "/image/redo.png"));
-    ui->btn_RectangleSelection->setIcon(QIcon(basePath + "/image/select.png"));
-    //ui->btn_Paste->setIcon(QIcon(basePath + "/image/paste.png"));
-    //ui->btn_Copy->setIcon(QIcon(basePath + "/image/copy.png"));
-    //ui->btn_Cut->setIcon(QIcon(basePath + "/image/cut.png"));
+    QFont pixelFont("Courier New", 14, QFont::Bold);
 
-    ui->btn_Pen->setIcon(QIcon(basePath + "/image/pen.png"));
-    ui->btn_Dithering->setIcon(QIcon(basePath + "/image/dithering.png"));
-    ui->btn_Fill->setIcon(QIcon(basePath + "/image/pain.png"));
-    ui->btn_Text->setIcon(QIcon(basePath + "/image/text.png"));
-    ui->btn_Line->setIcon(QIcon(basePath + "/image/line.png"));
-    ui->btn_BrokenLine->setIcon(QIcon(basePath + "/image/brokenLine.png"));
-    ui->btn_Circle->setIcon(QIcon(basePath + "/image/circle.png"));
-    ui->btn_Rectangle->setIcon(QIcon(basePath + "/image/rectangle.png"));
-    ui->btn_Pan->setIcon(QIcon(basePath + "/image/pan.png"));
-    ui->btn_Rotate->setIcon(QIcon(basePath + "/image/rotate.png"));
-    ui->btn_Play->setIcon(QIcon(basePath + "/image/play.png"));
+    auto setBtnIcon = [&](QPushButton* btn, const QString& text, const QString& iconName) {
+        if (theme == "1bit") {
+            btn->setIcon(QIcon());
+            btn->setText(text);
+            btn->setFont(pixelFont);
+        } else {
+            btn->setText("");
+            QString fullPath = basePath + "/image/" + theme + "/" + iconName;
+            btn->setIcon(QIcon(fullPath));
+        }
+    };
+
+    setBtnIcon(ui->btn_Save, "S", "save.png");
+    setBtnIcon(ui->btn_Undo, "<", "undo.png");
+    setBtnIcon(ui->btn_Redo, ">", "redo.png");
+
+    setBtnIcon(ui->btn_RectangleSelection, "[:]", "select.png");
+    setBtnIcon(ui->btn_LassoSelection, "@", "lasso.png");
+    setBtnIcon(ui->btn_ShapeSelection, "!", "shape.png");
+    setBtnIcon(ui->btn_Lighten, "*", "lighten.png");
+
+    setBtnIcon(ui->btn_Pen, "/", "pen.png");
+    setBtnIcon(ui->btn_Eraser, "=", "eraser.png");
+    setBtnIcon(ui->btn_Pipette, "j", "pipette.png");
+    setBtnIcon(ui->btn_Dithering, "#", "dithering.png");
+    setBtnIcon(ui->btn_Fill, "U", "pain.png");
+    setBtnIcon(ui->btn_Text, "A", "text.png");
+    setBtnIcon(ui->btn_Line, "\\", "line.png");
+    setBtnIcon(ui->btn_BrokenLine, "N", "brokenLine.png");
+    setBtnIcon(ui->btn_Circle, "O", "circle.png");
+    setBtnIcon(ui->btn_Rectangle, "[]", "rectangle.png");
+
+    setBtnIcon(ui->btn_Pan, "W", "pan.png");
+    setBtnIcon(ui->btn_Rotate, "G", "rotate.png");
+    setBtnIcon(ui->btn_VerticalMiror, "|", "mirror.png");
+
+    setBtnIcon(ui->btn_HideMiniMap, "m", "hide_minimap.png");
+    setBtnIcon(ui->btn_HideFrames, "f", "hide_frames.png");
+    setBtnIcon(ui->btn_HideLayers, "l", "hide_layers.png");
+    setBtnIcon(ui->btn_EditMode, "E", "edit_mode.png");
+
+    bool isPlaying = projectModel && projectModel->isPlaying();
+    if (isPlaying) {
+        setBtnIcon(ui->btn_Play, "X", "stop.png");
+    } else {
+        setBtnIcon(ui->btn_Play, ">", "play.png");
+    }
 }
 
 // ==========================================
@@ -300,12 +334,21 @@ void MainWindow::connectPlayerControls() {
     connect(playBtn, &QPushButton::clicked, projectModel, &ProjectModel::togglePlay);
 
     connect(projectModel, &ProjectModel::isPlayingChanged, this, [playBtn](bool playing) {
-        QString basePath = QFileInfo(__FILE__).dir().absolutePath();
-        QString iconPath = playing ? basePath + "/image/stop.png" : basePath + "/image/play.png";
-        playBtn->setIcon(QIcon(iconPath));
+        QSettings settings("POD2d", "EditorSettings");
+        QString theme = settings.value("ui/theme", "dark").toString();
+
+        if (theme == "1bit") {
+            playBtn->setIcon(QIcon());
+            playBtn->setText(playing ? "X" : ">");
+            playBtn->setFont(QFont("Courier New", 14, QFont::Bold));
+        } else {
+            playBtn->setText("");
+            QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+            QString iconName = playing ? "stop.png" : "play.png";
+            playBtn->setIcon(QIcon(basePath + "/image/" + theme + "/" + iconName));
+        }
     });
 }
-
 void MainWindow::connectAutoSaveTimer() {
     autoSaveTimer = new QTimer(this);
     connect(autoSaveTimer, &QTimer::timeout, this, [this]() {
@@ -1143,6 +1186,23 @@ void MainWindow::applyTheme(const QString &themeName) {
         QSettings settings("POD2d", "EditorSettings");
         settings.setValue("ui/theme", themeName);
     }
+
+    loadIcons();
+}
+
+QIcon MainWindow::generate1bitIcon(const QString &text) {
+    QPixmap pixmap(24, 24);
+    pixmap.fill(Qt::transparent);
+
+    QPainter painter(&pixmap);
+    painter.setPen(Qt::white);
+
+    QFont font("Courier New", 14, QFont::Bold);
+    painter.setFont(font);
+
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, text);
+
+    return QIcon(pixmap);
 }
 
 // Group C: Editor Controls & Tools
