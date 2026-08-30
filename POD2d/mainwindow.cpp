@@ -44,6 +44,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     rebuildLayersList();
     updateRecentProjectsUI();
+
+    ui->stackedWidget->setCurrentIndex(0);
 }
 
 MainWindow::~MainWindow() {
@@ -246,7 +248,14 @@ void MainWindow::connectLayersList() {
     connect(projectModel, &ProjectModel::layerThumbnailUpdated, this, [this, layersList](int index) {
         if (index >= 0 && index < layersList->count()) {
             QImage thumb = projectModel->getLayerThumbnail(index);
-            layersList->item(index)->setIcon(QIcon(QPixmap::fromImage(thumb)));
+            QListWidgetItem *item = layersList->item(index);
+
+            if (QWidget *cellWidget = layersList->itemWidget(item)) {
+                if (QLabel *imgLabel = cellWidget->findChild<QLabel*>("layerImage")) {
+                    QPixmap newPix = QPixmap::fromImage(thumb).scaled(100, 32, Qt::KeepAspectRatio, Qt::FastTransformation);
+                    imgLabel->setPixmap(newPix);
+                }
+            }
         }
     });
 
@@ -893,20 +902,57 @@ void MainWindow::savePalette() {
 // ====================================
 void MainWindow::rebuildLayersList() {
     QListWidget* layersList = ui->layersListWidget;
-
     const QSignalBlocker blocker(layersList);
-
     layersList->clear();
 
     const int count = projectModel->getLayerCount();
 
+    QSettings settings("POD2d", "EditorSettings");
+    QString theme = settings.value("ui/theme", "dark").toString();
+
+    QString normalItemBorder = (theme == "1bit") ? "border: 1px solid white;" : "border: 1px solid #444444;";
+    QString selectedItemBorder = (theme == "1bit") ? "border: 2px solid white;" : "border: 2px solid #888888;";
+
+    QString itemBg = (theme == "1bit") ? "black" : "#333333";
+    int borderRadius = (theme == "1bit") ? 0 : 6;
+
+    layersList->setStyleSheet(
+        "QListWidget { outline: 0; background: transparent; border: none; }"
+        "QListWidget::item { background-color: " + itemBg + "; " + normalItemBorder + " border-radius: " + QString::number(borderRadius) + "px; margin: 2px; }"
+                                                                                                  "QListWidget::item:selected { " + selectedItemBorder + " }"
+        );
+
     for (int i = 0; i < count; ++i) {
-        QListWidgetItem *item = new QListWidgetItem(QString::number(i));
+        QListWidgetItem *item = new QListWidgetItem();
+        item->setSizeHint(QSize(110, 46));
+        layersList->addItem(item);
+
+        QWidget *rowWidget = new QWidget();
+        rowWidget->setStyleSheet("background: transparent; border: none;");
+
+        QHBoxLayout *layout = new QHBoxLayout(rowWidget);
+        layout->setContentsMargins(6, 6, 6, 6);
+        layout->setSpacing(5);
+
+        QLabel *imageLabel = new QLabel();
+        imageLabel->setObjectName("layerImage");
+        imageLabel->setFixedSize(90, 30);
+        imageLabel->setStyleSheet("background-color: black; border: none;");
+        imageLabel->setAlignment(Qt::AlignCenter);
 
         QImage thumb = projectModel->getLayerThumbnail(i);
-        item->setIcon(QIcon(QPixmap::fromImage(thumb)));
+        QPixmap pixmap = QPixmap::fromImage(thumb).scaled(90, 30, Qt::KeepAspectRatio, Qt::FastTransformation);
+        imageLabel->setPixmap(pixmap);
 
-        layersList->addItem(item);
+        QLabel *textLabel = new QLabel(QString::number(i));
+        textLabel->setFixedSize(20, 30);
+        textLabel->setAlignment(Qt::AlignCenter);
+        textLabel->setStyleSheet("color: white; font-weight: bold; background: transparent; border: none;");
+
+        layout->addWidget(imageLabel);
+        layout->addWidget(textLabel);
+
+        layersList->setItemWidget(item, rowWidget);
     }
 
     layersList->setCurrentRow(projectModel->getCurrentLayerIndex());
@@ -918,11 +964,22 @@ void MainWindow::rebuildFramesList() {
     framesList->clear();
 
     const int frameCount = projectModel->getFrameCount();
-
     framesList->setSpacing(5);
+
+    QSettings settings("POD2d", "EditorSettings");
+    QString theme = settings.value("ui/theme", "dark").toString();
+
+    QString topBorder = (theme == "1bit") ? "border-top: 2px solid white;" : "border-top: 2px solid #333333;";
+    QString normalItemBorder = (theme == "1bit") ? "border: 1px solid white;" : "border: 1px solid #444444;";
+    QString selectedItemBorder = (theme == "1bit") ? "border: 2px solid white;" : "border: 2px solid #888888;";
+
+    QString frameBg = (theme == "1bit") ? "black" : "#333333";
+    int borderRadius = (theme == "1bit") ? 0 : 6;
+
     framesList->setStyleSheet(
-        "QListWidget { outline: 0; background: transparent; }"
-        "QListWidget::item:selected { border: 2px solid #666666; border-radius: 6px; }"
+        "QListWidget { outline: 0; background: transparent; border: none; " + topBorder + " padding-top: 2px; }"
+                                                                                          "QListWidget::item { " + normalItemBorder + " border-radius: " + QString::number(borderRadius) + "px; margin: 2px; }"
+                                                                                  "QListWidget::item:selected { " + selectedItemBorder + " }"
         );
 
     for (int i = 0; i < frameCount; ++i) {
@@ -931,11 +988,13 @@ void MainWindow::rebuildFramesList() {
         framesList->addItem(item);
 
         QFrame *frameWidget = new QFrame();
+
         frameWidget->setStyleSheet(
             "QFrame {"
-            "   background-color: #333333;"
-            "   border-radius: 6px;"
-            "}"
+            "   background-color: " + frameBg + ";"
+                        "   border: none;"
+                        "   border-radius: " + QString::number(borderRadius) + "px;"
+                                              "}"
             );
 
         QVBoxLayout *layout = new QVBoxLayout(frameWidget);
@@ -943,13 +1002,15 @@ void MainWindow::rebuildFramesList() {
         layout->setSpacing(2);
 
         QLabel *imageLabel = new QLabel();
-
         imageLabel->setObjectName("frameImage");
+
+        imageLabel->setFixedSize(128, 64);
+        imageLabel->setStyleSheet("background-color: black; border: none;");
+        imageLabel->setAlignment(Qt::AlignCenter);
 
         QImage thumb = projectModel->getFrameThumbnail(i);
         QPixmap pixmap = QPixmap::fromImage(thumb).scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
         imageLabel->setPixmap(pixmap);
-        imageLabel->setAlignment(Qt::AlignCenter);
 
         QLabel *textLabel = new QLabel(QString::number(i + 1));
         textLabel->setAlignment(Qt::AlignCenter);
@@ -972,9 +1033,20 @@ void MainWindow::rebuildPaletteGrid() {
             delete ui->widget_Palette->layout();
         }
         gridLayout = new QGridLayout(ui->widget_Palette);
-        gridLayout->setSpacing(2);
+    }
+
+    gridLayout->setSpacing(0);
+
+    QSettings settings("POD2d", "EditorSettings");
+    QString theme = settings.value("ui/theme", "dark").toString();
+
+    if (theme == "1bit") {
+        gridLayout->setContentsMargins(5, 5, 5, 5);
+    } else {
         gridLayout->setContentsMargins(0, 0, 0, 0);
     }
+
+    gridLayout->setAlignment(Qt::AlignTop);
 
     QLayoutItem *child;
     while ((child = gridLayout->takeAt(0)) != nullptr) {
@@ -984,11 +1056,22 @@ void MainWindow::rebuildPaletteGrid() {
 
     int columns = 4;
 
+    for (int i = 0; i < columns; ++i) {
+        gridLayout->setColumnStretch(i, 1);
+    }
+
+    QString borderStyle = (theme == "1bit") ? "border: none;" : "border: 1px solid #555;";
+    QString borderRadius = (theme == "1bit") ? "border-radius: 0px;" : "border-radius: 2px;";
+
     for (int i = 0; i < customPalette.size(); ++i) {
         QPushButton *colorBtn = new QPushButton();
-        colorBtn->setFixedSize(24, 24);
+
+        colorBtn->setFixedHeight(24);
+        colorBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         colorBtn->setCursor(Qt::PointingHandCursor);
-        colorBtn->setStyleSheet(QString("background-color: %1; border: 1px solid #555; border-radius: 2px;").arg(customPalette[i].name()));
+
+        colorBtn->setStyleSheet(QString("background-color: %1; %2 %3")
+                                    .arg(customPalette[i].name(), borderStyle, borderRadius));
 
         colorBtn->setProperty("swatchColor", customPalette[i]);
         colorBtn->setProperty("colorIndex", i);
@@ -1058,13 +1141,14 @@ void MainWindow::setToolsVisible(bool visible) {
 
 void MainWindow::updateUIProportions(int projWidth, int projHeight) {
     if (projHeight == 0) return;
-
-    int baseIconHeight = 64;
+    /*
+    int baseIconHeight = 32;
     int proportionalIconWidth = (projWidth * baseIconHeight) / projHeight;
     QSize newIconSize(proportionalIconWidth, baseIconHeight);
 
     //ui->framesListWidget->setIconSize(newIconSize);
     ui->layersListWidget->setIconSize(newIconSize);
+    */
 
     rebuildFramesList();
     rebuildLayersList();
@@ -1180,6 +1264,9 @@ void MainWindow::applyTheme(const QString &themeName) {
     if (file.open(QFile::ReadOnly | QFile::Text)) {
         QTextStream stream(&file);
         QString styleSheet = stream.readAll();
+
+        styleSheet.replace("{BASE_PATH}", basePath);
+
         qApp->setStyleSheet(styleSheet);
         file.close();
 
@@ -1188,6 +1275,9 @@ void MainWindow::applyTheme(const QString &themeName) {
     }
 
     loadIcons();
+
+    rebuildFramesList();
+    rebuildLayersList();
 }
 
 QIcon MainWindow::generate1bitIcon(const QString &text) {
