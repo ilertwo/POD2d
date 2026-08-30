@@ -1,17 +1,206 @@
+/* =======================================
+   GLOBAL DEFAULTS
+   ======================================= */
 QWidget {
-    background-color: #f0f0f0;
-    color: #000000;
+    background-color: #f0f0f0; /* М'який світло-сірий фон замість чисто білого */
+    color: #202020;            /* Темно-сірий текст для зниження контрасту */
 }
-QPushButton {
-    background-color: #e0e0e0;
-    border: 1px solid #aaaaaa;
-    border-radius: 4px;
-    padding: 4px;
-}
-QPushButton:hover {
-    background-color: #d0d0d0;
-}
+
+QPushButton { background-color: #e0e0e0; }
+QPushButton:hover { background-color: #d0d0d0; }
+
 QListWidget {
-    background-color: #ffffff;
-    border: 1px solid #cccccc;
+    background-color: #e5e5e5; /* Трохи темніший фон для списків (ніби заглиблення) */
+    border: 1px solid #d4d4d4;
+}
+
+/* =======================================
+   DROPDOWN MENUS (QMenu)
+   ======================================= */
+QMenu {
+    background-color: #f0f0f0;
+    color: #202020;
+    border: 1px solid #c0c0c0;
+    border-radius: 8px;
+}
+
+QMenu::item:selected {
+    background-color: #0078d7;
+    color: #ffffff; /* Залишаємо білий текст на синьому виділенні */
+}
+
+/* =======================================
+   PANELS, FRAMES & LABELS
+   ======================================= */
+/* Fully rounded panels */
+#layersPanelWidget, #frm_Palette {
+    background-color: #f0f0f0;
+    border: 1px solid #d4d4d4;
+    border-radius: 8px;
+}
+
+/* Top rounded labels */
+#layersLabel, #toolsLabel, #paletteLabel {
+    border: 1px solid #d4d4d4;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
+}
+
+/* Bottom rounded panels */
+#frm_Tools, #widget, #frm_AddDeleteLayer {
+    background-color: #f0f0f0;
+    border-left: 1px solid #d4d4d4;
+    border-right: 1px solid #d4d4d4;
+    border-bottom: 1px solid #d4d4d4;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+/* Specific asymmetrical overrides */
+#frm_AddDeleteFrame {
+    border: 1px solid #d4d4d4;
+    border-top-left-radius: 0px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 8px;
+}
+
+#frm_Menu {
+    border-top: 1px solid #d4d4d4;
+    border-bottom: 1px solid #d4d4d4;
+    border-left: none;
+    border-right: none;
+}
+
+#widget_Palette1 {
+    border-top: none;
+    border-bottom: none;
+    border-left: 1px solid #d4d4d4;
+    border-right: 1px solid #d4d4d4;
+}
+
+#widget_Palette {
+    border: 1px solid #d4d4d4;
+    border-radius: 4px;
+}
+
+#framesListWidget {
+    border: 1px solid #d4d4d4;
+    border-radius: 0px;
+}
+
+/* =======================================
+   MODERN SCROLLBAR (Combined V & H)
+   ======================================= */
+QScrollBar:vertical, QScrollBar:horizontal {
+    background-color: #e5e5e5;
+    border: none;
+    margin: 0px;
+}
+
+QScrollBar:vertical { width: 14px; }
+QScrollBar:horizontal { height: 14px; }
+
+/* Scrollbar Handles */
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background-color: #c0c0c0;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical { min-height: 30px; margin: 2px 3px; }
+QScrollBar::handle:horizontal { min-width: 30px; margin: 3px 2px; }
+
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+    background-color: #a0a0a0; 
+}
+
+/* Remove checkered background and default arrows */
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal,
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    background: none;
+    border: none;
+    width: 0px;
+    height: 0px;
+}
+
+/* =======================================
+   COMBOBOX
+   ======================================= */
+QComboBox {
+    background-color: #f0f0f0;
+    color: #202020;
+    border: 1px solid #c0c0c0;
+    border-radius: 8px;
+    padding: 2px 20px 2px 10px; 
+}
+
+QComboBox QAbstractItemView {
+    background-color: #f0f0f0;
+    color: #202020;
+    border: 1px solid #a0a0a0;
+    border-radius: 8px;
+    selection-background-color: #0078d7;
+    selection-color: #ffffff;
+    outline: none;
+}
+
+QComboBox QAbstractItemView::item {
+    min-height: 26px; 
+    padding-left: 8px; 
+}
+
+/* =======================================
+   CHECKBOXES (QCheckBox)
+   ======================================= */
+QCheckBox {
+    spacing: 8px;
+    color: #202020;
+    background: transparent;
+}
+
+QCheckBox::indicator {
+    width: 16px; 
+    height: 16px;
+    background-color: #f0f0f0;
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    subcontrol-origin: padding;
+    subcontrol-position: center left;
+    image: none;
+}
+
+QCheckBox::indicator:hover {
+    border: 1px solid #a0a0a0;
+    background-color: #e0e0e0;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #0078d7; 
+    border: 1px solid #0078d7;
+    /* Галочка залишається білою, бо фон стає синім */
+    image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'></polyline></svg>");
+}
+
+/* =======================================
+   MENU BAR 
+   ======================================= */
+QMenuBar {
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #d4d4d4;
+}
+
+QMenuBar::item {
+    background-color: transparent;
+    padding: 4px 10px; 
+    margin: 2px 0px;   
+}
+
+QMenuBar::item:selected {
+    background-color: #e0e0e0; 
+    border-radius: 4px;
 }

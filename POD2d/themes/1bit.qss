@@ -17,7 +17,12 @@ QScrollArea,
 #layersPanelWidget, 
 #toolsLabel, 
 #layersLabel, 
+#paletteLabel,
 #frm_Palette, 
+#widget,
+#widget_Palette1,
+#widget_Palette,
+#rightPanelFrame,
 #miniCanvasFrame, 
 #frm_AddDeleteFrame, 
 #frm_Figures {
@@ -27,7 +32,6 @@ QScrollArea,
 
 QListWidget::item, 
 #widget_Palette {
-    border: none;
     border-radius: 0px;
 }
 
@@ -35,6 +39,11 @@ QListWidget::item,
     border: none;
     border-top: 2px solid #ffffff;
     border-bottom: 2px solid #ffffff;
+}
+
+#widget_Palette1 {
+    border-top: none;
+    border-bottom: none;
 }
 
 /* =======================================
@@ -373,7 +382,7 @@ QScrollBar::sub-page:horizontal {
 }
 
 /* =======================================
-   ІКОНКИ КНОПОК (PNG з папки image/1bit)
+   BUTTON ICONS
    ======================================= */
 
 QTimeEdit::up-arrow, QSpinBox::up-arrow, QDoubleSpinBox::up-arrow, 
@@ -383,7 +392,6 @@ QComboBox::down-arrow {
     background: transparent;
 }
 
-/* Базові білі іконки */
 QTimeEdit::up-arrow, QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
     image: url("{BASE_PATH}/image/1bit/up.png");
     width: 10px;
@@ -397,7 +405,6 @@ QComboBox::down-arrow {
     height: 10px;
 }
 
-/* Чорні іконки при наведенні */
 QTimeEdit::up-arrow:hover, QSpinBox::up-arrow:hover, QDoubleSpinBox::up-arrow:hover {
     image: url("{BASE_PATH}/image/1bit/up_black.png");
 }
@@ -407,7 +414,6 @@ QComboBox::down-arrow:hover {
     image: url("{BASE_PATH}/image/1bit/down_black.png");
 }
 
-/* Стрілочка вгору для відкритого QComboBox */
 QComboBox::down-arrow:on {
     image: url("{BASE_PATH}/image/1bit/up.png");
 }
