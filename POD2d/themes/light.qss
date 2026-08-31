@@ -2,15 +2,15 @@
    GLOBAL DEFAULTS
    ======================================= */
 QWidget {
-    background-color: #f0f0f0; /* М'який світло-сірий фон замість чисто білого */
-    color: #202020;            /* Темно-сірий текст для зниження контрасту */
+    background-color: #f0f0f0; 
+    color: #202020;       
 }
 
 QPushButton { background-color: #e0e0e0; }
 QPushButton:hover { background-color: #d0d0d0; }
 
 QListWidget {
-    background-color: #e5e5e5; /* Трохи темніший фон для списків (ніби заглиблення) */
+    background-color: #e5e5e5;
     border: 1px solid #d4d4d4;
 }
 
@@ -26,7 +26,7 @@ QMenu {
 
 QMenu::item:selected {
     background-color: #0078d7;
-    color: #ffffff; /* Залишаємо білий текст на синьому виділенні */
+    color: #ffffff;
 }
 
 /* =======================================
@@ -182,8 +182,7 @@ QCheckBox::indicator:hover {
 QCheckBox::indicator:checked {
     background-color: #0078d7; 
     border: 1px solid #0078d7;
-    /* Галочка залишається білою, бо фон стає синім */
-    image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'></polyline></svg>");
+    image: url("{BASE_PATH}/image/light/checked.png");
 }
 
 /* =======================================

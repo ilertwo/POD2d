@@ -34,6 +34,9 @@ public:
     void setSecondaryColor(const QColor &color);
     QColor getPrimaryColor() const;
     QColor getSecondaryColor() const;
+    void setShowGrid(bool show);
+    void setGridColor(const QColor &color);
+    void setBackgroundStyle(const QString &style);
 
     // Public actions (invoked from MainWindow, for example, via menus or hotkeys)
     void rotateFloatingImage();
@@ -72,6 +75,10 @@ private:
     QPoint currentMousePos;
     bool isMouseOnCanvas = false;
 
+    bool m_showGrid = true;
+    QColor m_gridColor = QColor(50, 50, 50);
+    QString m_bgStyle = "Checkerboard";
+
     // Drawing supplies
     QPoint startPoint;
     QPoint lastPoint;
@@ -88,6 +95,7 @@ private:
     QPoint dragStartMousePos;
     QRect dragStartRect;
     QPoint lastPanPoint;
+
 };
 
 #endif // PIXELCANVAS_H

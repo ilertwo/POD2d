@@ -4,6 +4,7 @@
 #include <QSettings>
 #include <QKeySequenceEdit>
 #include <QTableWidgetItem>
+#include <QColorDialog>
 
 struct ShortcutItem {
     QString displayName;
@@ -40,14 +41,20 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
     ui->setupUi(this);
 
     this->setWindowTitle("Settings");
-    loadSettings();
 
     connect(ui->btn_OK, &QPushButton::clicked, this, [this]() {
         saveSettings();
         accept();
     });
-    connect(ui->btn_Apply, &QPushButton::clicked, this, &SettingsDialog::saveSettings);
+    connect(ui->btn_Apply, &QPushButton::clicked, this, [this]() {
+        saveSettings();
+        emit settingsApplied();
+    });
     connect(ui->btn_Cancel, &QPushButton::clicked, this, &QDialog::reject);
+    connect(ui->slider_Scale, &QSlider::valueChanged, this, &SettingsDialog::updateScaleLabel);
+    connect(ui->btn_GridColor, &QPushButton::clicked, this, &SettingsDialog::chooseGridColor);
+
+    loadSettings();
 }
 
 SettingsDialog::~SettingsDialog()
@@ -67,6 +74,7 @@ void SettingsDialog::loadSettings() {
     bool autoSaveEnabled = settings.value("editor/autoSave", false).toBool();
     bool useProgmemEnabled = settings.value("export/useProgmem", true).toBool();
     bool autoCopyEnabled = settings.value("export/autoCopy", false).toBool();
+    bool showGridEnabled = settings.value("canvas/showGrid", false).toBool();
 
     ui->spin_DefaultWidth->setValue(settings.value("editor/defaultWidth", 128).toInt());
     ui->spin_DefaultHeight->setValue(settings.value("editor/defaultHeight", 64).toInt());
@@ -82,6 +90,14 @@ void SettingsDialog::loadSettings() {
     ui->table_Controls->setRowCount(HOTKEYS.size());
     ui->table_Controls->setColumnCount(2);
 
+    ui->cmb_Theme->setCurrentText(settings.value("ui/theme", "dark").toString());
+
+    ui->slider_Scale->setValue(settings.value("ui/scale", 100).toInt());
+    ui->chk_ShowGrid->setChecked(showGridEnabled);
+    ui->cmb_BgStyle->setCurrentText(settings.value("canvas/bgStyle", "Solid Black").toString());
+
+    currentGridColor = settings.value("canvas/gridColor", "#333333").toString();
+    setButtonColor(currentGridColor);
 
     ui->table_Controls->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     ui->table_Controls->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
@@ -118,6 +134,12 @@ void SettingsDialog::saveSettings() {
     settings.setValue("export/useProgmem", ui->chk_Progmem->isChecked());
     settings.setValue("export/autoCopy", ui->chk_AutoCopy->isChecked());
 
+    settings.setValue("ui/theme", ui->cmb_Theme->currentText()); // "dark", "light", "1bit"
+    settings.setValue("ui/scale", ui->slider_Scale->value());
+    settings.setValue("canvas/showGrid", ui->chk_ShowGrid->isChecked());
+    settings.setValue("canvas/gridColor", currentGridColor);
+    settings.setValue("canvas/bgStyle", ui->cmb_BgStyle->currentText());
+
     for (int i = 0; i < ui->table_Controls->rowCount(); ++i) {
         QWidget *widget = ui->table_Controls->cellWidget(i, 1);
         QKeySequenceEdit *keyEdit = qobject_cast<QKeySequenceEdit*>(widget);
@@ -129,4 +151,26 @@ void SettingsDialog::saveSettings() {
             settings.setValue(key, sequence);
         }
     }
+}
+
+void SettingsDialog::updateScaleLabel(int value) {
+    ui->lbl_ScaleValue->setText(QString::number(value) + "%");
+}
+
+void SettingsDialog::chooseGridColor() {
+    QColor initialColor(currentGridColor.isEmpty() ? "#333333" : currentGridColor);
+    QColor newColor = QColorDialog::getColor(initialColor, this, "Select Grid Color");
+
+    if (newColor.isValid()) {
+        currentGridColor = newColor.name();
+        setButtonColor(currentGridColor);
+        ui->gridColorLabel->setText(currentGridColor);
+    }
+}
+
+void SettingsDialog::setButtonColor(const QString &hexColor) {
+    ui->btn_GridColor->setText("");
+    ui->btn_GridColor->setStyleSheet(
+        "QPushButton { background-color: " + hexColor + "; border: 1px solid #888888; border-radius: 4px; }"
+        );
 }

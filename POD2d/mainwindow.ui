@@ -1848,7 +1848,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
   </action>
   <action name="act_Theme1Bit">
    <property name="text">
-    <string>1-bit</string>
+    <string>1bit</string>
    </property>
   </action>
  </widget>

@@ -287,19 +287,36 @@ void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void PixelCanvas::paintEvent(QPaintEvent *event) {
-
     Q_UNUSED(event);
 
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, false);
-
     painter.save();
 
     painter.translate(offset);
     painter.scale(scaleFactor, scaleFactor);
 
-    painter.fillRect(0, 0, canvasWidth, canvasHeight, Qt::black);
+    if (m_bgStyle == "Solid Black") {
+        painter.fillRect(0, 0, canvasWidth, canvasHeight, Qt::black);
+    }
+    else if (m_bgStyle == "Solid White") {
+        painter.fillRect(0, 0, canvasWidth, canvasHeight, Qt::white);
+    }
+    else {
+        const int checkerSize = 4;
+        for (int y = 0; y < canvasHeight; y += checkerSize) {
+            for (int x = 0; x < canvasWidth; x += checkerSize) {
+                QColor color = ((x / checkerSize + y / checkerSize) % 2 == 0)
+                ? QColor(150, 150, 150)
+                : QColor(100, 100, 100);
+                int w = qMin(checkerSize, canvasWidth - x);
+                int h = qMin(checkerSize, canvasHeight - y);
+                painter.fillRect(x, y, w, h, color);
+            }
+        }
+    }
 
+    // ВІДМАЛЬОВКА ШАРІВ
     if (m_model) {
         const QList<QImage> &currentLayers = m_model->getCurrentLayers();
         const int activeIdx = m_model->getCurrentLayerIndex();
@@ -349,8 +366,8 @@ void PixelCanvas::paintEvent(QPaintEvent *event) {
         painter.setClipping(false);
     }
 
-    if (scaleFactor >= 4.0) {
-        QPen gridPen(QColor(50, 50, 50));
+    if (m_showGrid && scaleFactor >= 4.0) {
+        QPen gridPen(m_gridColor);
         gridPen.setCosmetic(true);
         painter.setPen(gridPen);
 
@@ -488,6 +505,21 @@ void PixelCanvas::setSecondaryColor(const QColor &color) {
 QColor PixelCanvas::getPrimaryColor() const { return primaryColor; }
 
 QColor PixelCanvas::getSecondaryColor() const { return secondaryColor; }
+
+void PixelCanvas::setShowGrid(bool show) {
+    m_showGrid = show;
+    update();
+}
+
+void PixelCanvas::setGridColor(const QColor &color) {
+    m_gridColor = color;
+    update();
+}
+
+void PixelCanvas::setBackgroundStyle(const QString &style) {
+    m_bgStyle = style;
+    update();
+}
 
 void PixelCanvas::rotateFloatingImage() {
     if (!isFloating) return;

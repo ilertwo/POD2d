@@ -770,6 +770,8 @@ void MainWindow::openSettings(int tabIndex) {
 
     dialog.setActiveTab(tabIndex);
 
+    connect(&dialog, &SettingsDialog::settingsApplied, this, &MainWindow::applySettings);
+
     if (dialog.exec() == QDialog::Accepted) {
         applySettings();
     }
@@ -797,9 +799,9 @@ void MainWindow::openKeyBindings(int tabIndex) {
 
 void MainWindow::applySettings() {
     QSettings settings("POD2d", "EditorSettings");
+
     bool autoSaveEnabled = settings.value("editor/autoSave", false).toBool();
     int intervalMinutes = settings.value("editor/autoSaveInterval", 5).toInt();
-
     if (autoSaveEnabled) {
         autoSaveTimer->start(intervalMinutes * 60 * 1000);
     } else {
@@ -807,8 +809,26 @@ void MainWindow::applySettings() {
     }
 
     projectModel->loadSettings();
-
     setupShortcuts();
+
+    int scale = settings.value("ui/scale", 100).toInt();
+    QFont f = qApp->font();
+    f.setPointSize(9 * scale / 100);
+    qApp->setFont(f);
+
+    QString theme = settings.value("ui/theme", "dark").toString();
+    applyTheme(theme);
+
+    bool showGrid = settings.value("canvas/showGrid", true).toBool();
+    QString gridColor = settings.value("canvas/gridColor", "#333333").toString();
+    QString bgStyle = settings.value("canvas/bgStyle", "Checkerboard").toString();
+
+    ui->canvasWidget->setShowGrid(showGrid);
+    ui->canvasWidget->setGridColor(QColor(gridColor));
+    ui->canvasWidget->setBackgroundStyle(bgStyle);
+    ui->canvasWidget->update();
+
+    loadIcons();
 }
 
 void MainWindow::addRecentProject(const QString &path) {
