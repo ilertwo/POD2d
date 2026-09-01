@@ -6,10 +6,11 @@
 #include <QRect>
 #include <QPoint>
 #include <QPointF>
+#include <QPainterPath>
 #include "projectmodel.h"
 
 // Enum
-enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Select, Pan, Brush, Dithering, Eraser };
+enum class DrawTool { Pen, Line, Rectangle, Circle, Fill, BrokenLine, Text, Select, Pan, Brush, Dithering, Eraser, Pipette, LassoSelect, ShapeSelect, Lighten};
 
 enum class HandleType { None, TopLeft, TopRight, BottomLeft, BottomRight, Move };
 
@@ -46,6 +47,9 @@ public:
     void pasteToLayer();
     void fitToScreen();
     void resetToolState();
+
+signals:
+    void colorPicked(const QColor &color, bool isPrimary);
 
 protected:
     // Qt Events
@@ -84,6 +88,8 @@ private:
     QPoint lastPoint;
     bool isDrawing = false;
     QImage tempState;
+    QPainterPath selectionPath;
+    QPainterPath dragStartPath;
 
     // Variables for highlighting
     QRect selectionRect;

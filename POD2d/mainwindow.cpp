@@ -378,18 +378,34 @@ void MainWindow::connectRecentProjects() {
 }
 
 void MainWindow::connectDrawingTools() {
-    connect(ui->btn_Pen,        &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Brush); });
-    connect(ui->btn_Dithering,  &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Dithering); });
-    connect(ui->btn_Line,       &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
-    connect(ui->btn_Rectangle,  &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Rectangle); });
-    connect(ui->btn_Circle,     &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Circle); });
-    connect(ui->btn_Fill,       &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
-    connect(ui->btn_BrokenLine, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::BrokenLine); });
-    connect(ui->btn_Text,       &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
-    connect(ui->btn_Pan,        &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pan); });
-    connect(ui->btn_RectangleSelection,     &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Select); });
+    connect(ui->btn_Pen,                &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Brush); });
+    connect(ui->btn_Eraser,             &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Eraser); });
+    connect(ui->btn_Dithering,          &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Dithering); });
+    connect(ui->btn_Pipette,            &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pipette); });
+    connect(ui->btn_Line,               &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Line); });
+    connect(ui->btn_Rectangle,          &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Rectangle); });
+    connect(ui->btn_Circle,             &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Circle); });
+    connect(ui->btn_Fill,               &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Fill); });
+    connect(ui->btn_BrokenLine,         &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::BrokenLine); });
+    connect(ui->btn_Text,               &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Text); });
+    connect(ui->btn_Pan,                &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Pan); });
+    connect(ui->btn_RectangleSelection, &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Select); });
+    connect(ui->btn_LassoSelection,     &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::LassoSelect); });
+    connect(ui->btn_ShapeSelection,     &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::ShapeSelect); });
+    connect(ui->btn_Lighten,            &QPushButton::clicked, this, [this](){ ui->canvasWidget->setTool(DrawTool::Lighten); });
 
     connect(ui->slider_BrushSize, QOverload<int>::of(&QSlider::valueChanged), this, &MainWindow::on_spin_brushSize_valueChanged);
+
+    connect(ui->canvasWidget, &PixelCanvas::colorPicked, this, [this](const QColor &color, bool isPrimary){
+        if (isPrimary) {
+            currentPrimaryColor = color;
+            ui->canvasWidget->setPrimaryColor(color);
+        } else {
+            currentSecondaryColor = color;
+            ui->canvasWidget->setSecondaryColor(color);
+        }
+        updateColorIndicators();
+    });
 }
 
 void MainWindow::connectActions() {
@@ -437,7 +453,7 @@ void MainWindow::connectEditActions() {
     connect(ui->act_Copy, &QAction::triggered, ui->canvasWidget, &PixelCanvas::copyLayer);
     connect(ui->act_Paste, &QAction::triggered, ui->canvasWidget, &PixelCanvas::pasteToLayer);
 
-    connect(ui->act_Paste, &QAction::triggered, this, &MainWindow::clear);
+    connect(ui->act_Clear, &QAction::triggered, this, &MainWindow::clear);
 }
 
 void MainWindow::connectViewActions() {

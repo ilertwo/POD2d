@@ -109,3 +109,26 @@ void PaintTools::drawCircle(QImage &image, const QPoint &start, const QPoint &en
 
     p.drawEllipse(start, radius, radius);
 }
+
+void PaintTools::lightenBrush(QImage &image, int centerX, int centerY, int brushSize, bool darken) {
+    int r = qMax(1, brushSize / 2);
+    int rSquared = r * r;
+
+    for (int y = centerY - r; y <= centerY + r; ++y) {
+        for (int x = centerX - r; x <= centerX + r; ++x) {
+
+            int dx = x - centerX;
+            int dy = y - centerY;
+
+            if (dx * dx + dy * dy <= rSquared) {
+                if (x >= 0 && x < image.width() && y >= 0 && y < image.height()) {
+                    QColor c = image.pixelColor(x, y);
+                    if (c.alpha() > 0) {
+                        image.setPixelColor(x, y, darken ? c.darker(110) : c.lighter(110));
+                    }
+                }
+            }
+
+        }
+    }
+}

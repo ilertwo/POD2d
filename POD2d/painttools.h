@@ -18,6 +18,8 @@ public:
     static void drawLine(QImage &image, const QPoint &start, const QPoint &end, const QColor &color);
     static void drawRect(QImage &image, const QPoint &start, const QPoint &end, const QColor &color);
     static void drawCircle(QImage &image, const QPoint &start, const QPoint &end, const QColor &color);
+
+    static void lightenBrush(QImage &image, int centerX, int centerY, int brushSize, bool darken = false);
 };
 
 #endif // PAINTTOOLS_H
