@@ -25,12 +25,35 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
     ui->spin_Height->setValue(defaultHeight);
 
     QString basePath = QFileInfo(__FILE__).dir().absolutePath();
-    ui->btn_Browse->setIcon(QIcon(basePath + "/image/save.png"));
 
     connect(ui->btn_ConfirmCreate, &QPushButton::clicked, this, &QDialog::accept);
     connect(ui->btn_Cancel, &QPushButton::clicked, this, &QDialog::reject);
 
     connect(ui->btn_Browse,  &QPushButton::clicked, this, &CreateProjectDialog::on_btn_Browse_clicked);
+
+    setTheme();
+}
+
+void CreateProjectDialog::setTheme() {
+    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+    QSettings settings("POD2d", "EditorSettings");
+    QString theme = settings.value("ui/theme", "dark").toString();
+
+    QFont pixelFont("Courier New", 14, QFont::Bold);
+
+    auto setBtnIcon = [&](QPushButton* btn, const QString& text, const QString& iconName) {
+        if (theme == "1bit") {
+            btn->setIcon(QIcon());
+            btn->setText(text);
+            btn->setFont(pixelFont);
+        } else {
+            btn->setText("");
+            QString fullPath = basePath + "/image/" + theme + "/" + iconName;
+            btn->setIcon(QIcon(fullPath));
+        }
+    };
+
+    setBtnIcon(ui->btn_Browse, "B", "path.png");
 }
 
 CreateProjectDialog::~CreateProjectDialog()

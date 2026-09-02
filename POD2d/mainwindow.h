@@ -50,7 +50,6 @@ private slots:
 
     void openExportMenu();
     void openSettings(int tabIndex = 0);
-    void openKeyBindings(int tabIndex = 1);
     void applySettings();
     void openPaletteEditor(int colorIndexToEdit = -1);
 
@@ -70,6 +69,7 @@ private slots:
     void setFrameListVisible(bool visible);
     void setLayerListVisible(bool visible);
     void setToolsVisible(bool visible);
+    void setPaletteVisible(bool visible);
 
     bool eventFilter(QObject *watched, QEvent *event) override;
 

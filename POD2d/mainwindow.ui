@@ -64,7 +64,7 @@
          <number>1</number>
         </property>
         <property name="currentIndex">
-         <number>1</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="page">
          <widget class="QPushButton" name="btn_CreateProject">
@@ -134,7 +134,7 @@
          <widget class="QLabel" name="label">
           <property name="geometry">
            <rect>
-            <x>240</x>
+            <x>220</x>
             <y>50</y>
             <width>221</width>
             <height>16</height>
@@ -1011,56 +1011,61 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                        <height>20</height>
                       </size>
                      </property>
-                     <widget class="QLabel" name="label_6">
-                      <property name="geometry">
-                       <rect>
-                        <x>10</x>
-                        <y>2</y>
-                        <width>63</width>
-                        <height>16</height>
-                       </rect>
+                     <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="1,0">
+                      <property name="spacing">
+                       <number>5</number>
                       </property>
-                      <property name="minimumSize">
-                       <size>
-                        <width>0</width>
-                        <height>16</height>
-                       </size>
+                      <property name="leftMargin">
+                       <number>10</number>
                       </property>
-                      <property name="maximumSize">
-                       <size>
-                        <width>16777215</width>
-                        <height>16</height>
-                       </size>
+                      <property name="topMargin">
+                       <number>0</number>
                       </property>
-                      <property name="text">
-                       <string>Pos 0 0</string>
+                      <property name="rightMargin">
+                       <number>0</number>
                       </property>
-                     </widget>
-                     <widget class="QLabel" name="label_5">
-                      <property name="geometry">
-                       <rect>
-                        <x>70</x>
-                        <y>2</y>
-                        <width>63</width>
-                        <height>16</height>
-                       </rect>
+                      <property name="bottomMargin">
+                       <number>0</number>
                       </property>
-                      <property name="minimumSize">
-                       <size>
-                        <width>0</width>
-                        <height>16</height>
-                       </size>
-                      </property>
-                      <property name="maximumSize">
-                       <size>
-                        <width>16777215</width>
-                        <height>16</height>
-                       </size>
-                      </property>
-                      <property name="text">
-                       <string>[128x64]</string>
-                      </property>
-                     </widget>
+                      <item>
+                       <widget class="QLabel" name="lbl_Position">
+                        <property name="minimumSize">
+                         <size>
+                          <width>0</width>
+                          <height>16</height>
+                         </size>
+                        </property>
+                        <property name="maximumSize">
+                         <size>
+                          <width>16777215</width>
+                          <height>16</height>
+                         </size>
+                        </property>
+                        <property name="text">
+                         <string>Pos 0 0</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="lbl_WidthHeight">
+                        <property name="minimumSize">
+                         <size>
+                          <width>0</width>
+                          <height>16</height>
+                         </size>
+                        </property>
+                        <property name="maximumSize">
+                         <size>
+                          <width>16777215</width>
+                          <height>16</height>
+                         </size>
+                        </property>
+                        <property name="text">
+                         <string>[128x64]</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
                     </widget>
                    </item>
                   </layout>
@@ -1074,7 +1079,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                  <number>0</number>
                 </property>
                 <item>
-                 <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,0">
+                 <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,0">
                   <property name="spacing">
                    <number>0</number>
                   </property>
@@ -1632,6 +1637,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <addaction name="act_ViewFrames"/>
     <addaction name="act_ViewLayers"/>
     <addaction name="act_ViewTools"/>
+    <addaction name="act_Palette"/>
     <addaction name="separator"/>
     <addaction name="menuTheme"/>
    </widget>
@@ -1655,7 +1661,6 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <addaction name="act_Settings"/>
     <addaction name="separator"/>
     <addaction name="act_KeyBindings"/>
-    <addaction name="act_MouseBindings"/>
     <addaction name="separator"/>
     <addaction name="act_SetColor"/>
    </widget>
@@ -1849,6 +1854,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
   <action name="act_Theme1Bit">
    <property name="text">
     <string>1bit</string>
+   </property>
+  </action>
+  <action name="act_Palette">
+   <property name="text">
+    <string>Hide Palette</string>
    </property>
   </action>
  </widget>

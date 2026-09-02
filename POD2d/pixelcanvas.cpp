@@ -39,6 +39,7 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     int x = (event->pos().x() - offset.x()) / scaleFactor;
     int y = (event->pos().y() - offset.y()) / scaleFactor;
     QPoint currentPoint(x, y);
+    emit cursorPositionChanged(x, y);
 
     if (currentTool == DrawTool::Select && activeHandle != HandleType::None) {
         QPoint currentPos(x, y);
@@ -704,6 +705,8 @@ void PixelCanvas::leaveEvent(QEvent *event) {
     isMouseOnCanvas = false;
     update();
     QWidget::leaveEvent(event);
+
+    emit cursorPositionChanged(-1, -1);
 }
 
 void PixelCanvas::pasteToLayer() {
@@ -818,6 +821,12 @@ void PixelCanvas::fitToScreen() {
 
 void PixelCanvas::resetToolState() {
     lastPoint = QPoint(-1, -1);
+
+    hasSelection = false;
+    isFloating = false;
+    selectionRect = QRect();
+    selectionPath = QPainterPath();
+    floatingImage = QImage();
 }
 
 void PixelCanvas::setCanvasSize(int width, int height) {

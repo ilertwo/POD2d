@@ -335,6 +335,21 @@ void MainWindow::connectEditorControls() {
     connect(ui->btn_Save, &QPushButton::clicked, this, &MainWindow::openExportMenu);
 
     connectPlayerControls();
+
+    connect(ui->btn_HideMiniMap, &QPushButton::clicked, this, [this]() {
+        bool isVisible = ui->miniCanvasWidget->isVisible();
+        setMiniMapVisible(!isVisible);
+    });
+
+    connect(ui->btn_HideFrames, &QPushButton::clicked, this, [this]() {
+        bool isVisible = ui->framesListWidget->isVisible();
+        setFrameListVisible(!isVisible);
+    });
+
+    connect(ui->btn_HideLayers, &QPushButton::clicked, this, [this]() {
+        bool isVisible = ui->layersListWidget->isVisible();
+        setLayerListVisible(!isVisible);
+    });
 }
 
 void MainWindow::connectPlayerControls() {
@@ -412,6 +427,14 @@ void MainWindow::connectDrawingTools() {
     connect(ui->btn_VerticalMiror, &QPushButton::toggled, this, [this](bool checked) {
         ui->canvasWidget->setVerticalMirror(checked);
     });
+
+    connect(ui->canvasWidget, &PixelCanvas::cursorPositionChanged, this, [this](int x, int y) {
+        if (x < 0 || y < 0 || x >= projectWidth || y >= projectHeight) {
+            ui->lbl_Position->setText("Pos - -");
+        } else {
+            ui->lbl_Position->setText(QString("Pos %1 %2").arg(x).arg(y));
+        }
+    });
 }
 
 void MainWindow::connectActions() {
@@ -465,7 +488,6 @@ void MainWindow::connectEditActions() {
 void MainWindow::connectViewActions() {
     connect(ui->act_ViewMiniMap, &QAction::triggered, this, [this]() {
         bool isVisible = ui->miniCanvasWidget->isVisible();
-
         setMiniMapVisible(!isVisible);
     });
 
@@ -484,6 +506,11 @@ void MainWindow::connectViewActions() {
         setToolsVisible(!isVisible);
     });
 
+    connect(ui->act_Palette, &QAction::triggered, this, [this]() {
+        bool isVisible = ui->frm_Palette->isVisible();
+        setPaletteVisible(!isVisible);
+    });
+
     connect(ui->act_ThemeDark, &QAction::triggered, this, [this]() { applyTheme("dark"); });
     connect(ui->act_ThemeLight, &QAction::triggered, this, [this]() { applyTheme("light"); });
     connect(ui->act_Theme1Bit, &QAction::triggered, this, [this]() { applyTheme("1bit"); });
@@ -496,11 +523,7 @@ void MainWindow::connectPreferencesActions(){
     });
 
     connect(ui->act_KeyBindings, &QAction::triggered, this, [this]() {
-        openSettings(1);
-    });
-
-    connect(ui->act_MouseBindings, &QAction::triggered, this, [this]() {
-        openSettings(2);
+        openSettings(3);
     });
 
     connect(ui->act_SetColor, &QAction::triggered, this, &MainWindow::chooseAndSetColor);
@@ -584,6 +607,8 @@ void MainWindow::createProject() {
         projectWidth = dialog.getWidth();
         projectHeight = dialog.getHeight();
 
+        ui->lbl_WidthHeight->setText("[" + QString::number(projectWidth) + "x" + QString::number(projectHeight) + "]");
+
         if (currentProjectName.isEmpty()) {
             currentProjectName = "Untitled";
         }
@@ -607,6 +632,15 @@ void MainWindow::createProject() {
         rebuildLayersList();
 
         setEditorUIEnabled(true);
+
+        if(!isRGB) {
+            ui->act_Palette->setEnabled(false);
+            ui->frm_Palette->setVisible(false);
+        }
+        else {
+            ui->act_Palette->setEnabled(true);
+            ui->frm_Palette->setVisible(true);
+        }
 
         ui->stackedWidget->setCurrentIndex(1);
 
@@ -655,9 +689,13 @@ void MainWindow::loadProjectFromFile(const QString &path) {
     projectWidth = loadedImg.width();
     projectHeight = loadedImg.height();
 
+    ui->lbl_WidthHeight->setText("[" + QString::number(projectWidth) + "x" + QString::number(projectHeight) + "]");
+
     projectModel->setCanvasSize(projectWidth, projectHeight);
     ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
     updateUIProportions(projectWidth, projectHeight);
+
+    projectModel->notifyImageChanged();
 
     ui->canvasWidget->resetToolState();
     ui->canvasWidget->setTool(DrawTool::Brush);
@@ -666,6 +704,17 @@ void MainWindow::loadProjectFromFile(const QString &path) {
     rebuildFramesList();
 
     setEditorUIEnabled(true);
+
+    bool isRGB = projectModel->getIsRGB();
+    if (!isRGB) {
+        ui->act_Palette->setEnabled(false);
+        ui->frm_Palette->setVisible(false);
+    }
+    else {
+        ui->act_Palette->setEnabled(true);
+        ui->frm_Palette->setVisible(true);
+    }
+
     ui->stackedWidget->setCurrentIndex(1);
 
     QTimer::singleShot(50, this, [this]() {
@@ -807,15 +856,6 @@ void MainWindow::openPaletteEditor(int colorIndexToEdit) {
     if (dialog.exec() == QDialog::Accepted) {
         customPalette = dialog.getPalette();
         rebuildPaletteGrid();
-    }
-}
-
-void MainWindow::openKeyBindings(int tabIndex) {
-    SettingsDialog dialog(this);
-
-    dialog.setActiveTab(tabIndex);
-
-    if (dialog.exec() == QDialog::Accepted) {
     }
 }
 
@@ -1175,6 +1215,7 @@ void MainWindow::setEditorUIEnabled(bool enabled) {
     ui->act_ViewFrames->setEnabled(enabled);
     ui->act_ViewLayers->setEnabled(enabled);
     ui->act_ViewTools->setEnabled(enabled);
+    ui->act_Palette->setEnabled(enabled);
 }
 
 void MainWindow::setMiniMapVisible(bool visible) {
@@ -1200,6 +1241,12 @@ void MainWindow::setLayerListVisible(bool visible) {
 
     QString text = visible ? "Hide Layers" : "Show Layers";
     ui->act_ViewLayers->setText(text);
+
+    bool isVisible = ui->frm_Palette->isVisible();
+
+    if(!isVisible) {
+        ui->rightPanelFrame->setVisible(visible);
+    }
 }
 
 void MainWindow::setToolsVisible(bool visible) {
@@ -1210,6 +1257,20 @@ void MainWindow::setToolsVisible(bool visible) {
     QString text = visible ? "Hide Tools" : "Show Tools";
     ui->act_ViewTools->setText(text);
     ui->act_ViewMiniMap->setEnabled(visible);
+}
+
+void MainWindow::setPaletteVisible(bool visible) {
+    ui->frm_Palette->setVisible(visible);
+
+    QString text = visible ? "Hide Palette" : "Show Palette";
+    ui->act_Palette->setText(text);
+
+    bool isVisible = ui->layersListWidget->isVisible();
+
+    if(!isVisible) {
+        ui->rightPanelFrame->setVisible(visible);
+    }
+
 }
 
 void MainWindow::updateUIProportions(int projWidth, int projHeight) {

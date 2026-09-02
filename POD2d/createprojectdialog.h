@@ -23,6 +23,8 @@ public:
 
     bool isRGBMode() const;
 
+    void setTheme();
+
 private:
     Ui::CreateProjectDialog *ui;
 };

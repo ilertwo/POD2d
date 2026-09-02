@@ -51,6 +51,7 @@ public:
 
 signals:
     void colorPicked(const QColor &color, bool isPrimary);
+    void cursorPositionChanged(int x, int y);
 
 protected:
     // Qt Events

@@ -15,6 +15,7 @@ class PaletteDialog : public QDialog
 
 public:
     explicit PaletteDialog(QWidget *parent = nullptr);
+    void setTheme();
     ~PaletteDialog();
 
     // Methods for transferring data back and forth

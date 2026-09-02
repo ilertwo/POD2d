@@ -10,6 +10,7 @@
 #include <QTextStream>
 #include <QRegularExpression>
 #include <QLineEdit>
+#include <QSettings>
 
 PaletteDialog::PaletteDialog(QWidget *parent) :
     QDialog(parent),
@@ -51,6 +52,31 @@ PaletteDialog::PaletteDialog(QWidget *parent) :
     connect(ui->spin_Hue, QOverload<int>::of(&QSpinBox::valueChanged), this, updateFromSpins);
     connect(ui->spin_Sat, QOverload<int>::of(&QSpinBox::valueChanged), this, updateFromSpins);
     connect(ui->spin_Val, QOverload<int>::of(&QSpinBox::valueChanged), this, updateFromSpins);
+
+    setTheme();
+}
+
+void PaletteDialog::setTheme() {
+    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+    QSettings settings("POD2d", "EditorSettings");
+    QString theme = settings.value("ui/theme", "dark").toString();
+
+    QFont pixelFont("Courier New", 14, QFont::Bold);
+
+    auto setBtnIcon = [&](QPushButton* btn, const QString& text, const QString& iconName) {
+        if (theme == "1bit") {
+            btn->setIcon(QIcon());
+            btn->setText(text);
+            btn->setFont(pixelFont);
+        } else {
+            btn->setText("");
+            QString fullPath = basePath + "/image/" + theme + "/" + iconName;
+            btn->setIcon(QIcon(fullPath));
+        }
+    };
+
+    setBtnIcon(ui->btn_Load, "L", "load.png");
+    setBtnIcon(ui->btn_Save, "S", "save.png");
 }
 
 PaletteDialog::~PaletteDialog() {
