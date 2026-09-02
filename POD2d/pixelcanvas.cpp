@@ -155,26 +155,41 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     case DrawTool::Eraser:
     case DrawTool::Brush:
         PaintTools::drawBrush(layerImg, x, y, brushSize, drawColor);
+        if (m_verticalMirror) {
+            PaintTools::drawBrush(layerImg, canvasWidth - 1 - x, y, brushSize, drawColor);
+        }
         break;
 
     case DrawTool::Lighten: {
         bool isRightClick = (event->buttons() & Qt::RightButton);
         PaintTools::lightenBrush(layerImg, x, y, brushSize, isRightClick);
+        if (m_verticalMirror) {
+            PaintTools::lightenBrush(layerImg, canvasWidth - 1 - x, y, brushSize, isRightClick);
+        }
         break;
     }
     case DrawTool::Line:
         layerImg = tempState;
         PaintTools::drawLine(layerImg, startPoint, currentPoint, drawColor);
+        if (m_verticalMirror) {
+            PaintTools::drawLine(layerImg, getMirroredPoint(startPoint), getMirroredPoint(currentPoint), drawColor);
+        }
         break;
 
     case DrawTool::Rectangle:
         layerImg = tempState;
         PaintTools::drawRect(layerImg, startPoint, currentPoint, drawColor);
+        if (m_verticalMirror) {
+            PaintTools::drawRect(layerImg, getMirroredPoint(startPoint), getMirroredPoint(currentPoint), drawColor);
+        }
         break;
 
     case DrawTool::Circle:
         layerImg = tempState;
         PaintTools::drawCircle(layerImg, startPoint, currentPoint, drawColor);
+        if (m_verticalMirror) {
+            PaintTools::drawCircle(layerImg, getMirroredPoint(startPoint), getMirroredPoint(currentPoint), drawColor);
+        }
         break;
 
     default:
@@ -272,16 +287,29 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
             return;
         }
     }
-
+    
     if (currentTool == DrawTool::Fill || currentTool == DrawTool::Dithering) {
         if (x >= 0 && x < layerImg.width() && y >= 0 && y < layerImg.height()) {
             QColor targetColor = layerImg.pixelColor(x, y);
+
             if (targetColor != replacementColor) {
                 if (currentTool == DrawTool::Fill) {
                     PaintTools::floodFill(layerImg, x, y, targetColor, replacementColor);
                 } else {
                     PaintTools::floodFillDithering(layerImg, x, y, targetColor, replacementColor);
                 }
+
+                if (m_verticalMirror) {
+                    int mx = canvasWidth - 1 - x;
+                    if (mx >= 0 && mx < layerImg.width() && y >= 0 && y < layerImg.height()) {
+                        QColor mirrorTarget = layerImg.pixelColor(mx, y);
+                        if (mirrorTarget != replacementColor) {
+                            if (currentTool == DrawTool::Fill) PaintTools::floodFill(layerImg, mx, y, mirrorTarget, replacementColor);
+                            else PaintTools::floodFillDithering(layerImg, mx, y, mirrorTarget, replacementColor);
+                        }
+                    }
+                }
+
                 m_model->saveHistoryStep(tempState);
                 m_model->notifyImageChanged();
                 update();
@@ -797,4 +825,13 @@ void PixelCanvas::setCanvasSize(int width, int height) {
     canvasHeight = height;
 
     update();
+}
+
+void PixelCanvas::setVerticalMirror(bool enabled) {
+    m_verticalMirror = enabled;
+    update();
+}
+
+QPoint PixelCanvas::getMirroredPoint(const QPoint &pt) const {
+    return QPoint(canvasWidth - 1 - pt.x(), pt.y());
 }

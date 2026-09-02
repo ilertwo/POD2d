@@ -406,6 +406,12 @@ void MainWindow::connectDrawingTools() {
         }
         updateColorIndicators();
     });
+
+    ui->btn_VerticalMiror->setCheckable(true);
+
+    connect(ui->btn_VerticalMiror, &QPushButton::toggled, this, [this](bool checked) {
+        ui->canvasWidget->setVerticalMirror(checked);
+    });
 }
 
 void MainWindow::connectActions() {

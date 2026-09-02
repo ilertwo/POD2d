@@ -47,6 +47,7 @@ public:
     void pasteToLayer();
     void fitToScreen();
     void resetToolState();
+    void setVerticalMirror(bool enabled);
 
 signals:
     void colorPicked(const QColor &color, bool isPrimary);
@@ -90,6 +91,8 @@ private:
     QImage tempState;
     QPainterPath selectionPath;
     QPainterPath dragStartPath;
+    bool m_verticalMirror = false;
+    QPoint getMirroredPoint(const QPoint &pt) const;
 
     // Variables for highlighting
     QRect selectionRect;
