@@ -36,6 +36,11 @@ private slots:
     void saveProjectAs();
     void loadPalette();
     void savePalette();
+    void actionImportPng();
+    void importPngToCanvas(const QString &path);
+    void openPngAsProject(const QString &path);
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
     // Editor actions
     void addLayer();

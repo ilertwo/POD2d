@@ -673,6 +673,9 @@ void PixelCanvas::commitFloatingImage() {
     isFloating = false;
     hasSelection = false;
     update();
+
+    m_model->notifyImageChanged();
+    update();
 }
 
 void PixelCanvas::setPrimaryColor(const QColor &color) {

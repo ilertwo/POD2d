@@ -64,7 +64,7 @@
          <number>1</number>
         </property>
         <property name="currentIndex">
-         <number>0</number>
+         <number>1</number>
         </property>
         <widget class="QWidget" name="page">
          <widget class="QPushButton" name="btn_CreateProject">
@@ -1596,12 +1596,12 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     </property>
     <addaction name="act_NewFile"/>
     <addaction name="act_OpenFile"/>
-    <addaction name="actionOpen_Recent"/>
     <addaction name="separator"/>
     <addaction name="act_Save"/>
     <addaction name="act_SaveAs"/>
     <addaction name="separator"/>
     <addaction name="act_ExportCode"/>
+    <addaction name="act_ImportPNG"/>
     <addaction name="separator"/>
     <addaction name="act_Close"/>
     <addaction name="separator"/>
@@ -1859,6 +1859,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
   <action name="act_Palette">
    <property name="text">
     <string>Hide Palette</string>
+   </property>
+  </action>
+  <action name="act_ImportPNG">
+   <property name="text">
+    <string>Import PNG</string>
    </property>
   </action>
  </widget>

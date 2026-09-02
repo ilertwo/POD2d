@@ -27,6 +27,11 @@
 #include <QFile>
 #include <QApplication>
 #include <QPainter>
+#include <QSet>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QEvent>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -63,6 +68,8 @@ void MainWindow::initModels() {
     this->setWindowTitle("POD2d");
     this->showMaximized();
     setEditorUIEnabled(false);
+    setAcceptDrops(true);
+    qApp->installEventFilter(this);
 }
 
 void MainWindow::setupTheme() {
@@ -459,6 +466,7 @@ void MainWindow::connectFileActions() {
     connect(ui->act_SaveAs, &QAction::triggered, this, &MainWindow::saveProjectAs);
     connect(ui->act_ExportCode, &QAction::triggered, this, &MainWindow::openExportMenu);
     connect(ui->act_OpenFile, &QAction::triggered, this, &MainWindow::openProject);
+    connect(ui->act_ImportPNG, &QAction::triggered, this, &MainWindow::actionImportPng);
     connect(ui->act_Close, &QAction::triggered, this, &MainWindow::closeProject);
     connect(ui->act_Exit, &QAction::triggered, this, &QWidget::close);
 }
@@ -658,10 +666,14 @@ void MainWindow::openProject() {
     const QString path = QFileDialog::getOpenFileName(
         this, "Open project",
         QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
-        "Pod2D Project (*.pod2d)"
+        "All Supported Files (*.pod2d *.png);;Pod2D Project (*.pod2d);;PNG Image (*.png)"
         );
 
-    if (!path.isEmpty()) {
+    if (path.isEmpty()) return;
+
+    if (path.endsWith(".png", Qt::CaseInsensitive)) {
+        openPngAsProject(path);
+    } else {
         loadProjectFromFile(path);
     }
 }
@@ -978,6 +990,136 @@ void MainWindow::savePalette() {
     }
 
     file.close();
+}
+
+void MainWindow::openPngAsProject(const QString &path) {
+    QImage img;
+    if (!img.load(path)) {
+        QMessageBox::warning(this, "Error", "Failed to load the image!");
+        return;
+    }
+
+    img = img.convertToFormat(QImage::Format_ARGB32);
+
+    bool isRgbMode = true;
+    QSet<QRgb> uniqueColors;
+
+    for (int y = 0; y < img.height(); ++y) {
+        const QRgb *line = reinterpret_cast<const QRgb*>(img.constScanLine(y));
+        for (int x = 0; x < img.width(); ++x) {
+            uniqueColors.insert(line[x]);
+            if (uniqueColors.size() > 2) break;
+        }
+        if (uniqueColors.size() > 2) break;
+    }
+
+    if (uniqueColors.size() <= 2) {
+        isRgbMode = false;
+    }
+
+    currentFilePath = path;
+    currentProjectName = QFileInfo(path).baseName();
+    this->setWindowTitle("POD2d - " + currentProjectName);
+
+    projectWidth = img.width();
+    projectHeight = img.height();
+    ui->lbl_WidthHeight->setText("[" + QString::number(projectWidth) + "x" + QString::number(projectHeight) + "]");
+
+    if (projectModel) {
+        projectModel->initDefaultProject(projectWidth, projectHeight, isRgbMode);
+
+        QImage &firstLayer = projectModel->getActiveLayerImage();
+        QPainter p(&firstLayer);
+        p.setCompositionMode(QPainter::CompositionMode_Source);
+        p.drawImage(0, 0, img);
+        p.end();
+
+        projectModel->setCanvasSize(projectWidth, projectHeight);
+        ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
+        updateUIProportions(projectWidth, projectHeight);
+        projectModel->notifyImageChanged();
+    }
+
+    ui->canvasWidget->resetToolState();
+    ui->canvasWidget->setTool(DrawTool::Brush);
+
+    rebuildFramesList();
+    rebuildLayersList();
+
+    setEditorUIEnabled(true);
+
+    ui->act_Palette->setEnabled(isRgbMode);
+    ui->frm_Palette->setVisible(isRgbMode);
+
+    ui->stackedWidget->setCurrentIndex(1);
+
+    QTimer::singleShot(50, this, [this]() {
+        ui->canvasWidget->fitToScreen();
+        ui->canvasWidget->update();
+    });
+
+    isProjectModified = false;
+    addRecentProject(path);
+}
+
+void MainWindow::actionImportPng() {
+    QString path = QFileDialog::getOpenFileName(
+        this, "Import PNG",
+        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
+        "Images (*.png *.jpg *.bmp)"
+        );
+
+    importPngToCanvas(path);
+}
+
+void MainWindow::importPngToCanvas(const QString &path) {
+    if (path.isEmpty()) return;
+
+    QImage img;
+    if (!img.load(path)) {
+        QMessageBox::warning(this, "Error", "Failed to load the image!");
+        return;
+    }
+
+    img = img.convertToFormat(QImage::Format_ARGB32);
+
+    if (projectModel) {
+        projectModel->setClipboardImage(img);
+        ui->canvasWidget->pasteToLayer();
+    }
+}
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
+    if (event->mimeData()->hasUrls()) {
+        QList<QUrl> urls = event->mimeData()->urls();
+        if (urls.first().isLocalFile()) {
+            QString filePath = urls.first().toLocalFile();
+
+            if (filePath.endsWith(".png", Qt::CaseInsensitive) ||
+                filePath.endsWith(".jpg", Qt::CaseInsensitive) ||
+                filePath.endsWith(".pod2d", Qt::CaseInsensitive)) {
+
+                event->acceptProposedAction();
+                return;
+            }
+        }
+    }
+    event->ignore();
+}
+
+void MainWindow::dropEvent(QDropEvent *event) {
+    QList<QUrl> urls = event->mimeData()->urls();
+    if (urls.isEmpty()) return;
+
+    QString filePath = urls.first().toLocalFile();
+
+    if (filePath.endsWith(".pod2d", Qt::CaseInsensitive)) {
+        loadProjectFromFile(filePath);
+    } else {
+        importPngToCanvas(filePath);
+    }
+
+    event->acceptProposedAction();
 }
 
 // Group B: UI & State Updates
@@ -1348,6 +1490,14 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     if (watched == ui->widget_Palette && event->type() == QEvent::MouseButtonDblClick) {
         openPaletteEditor(-1);
         return true;
+    }
+
+    if (event->type() == QEvent::MouseButtonPress) {
+        QWidget *clickedWidget = qobject_cast<QWidget*>(watched);
+
+        if (clickedWidget && clickedWidget != ui->canvasWidget) {
+            ui->canvasWidget->commitFloatingImage();
+        }
     }
 
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick) {
