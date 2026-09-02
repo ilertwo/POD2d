@@ -1466,10 +1466,14 @@ void MainWindow::setScale(int newScale) {
 void MainWindow::on_spin_brushSize_valueChanged(int value) { ui->canvasWidget->setBrushSize(value); }
 
 void MainWindow::chooseAndSetColor() {
-    const QColor selectedColor = QColorDialog::getColor(Qt::white, this, "Choose a color");
+    const QColor selectedColor = QColorDialog::getColor(ui->canvasWidget->getMonoDisplayColor(), this, "Choose OLED Color");
 
     if (selectedColor.isValid()) {
-        // ui->canvasWidget->setCurrentColor(selectedColor);
+        ui->canvasWidget->setMonoDisplayColor(selectedColor);
+
+        ui->canvasWidget->setPrimaryColor(selectedColor);
+        currentPrimaryColor = selectedColor;
+        updateColorIndicators();
     }
 }
 

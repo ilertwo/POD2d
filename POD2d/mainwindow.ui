@@ -1788,7 +1788,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
   </action>
   <action name="act_SetColor">
    <property name="text">
-    <string>Select Color</string>
+    <string>Pick One Color</string>
    </property>
   </action>
   <action name="act_HelpDocs">

@@ -93,6 +93,10 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     if (currentTool == DrawTool::Pipette && (event->buttons() & (Qt::LeftButton | Qt::RightButton))) {
         if (m_model && x >= 0 && x < canvasWidth && y >= 0 && y < canvasHeight) {
             QColor picked = m_model->getActiveLayerImage().pixelColor(x, y);
+
+            if (!m_model->getIsRGB() && picked == Qt::white) {
+                picked = m_monoColor;
+            }
             if (event->buttons() & Qt::LeftButton) {
                 primaryColor = picked;
                 emit colorPicked(picked, true);
@@ -149,6 +153,10 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     }
 
     QImage &layerImg = m_model->getActiveLayerImage();
+
+    if (!m_model->getIsRGB() && drawColor == m_monoColor) {
+        drawColor = Qt::white;
+    }
 
     switch (currentTool) {
     case DrawTool::Pen:
@@ -216,6 +224,9 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
     if (currentTool == DrawTool::Pipette) {
         if (m_model && x >= 0 && x < canvasWidth && y >= 0 && y < canvasHeight) {
             QColor picked = m_model->getActiveLayerImage().pixelColor(x, y);
+            if (!m_model->getIsRGB() && picked == Qt::white) {
+                picked = m_monoColor;
+            }
             if (event->buttons() & Qt::LeftButton) {
                 primaryColor = picked;
                 emit colorPicked(picked, true);
@@ -287,6 +298,10 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
         } else {
             return;
         }
+    }
+
+    if (!m_model->getIsRGB() && replacementColor == m_monoColor) {
+        replacementColor = Qt::white;
     }
     
     if (currentTool == DrawTool::Fill || currentTool == DrawTool::Dithering) {
@@ -449,6 +464,23 @@ void PixelCanvas::paintEvent(QPaintEvent *event) {
         const int activeIdx = m_model->getCurrentLayerIndex();
 
         for (int i = 0; i < currentLayers.size(); ++i) {
+            QImage layerToDraw = currentLayers[i];
+
+            if (!m_model->getIsRGB() && m_monoColor != Qt::white) {
+                layerToDraw = layerToDraw.convertToFormat(QImage::Format_ARGB32);
+                const QRgb whiteRgb = qRgba(255, 255, 255, 255);
+                const QRgb targetRgb = m_monoColor.rgba();
+
+                for (int y = 0; y < layerToDraw.height(); ++y) {
+                    QRgb *line = reinterpret_cast<QRgb*>(layerToDraw.scanLine(y));
+                    for (int x = 0; x < layerToDraw.width(); ++x) {
+                        if (line[x] == whiteRgb) {
+                            line[x] = targetRgb;
+                        }
+                    }
+                }
+            }
+
             if (i < activeIdx) {
                 const int distance = activeIdx - i;
                 const double opacity = qMax(0.1, 1.0 - (distance * 0.3));
@@ -458,7 +490,7 @@ void PixelCanvas::paintEvent(QPaintEvent *event) {
             } else {
                 continue;
             }
-            painter.drawImage(0, 0, currentLayers[i]);
+            painter.drawImage(0, 0, layerToDraw);
         }
     }
 
@@ -668,6 +700,15 @@ void PixelCanvas::setGridColor(const QColor &color) {
 void PixelCanvas::setBackgroundStyle(const QString &style) {
     m_bgStyle = style;
     update();
+}
+
+void PixelCanvas::setMonoDisplayColor(const QColor &color) {
+    m_monoColor = color;
+    update();
+}
+
+QColor PixelCanvas::getMonoDisplayColor() const {
+    return m_monoColor;
 }
 
 void PixelCanvas::rotateFloatingImage() {

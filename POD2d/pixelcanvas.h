@@ -38,6 +38,8 @@ public:
     void setShowGrid(bool show);
     void setGridColor(const QColor &color);
     void setBackgroundStyle(const QString &style);
+    void setMonoDisplayColor(const QColor &color);
+    QColor getMonoDisplayColor() const;
 
     // Public actions (invoked from MainWindow, for example, via menus or hotkeys)
     void rotateFloatingImage();
@@ -73,6 +75,7 @@ private:
 
     QColor primaryColor = Qt::white;
     QColor secondaryColor = Qt::black;
+    QColor m_monoColor = Qt::white;
     int canvasWidth = 128;
     int canvasHeight = 64;
     int brushSize = 1;
