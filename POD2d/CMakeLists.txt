@@ -34,6 +34,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         settingsdialog.h settingsdialog.cpp settingsdialog.ui
         gif.h
         palettedialog.h palettedialog.cpp palettedialog.ui
+        #app_icon.rc
 
 
 

@@ -25,6 +25,10 @@ QScrollArea,
 #rightPanelFrame,
 #miniCanvasFrame, 
 #frm_AddDeleteFrame, 
+#frm_Logo,
+#recentProjectLabel,
+#frm_StartMenu,
+#frm_RecentProjects,
 #frm_Figures {
     border: 2px solid #ffffff;
     border-radius: 0px;

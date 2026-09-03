@@ -138,6 +138,19 @@ void MainWindow::loadIcons() {
         }
     };
 
+    this->setWindowIcon(QIcon(basePath + "/image/" + "POD2d_icon.png"));
+
+    QPixmap logoPixmap;
+
+    if (theme == "light")
+        logoPixmap = QPixmap(basePath + "/image/POD2d_icon_white.png");
+    else
+        logoPixmap = QPixmap(basePath + "/image/POD2d_icon.png");
+
+    QPixmap scaledLogo = logoPixmap.scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    ui->lbl_Logo->setPixmap(scaledLogo);
+
+
     setBtnIcon(ui->btn_Save, "S", "save.png");
     setBtnIcon(ui->btn_Undo, "<", "undo.png");
     setBtnIcon(ui->btn_Redo, ">", "redo.png");
@@ -1352,6 +1365,7 @@ void MainWindow::setEditorUIEnabled(bool enabled) {
     ui->act_Line->setEnabled(enabled);
     ui->act_Text->setEnabled(enabled);
     ui->act_Fill->setEnabled(enabled);
+    ui->act_Clear->setEnabled(enabled);
 
     ui->act_ViewMiniMap->setEnabled(enabled);
     ui->act_ViewFrames->setEnabled(enabled);

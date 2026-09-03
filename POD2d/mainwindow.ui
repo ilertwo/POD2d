@@ -67,110 +67,256 @@
          <number>1</number>
         </property>
         <widget class="QWidget" name="page">
-         <widget class="QPushButton" name="btn_CreateProject">
-          <property name="geometry">
-           <rect>
-            <x>50</x>
-            <y>50</y>
-            <width>141</width>
-            <height>61</height>
-           </rect>
+         <layout class="QVBoxLayout" name="verticalLayout_9" stretch="0,0">
+          <property name="spacing">
+           <number>0</number>
           </property>
-          <property name="cursor">
-           <cursorShape>PointingHandCursor</cursorShape>
+          <property name="leftMargin">
+           <number>0</number>
           </property>
-          <property name="text">
-           <string>Create project</string>
+          <property name="topMargin">
+           <number>0</number>
           </property>
-         </widget>
-         <widget class="QPushButton" name="btn_OpenProject">
-          <property name="geometry">
-           <rect>
-            <x>50</x>
-            <y>120</y>
-            <width>141</width>
-            <height>61</height>
-           </rect>
+          <property name="rightMargin">
+           <number>0</number>
           </property>
-          <property name="cursor">
-           <cursorShape>PointingHandCursor</cursorShape>
+          <property name="bottomMargin">
+           <number>0</number>
           </property>
-          <property name="text">
-           <string>Open project</string>
-          </property>
-         </widget>
-         <widget class="QPushButton" name="btn_ProjectsTab">
-          <property name="geometry">
-           <rect>
-            <x>60</x>
-            <y>190</y>
-            <width>131</width>
-            <height>31</height>
-           </rect>
-          </property>
-          <property name="cursor">
-           <cursorShape>PointingHandCursor</cursorShape>
-          </property>
-          <property name="text">
-           <string>project</string>
-          </property>
-         </widget>
-         <widget class="QPushButton" name="btn_ExamplesTab">
-          <property name="geometry">
-           <rect>
-            <x>60</x>
-            <y>230</y>
-            <width>131</width>
-            <height>31</height>
-           </rect>
-          </property>
-          <property name="cursor">
-           <cursorShape>PointingHandCursor</cursorShape>
-          </property>
-          <property name="text">
-           <string>examples</string>
-          </property>
-         </widget>
-         <widget class="QLabel" name="label">
-          <property name="geometry">
-           <rect>
-            <x>220</x>
-            <y>50</y>
-            <width>221</width>
-            <height>16</height>
-           </rect>
-          </property>
-          <property name="text">
-           <string>Recent projects</string>
-          </property>
-         </widget>
-         <widget class="QLabel" name="label_7">
-          <property name="geometry">
-           <rect>
-            <x>60</x>
-            <y>320</y>
-            <width>141</width>
-            <height>271</height>
-           </rect>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-         </widget>
-         <widget class="QListWidget" name="list_RecentProjects">
-          <property name="geometry">
-           <rect>
-            <x>220</x>
-            <y>70</y>
-            <width>941</width>
-            <height>571</height>
-           </rect>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">QListWidget { background: transparent; border: none; outline: none; }
+          <item>
+           <widget class="QFrame" name="frm_Logo">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>50</height>
+             </size>
+            </property>
+            <property name="frameShape">
+             <enum>QFrame::Shape::StyledPanel</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Shadow::Raised</enum>
+            </property>
+            <widget class="QLabel" name="label_5">
+             <property name="geometry">
+              <rect>
+               <x>60</x>
+               <y>10</y>
+               <width>121</width>
+               <height>31</height>
+              </rect>
+             </property>
+             <property name="font">
+              <font>
+               <family>Calibri</family>
+               <pointsize>24</pointsize>
+              </font>
+             </property>
+             <property name="cursor">
+              <cursorShape>CrossCursor</cursorShape>
+             </property>
+             <property name="text">
+              <string>POD2d</string>
+             </property>
+            </widget>
+            <widget class="QLabel" name="lbl_Logo">
+             <property name="geometry">
+              <rect>
+               <x>20</x>
+               <y>10</y>
+               <width>32</width>
+               <height>32</height>
+              </rect>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_10" stretch="0,0">
+            <property name="spacing">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QFrame" name="frm_StartMenu">
+              <property name="minimumSize">
+               <size>
+                <width>200</width>
+                <height>70</height>
+               </size>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::Shape::StyledPanel</enum>
+              </property>
+              <property name="frameShadow">
+               <enum>QFrame::Shadow::Raised</enum>
+              </property>
+              <widget class="QPushButton" name="btn_CreateProject">
+               <property name="geometry">
+                <rect>
+                 <x>20</x>
+                 <y>30</y>
+                 <width>161</width>
+                 <height>61</height>
+                </rect>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>13</pointsize>
+                </font>
+               </property>
+               <property name="cursor">
+                <cursorShape>PointingHandCursor</cursorShape>
+               </property>
+               <property name="text">
+                <string>Create project</string>
+               </property>
+              </widget>
+              <widget class="QPushButton" name="btn_OpenProject">
+               <property name="geometry">
+                <rect>
+                 <x>20</x>
+                 <y>100</y>
+                 <width>161</width>
+                 <height>61</height>
+                </rect>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>13</pointsize>
+                </font>
+               </property>
+               <property name="cursor">
+                <cursorShape>PointingHandCursor</cursorShape>
+               </property>
+               <property name="text">
+                <string>Open project</string>
+               </property>
+              </widget>
+              <widget class="QPushButton" name="btn_ProjectsTab">
+               <property name="geometry">
+                <rect>
+                 <x>60</x>
+                 <y>170</y>
+                 <width>121</width>
+                 <height>31</height>
+                </rect>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
+               <property name="cursor">
+                <cursorShape>PointingHandCursor</cursorShape>
+               </property>
+               <property name="text">
+                <string>project</string>
+               </property>
+              </widget>
+              <widget class="QPushButton" name="btn_ExamplesTab">
+               <property name="geometry">
+                <rect>
+                 <x>60</x>
+                 <y>210</y>
+                 <width>121</width>
+                 <height>31</height>
+                </rect>
+               </property>
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                </font>
+               </property>
+               <property name="cursor">
+                <cursorShape>PointingHandCursor</cursorShape>
+               </property>
+               <property name="text">
+                <string>examples</string>
+               </property>
+              </widget>
+             </widget>
+            </item>
+            <item>
+             <widget class="QWidget" name="widget_3" native="true">
+              <layout class="QVBoxLayout" name="verticalLayout_8" stretch="0,1">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QFrame" name="recentProjectLabel">
+                 <property name="minimumSize">
+                  <size>
+                   <width>0</width>
+                   <height>30</height>
+                  </size>
+                 </property>
+                 <property name="frameShape">
+                  <enum>QFrame::Shape::StyledPanel</enum>
+                 </property>
+                 <property name="frameShadow">
+                  <enum>QFrame::Shadow::Raised</enum>
+                 </property>
+                 <widget class="QLabel" name="label">
+                  <property name="geometry">
+                   <rect>
+                    <x>10</x>
+                    <y>5</y>
+                    <width>161</width>
+                    <height>16</height>
+                   </rect>
+                  </property>
+                  <property name="font">
+                   <font>
+                    <pointsize>11</pointsize>
+                   </font>
+                  </property>
+                  <property name="text">
+                   <string>Recent projects</string>
+                  </property>
+                 </widget>
+                </widget>
+               </item>
+               <item>
+                <widget class="QFrame" name="frm_RecentProjects">
+                 <property name="frameShape">
+                  <enum>QFrame::Shape::StyledPanel</enum>
+                 </property>
+                 <property name="frameShadow">
+                  <enum>QFrame::Shadow::Raised</enum>
+                 </property>
+                 <layout class="QHBoxLayout" name="horizontalLayout_9">
+                  <item>
+                   <widget class="QListWidget" name="list_RecentProjects">
+                    <property name="styleSheet">
+                     <string notr="true">QListWidget { background: transparent; border: none; outline: none; }
 QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
-          </property>
-         </widget>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
         </widget>
         <widget class="QWidget" name="page_2">
          <layout class="QGridLayout" name="gridLayout_3">
@@ -538,13 +684,13 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                   <property name="minimumSize">
                    <size>
                     <width>150</width>
-                    <height>20</height>
+                    <height>25</height>
                    </size>
                   </property>
                   <property name="maximumSize">
                    <size>
                     <width>150</width>
-                    <height>20</height>
+                    <height>25</height>
                    </size>
                   </property>
                   <property name="font">
@@ -562,10 +708,15 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                    <property name="geometry">
                     <rect>
                      <x>10</x>
-                     <y>2</y>
-                     <width>63</width>
+                     <y>5</y>
+                     <width>121</width>
                      <height>16</height>
                     </rect>
+                   </property>
+                   <property name="font">
+                    <font>
+                     <pointsize>11</pointsize>
+                    </font>
                    </property>
                    <property name="text">
                     <string>Tools</string>
@@ -1170,13 +1321,13 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                           <property name="minimumSize">
                            <size>
                             <width>120</width>
-                            <height>20</height>
+                            <height>25</height>
                            </size>
                           </property>
                           <property name="maximumSize">
                            <size>
                             <width>140</width>
-                            <height>20</height>
+                            <height>25</height>
                            </size>
                           </property>
                           <property name="frameShape">
@@ -1189,10 +1340,15 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                            <property name="geometry">
                             <rect>
                              <x>10</x>
-                             <y>2</y>
-                             <width>71</width>
+                             <y>5</y>
+                             <width>101</width>
                              <height>16</height>
                             </rect>
+                           </property>
+                           <property name="font">
+                            <font>
+                             <pointsize>11</pointsize>
+                            </font>
                            </property>
                            <property name="text">
                             <string>Layers</string>
@@ -1335,13 +1491,13 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                           <property name="minimumSize">
                            <size>
                             <width>120</width>
-                            <height>20</height>
+                            <height>25</height>
                            </size>
                           </property>
                           <property name="maximumSize">
                            <size>
                             <width>120</width>
-                            <height>20</height>
+                            <height>25</height>
                            </size>
                           </property>
                           <property name="frameShape">
@@ -1354,10 +1510,15 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                            <property name="geometry">
                             <rect>
                              <x>8</x>
-                             <y>2</y>
-                             <width>63</width>
+                             <y>5</y>
+                             <width>101</width>
                              <height>16</height>
                             </rect>
+                           </property>
+                           <property name="font">
+                            <font>
+                             <pointsize>11</pointsize>
+                            </font>
                            </property>
                            <property name="text">
                             <string>Palette</string>
@@ -1591,6 +1752,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
     <property name="title">
      <string>File</string>
     </property>
@@ -1608,6 +1774,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <addaction name="act_Exit"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
     <property name="title">
      <string>Edit</string>
     </property>
@@ -1622,6 +1793,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <addaction name="act_Clear"/>
    </widget>
    <widget class="QMenu" name="menuView">
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
     <property name="title">
      <string>View</string>
     </property>
@@ -1642,6 +1818,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <addaction name="menuTheme"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
     <property name="title">
      <string>Help</string>
     </property>
@@ -1655,6 +1836,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <addaction name="act_HelpUkraine"/>
    </widget>
    <widget class="QMenu" name="menuPreferences">
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
     <property name="title">
      <string>Preferences</string>
     </property>
