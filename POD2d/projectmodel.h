@@ -13,7 +13,9 @@
 // Structure of a single frame (contains its own layers)
 struct Frame {
     QList<QImage> layers;
+    QList<bool> layerVisibility;
     int activeLayerIndex = 0;
+    bool visible = true;
 };
 
 // Undo/Redo history step structure
@@ -46,6 +48,10 @@ public:
     int getFrameCount() const;
     int getCurrentFrameIndex() const;
     void setCurrentFrame(int index);
+    void duplicateCurrentFrame();
+    void moveFrame(int fromIndex, int toIndex);
+    void toggleFrameVisibility(int index);
+    bool isFrameVisible(int index) const;
 
     // 2. LAYER MANAGEMENT
     void addLayer();
@@ -53,6 +59,11 @@ public:
     int getLayerCount() const;
     int getCurrentLayerIndex() const;
     void setCurrentLayer(int index);
+    void moveLayer(int fromIndex, int toIndex);
+    void toggleLayerVisibility(int index);
+    bool isLayerVisible(int index) const;
+    void mergeLayerDown();
+    void duplicateLayer(int index);
 
     // 3. DATA ACCESS (Images)
     bool getIsRGB() const;
@@ -110,8 +121,8 @@ private:
     Frame createDefaultFrame() const;
 
     // Configuration constants
-    static constexpr int MAX_FRAMES = 16;
-    static constexpr int MAX_LAYERS = 16;
+    int maxFrames = 64;
+    int maxLayers = 16;
     static constexpr int PLAYBACK_SPEED_MS = 200;
 
     // Width X Height, Color mode

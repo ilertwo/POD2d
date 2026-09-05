@@ -25,10 +25,12 @@ void ProjectModel::initDefaultProject(int width, int height, bool isRGBMode) {
 
     Frame firstFrame;
     QImage baseLayer(width, height, QImage::Format_ARGB32);
-    baseLayer.fill(Qt::black);
+    baseLayer.fill(Qt::transparent);
 
     firstFrame.layers.append(baseLayer);
+    firstFrame.layerVisibility.append(true);
     firstFrame.activeLayerIndex = 0;
+    firstFrame.visible = true;
 
     frames.append(firstFrame);
     currentFrameIndex = 0;
@@ -41,13 +43,16 @@ void ProjectModel::loadSettings() {
     QSettings settings("POD2d", "EditorSettings");
     int settingsHistorySteps = settings.value("editor/undoLimit", 50).toInt();
     setMaxHistorySteps(settingsHistorySteps);
+
+    maxFrames = settings.value("editor/maxFrames", 64).toInt();
+    maxLayers = settings.value("editor/maxLayers", 16).toInt();
 }
 
 // ==========================================
 // 1. FRAME MANAGEMENT
 // ==========================================
 void ProjectModel::addFrame() {
-    if (frames.size() >= MAX_FRAMES) return;
+    if (frames.size() >= maxFrames) return;
 
     QList<Frame> backupFrames = frames;
     int backupIndex = currentFrameIndex;
@@ -67,10 +72,12 @@ void ProjectModel::addFrame() {
 Frame ProjectModel::createDefaultFrame() const {
     Frame frame;
     QImage baseLayer(CANVAS_WIDTH, CANVAS_HEIGHT, QImage::Format_ARGB32);
-    baseLayer.fill(Qt::black);
+    baseLayer.fill(Qt::transparent);
 
     frame.layers.append(baseLayer);
+    frame.layerVisibility.append(true);
     frame.activeLayerIndex = 0;
+    frame.visible = true;
 
     return frame;
 }
@@ -129,11 +136,117 @@ int ProjectModel::getCurrentFrameIndex() const {
     return currentFrameIndex;
 }
 
+void ProjectModel::duplicateCurrentFrame() {
+    if (frames.size() >= maxFrames) return;
+
+    QList<Frame> backupFrames = frames;
+    int backupIndex = currentFrameIndex;
+
+    Frame newFrame = frames[currentFrameIndex];
+
+    if (newFrame.layers.size() < maxLayers) {
+        QImage newEmptyLayer(CANVAS_WIDTH, CANVAS_HEIGHT, QImage::Format_ARGB32);
+        newEmptyLayer.fill(Qt::transparent);
+
+        newFrame.layers.append(newEmptyLayer);
+        newFrame.layerVisibility.append(true);
+
+        newFrame.activeLayerIndex = newFrame.layers.size() - 1;
+    }
+
+    frames.insert(currentFrameIndex + 1, newFrame);
+
+    currentFrameIndex++;
+    saveStructuralHistoryStep(backupFrames, backupIndex);
+    syncUIAfterHistoryStep();
+}
+
+void ProjectModel::moveFrame(int fromIndex, int toIndex) {
+    if (fromIndex < 0 || fromIndex >= frames.size() || toIndex < 0 || toIndex >= frames.size() || fromIndex == toIndex) return;
+
+    QList<Frame> backupFrames = frames;
+    int backupIndex = currentFrameIndex;
+
+    frames.move(fromIndex, toIndex);
+    currentFrameIndex = toIndex;
+
+    saveStructuralHistoryStep(backupFrames, backupIndex);
+    syncUIAfterHistoryStep();
+}
+
+void ProjectModel::toggleFrameVisibility(int index) {
+    if (index >= 0 && index < frames.size()) {
+        frames[index].visible = !frames[index].visible;
+        emit framesListChanged();
+    }
+}
+
+bool ProjectModel::isFrameVisible(int index) const {
+    if (index >= 0 && index < frames.size()) {
+        return frames[index].visible;
+    }
+    return false;
+}
+
+bool ProjectModel::isLayerVisible(int index) const {
+    if (!frames.isEmpty() && index >= 0 && index < frames[currentFrameIndex].layerVisibility.size()) {
+        return frames[currentFrameIndex].layerVisibility[index];
+    }
+    return false;
+}
+
+void ProjectModel::mergeLayerDown() {
+    if (frames.isEmpty()) return;
+
+    int currentIndex = getCurrentLayerIndex();
+
+    if (currentIndex <= 0 || currentIndex >= frames[currentFrameIndex].layers.size()) {
+        return;
+    }
+
+    QList<Frame> backupFrames = frames;
+    int backupIndex = currentFrameIndex;
+
+    QImage &bottomLayer = frames[currentFrameIndex].layers[currentIndex - 1];
+    const QImage &topLayer = frames[currentFrameIndex].layers[currentIndex];
+
+    QPainter painter(&bottomLayer);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    painter.drawImage(0, 0, topLayer);
+    painter.end();
+
+    frames[currentFrameIndex].layers.removeAt(currentIndex);
+    frames[currentFrameIndex].layerVisibility.removeAt(currentIndex);
+
+    frames[currentFrameIndex].activeLayerIndex = currentIndex - 1;
+
+    saveStructuralHistoryStep(backupFrames, backupIndex);
+    syncUIAfterHistoryStep();
+}
+
+void ProjectModel::duplicateLayer(int index) {
+    if (frames.isEmpty() || frames[currentFrameIndex].layers.size() >= maxLayers) return;
+    if (index < 0 || index >= frames[currentFrameIndex].layers.size()) return;
+
+    QList<Frame> backupFrames = frames;
+    int backupIndex = currentFrameIndex;
+
+    QImage clonedLayer = frames[currentFrameIndex].layers[index].copy();
+    bool isVis = frames[currentFrameIndex].layerVisibility[index];
+
+    frames[currentFrameIndex].layers.insert(index + 1, clonedLayer);
+    frames[currentFrameIndex].layerVisibility.insert(index + 1, isVis);
+    frames[currentFrameIndex].activeLayerIndex = index + 1;
+
+    saveStructuralHistoryStep(backupFrames, backupIndex);
+    syncUIAfterHistoryStep();
+}
+
 // ==========================================
 // 2. LAYER MANAGEMENT
 // ==========================================
 void ProjectModel::addLayer() {
-    if (frames.isEmpty() || frames[currentFrameIndex].layers.size() >= MAX_LAYERS) return;
+    if (frames.isEmpty() || frames[currentFrameIndex].layers.size() >= maxLayers) return;
 
     QList<Frame> backupFrames = frames;
     int backupIndex = currentFrameIndex;
@@ -144,6 +257,7 @@ void ProjectModel::addLayer() {
     newLayer.fill(Qt::transparent);
 
     currentLayers.append(newLayer);
+    frames[currentFrameIndex].layerVisibility.append(true);
     frames[currentFrameIndex].activeLayerIndex = currentLayers.size() - 1;
 
     saveStructuralHistoryStep(backupFrames, backupIndex);
@@ -196,6 +310,28 @@ int ProjectModel::getLayerCount() const {
     return frames[currentFrameIndex].layers.size();
 }
 
+void ProjectModel::moveLayer(int fromIndex, int toIndex) {
+    if (frames.isEmpty() || fromIndex < 0 || fromIndex >= frames[currentFrameIndex].layers.size() || toIndex < 0 || toIndex >= frames[currentFrameIndex].layers.size() || fromIndex == toIndex) return;
+
+    QList<Frame> backupFrames = frames;
+    int backupIndex = currentFrameIndex;
+
+    frames[currentFrameIndex].layers.move(fromIndex, toIndex);
+    frames[currentFrameIndex].layerVisibility.move(fromIndex, toIndex);
+    frames[currentFrameIndex].activeLayerIndex = toIndex;
+
+    saveStructuralHistoryStep(backupFrames, backupIndex);
+    syncUIAfterHistoryStep();
+}
+
+void ProjectModel::toggleLayerVisibility(int index) {
+    if (!frames.isEmpty() && index >= 0 && index < frames[currentFrameIndex].layerVisibility.size()) {
+        frames[currentFrameIndex].layerVisibility[index] = !frames[currentFrameIndex].layerVisibility[index];
+        emit layersListChanged();
+        emit imageChanged(getFlattenedImage());
+    }
+}
+
 // ==========================================
 // 3. DATA ACCESS (Images)
 // ==========================================
@@ -221,11 +357,12 @@ QImage ProjectModel::getFlattenedImage() const {
 
     if (!frames.isEmpty()) {
         QPainter painter(&result);
-        for (const QImage &layer : frames[currentFrameIndex].layers) {
-            painter.drawImage(0, 0, layer);
+        for (int i = 0; i < frames[currentFrameIndex].layers.size(); ++i) {
+            if (frames[currentFrameIndex].layerVisibility[i]) {
+                painter.drawImage(0, 0, frames[currentFrameIndex].layers[i]);
+            }
         }
     }
-
     return result;
 }
 
@@ -235,8 +372,10 @@ QImage ProjectModel::getFlattenedFrame(int index) const {
 
     if (index >= 0 && index < frames.size()) {
         QPainter painter(&result);
-        for (const QImage &layer : frames[index].layers) {
-            painter.drawImage(0, 0, layer);
+        for (int i = 0; i < frames[index].layers.size(); ++i) {
+            if (frames[index].layerVisibility[i]) {
+                painter.drawImage(0, 0, frames[index].layers[i]);
+            }
         }
     }
     return result;
@@ -311,8 +450,8 @@ void ProjectModel::clearRectOnCurrentLayer(const QRect &rect) {
     QPainter p(&activeLayer);
     p.setCompositionMode(QPainter::CompositionMode_Source);
 
-    const QColor clearColor = (getCurrentLayerIndex() == 0) ? Qt::black : Qt::transparent;
-    p.fillRect(rect, clearColor);
+    //const QColor clearColor = (getCurrentLayerIndex() == 0) ? Qt::black : Qt::transparent;
+    p.fillRect(rect, Qt::transparent);
 
     saveHistoryStep(previousState);
 
@@ -325,11 +464,7 @@ void ProjectModel::clearCanvas() {
     QImage &activeLayer = getActiveLayerImage();
     QImage previousState = activeLayer;
 
-    if (getCurrentLayerIndex() == 0) {
-        activeLayer.fill(Qt::black);
-    } else {
-        activeLayer.fill(Qt::transparent);
-    }
+    activeLayer.fill(Qt::transparent);
 
     saveHistoryStep(previousState);
     emit imageChanged(getFlattenedImage());
@@ -516,8 +651,12 @@ void ProjectModel::togglePlay() {
 }
 
 void ProjectModel::onPlayTimerTick() {
-    const int nextFrame = (currentFrameIndex + 1) % frames.size();
-
+    int nextFrame = currentFrameIndex;
+    int attempts = 0;
+    do {
+        nextFrame = (nextFrame + 1) % frames.size();
+        attempts++;
+    } while (!frames[nextFrame].visible && attempts < frames.size());
     setCurrentFrame(nextFrame);
 }
 

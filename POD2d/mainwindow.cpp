@@ -32,6 +32,7 @@
 #include <QDropEvent>
 #include <QMimeData>
 #include <QEvent>
+#include <QMenu>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -74,7 +75,7 @@ void MainWindow::initModels() {
 
 void MainWindow::setupTheme() {
     QSettings settings("POD2d", "EditorSettings");
-    QString currentTheme = settings.value("ui/theme", "dark").toString(); // dark - тема за замовчуванням
+    QString currentTheme = settings.value("ui/theme", "dark").toString();
     applyTheme(currentTheme);
 }
 
@@ -88,17 +89,9 @@ void MainWindow::setupFramesListWidget() {
 
     framesList->setViewMode(QListView::IconMode);
     framesList->setFlow(QListView::LeftToRight);
-    framesList->setIconSize(QSize(128, 64));
-    framesList->setGridSize(QSize(140, 90));
     framesList->setSpacing(5);
     framesList->setFixedHeight(100);
     framesList->setMovement(QListView::Static);
-
-    QListWidgetItem *firstFrameItem = new QListWidgetItem("1");
-    firstFrameItem->setIcon(QIcon(QPixmap::fromImage(projectModel->getFlattenedImage())));
-
-    framesList->addItem(firstFrameItem);
-    framesList->setCurrentRow(0);
 }
 
 void MainWindow::setupLayersListWidget() {
@@ -218,6 +211,9 @@ void MainWindow::connectModelToLists() {
 void MainWindow::connectFramesList() {
     QListWidget* framesList = ui->framesListWidget;
 
+    framesList->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(framesList, &QWidget::customContextMenuRequested, this, &MainWindow::showFrameContextMenu);
+
     connect(projectModel, &ProjectModel::framesListChanged, this, &MainWindow::rebuildFramesList);
 
     connect(projectModel, &ProjectModel::frameChanged, this, [this, framesList](int index) {
@@ -234,15 +230,18 @@ void MainWindow::connectFramesList() {
         }
     });
 
-    connect(projectModel, &ProjectModel::forceUIFrameSelection, this, [this](int index) {
-        ui->framesListWidget->blockSignals(true);
-        ui->framesListWidget->setCurrentRow(index);
-        ui->framesListWidget->blockSignals(false);
+    connect(projectModel, &ProjectModel::forceUIFrameSelection, this, [this, framesList](int index) {
+        framesList->blockSignals(true);
+        framesList->setCurrentRow(index);
+        framesList->blockSignals(false);
     });
 
-    connect(projectModel, &ProjectModel::imageChanged, this, [this](const QImage &flatImg) {
-        if (QListWidgetItem *currentItem = ui->framesListWidget->currentItem()) {
-            if (QWidget *cellWidget = ui->framesListWidget->itemWidget(currentItem)) {
+    connect(projectModel, &ProjectModel::imageChanged, this, [this, framesList](const QImage &flatImg) {
+        int currentIndex = projectModel->getCurrentFrameIndex();
+        QListWidgetItem *item = framesList->item(currentIndex);
+
+        if (item) {
+            if (QWidget *cellWidget = framesList->itemWidget(item)) {
                 if (QLabel *imgLabel = cellWidget->findChild<QLabel*>("frameImage")) {
                     QPixmap newPix = QPixmap::fromImage(flatImg).scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
                     imgLabel->setPixmap(newPix);
@@ -250,10 +249,24 @@ void MainWindow::connectFramesList() {
             }
         }
     });
+
+    connect(framesList->model(), &QAbstractItemModel::rowsMoved, this,
+            [this](const QModelIndex &, int start, int, const QModelIndex &, int row) {
+                int toIndex = (row > start) ? row - 1 : row;
+
+                if (start == toIndex) {
+                    rebuildFramesList();
+                } else {
+                    projectModel->moveFrame(start, toIndex);
+                }
+            });
 }
 
 void MainWindow::connectLayersList() {
     QListWidget* layersList = ui->layersListWidget;
+
+    layersList->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(layersList, &QWidget::customContextMenuRequested, this, &MainWindow::showLayerContextMenu);
 
     connect(projectModel, &ProjectModel::layersListChanged, this, &MainWindow::rebuildLayersList);
 
@@ -300,10 +313,17 @@ void MainWindow::connectLayersList() {
             currentItem->setData(Qt::UserRole, QPixmap::fromImage(scaledImg));
         }
     });
+
+    ui->layersListWidget->viewport()->installEventFilter(this);
+
+    connect(ui->layersListWidget->model(), &QAbstractItemModel::rowsMoved, this,
+            [this](const QModelIndex &, int start, int, const QModelIndex &, int row) {
+                int toIndex = (row > start) ? row - 1 : row;
+                projectModel->moveLayer(start, toIndex);
+            });
 }
 
 void MainWindow::connectMiniCanvas() {
-    QListWidget* framesList = ui->framesListWidget;
     QLabel* miniCanvas = ui->miniCanvasWidget;
 
     QImage initialImg = projectModel->getFlattenedImage();
@@ -314,11 +334,7 @@ void MainWindow::connectMiniCanvas() {
         );
     miniCanvas->setPixmap(initialPixmap);
 
-    connect(projectModel, &ProjectModel::imageChanged, this, [framesList, miniCanvas](const QImage &img) {
-        if (QListWidgetItem *currentItem = framesList->currentItem()) {
-            currentItem->setIcon(QIcon(QPixmap::fromImage(img)));
-        }
-
+    connect(projectModel, &ProjectModel::imageChanged, this, [miniCanvas](const QImage &img) {
         QPixmap pixmap = QPixmap::fromImage(img).scaled(
             miniCanvas->size(),
             Qt::KeepAspectRatio,
@@ -370,6 +386,8 @@ void MainWindow::connectEditorControls() {
         bool isVisible = ui->layersListWidget->isVisible();
         setLayerListVisible(!isVisible);
     });
+
+    //connect(ui->btn_MergeLayer, &QPushButton::clicked, projectModel, &ProjectModel::mergeLayerDown);
 }
 
 void MainWindow::connectPlayerControls() {
@@ -1173,9 +1191,11 @@ void MainWindow::rebuildLayersList() {
                                                                                                   "QListWidget::item:selected { " + selectedItemBorder + " }"
         );
 
+    layersList->setDragDropMode(QAbstractItemView::InternalMove);
+
     for (int i = 0; i < count; ++i) {
         QListWidgetItem *item = new QListWidgetItem();
-        item->setSizeHint(QSize(110, 46));
+        item->setSizeHint(QSize(120, 46));
         layersList->addItem(item);
 
         QWidget *rowWidget = new QWidget();
@@ -1188,7 +1208,7 @@ void MainWindow::rebuildLayersList() {
         QLabel *imageLabel = new QLabel();
         imageLabel->setObjectName("layerImage");
         imageLabel->setFixedSize(90, 30);
-        imageLabel->setStyleSheet("background-color: transparent; border: none;");
+        imageLabel->setStyleSheet("background-color: rgba(0, 0, 0, 0.2); border-radius: 2px;");
         imageLabel->setAlignment(Qt::AlignCenter);
 
         QImage thumb = projectModel->getLayerThumbnail(i);
@@ -1196,11 +1216,17 @@ void MainWindow::rebuildLayersList() {
         imageLabel->setPixmap(pixmap);
 
         QLabel *textLabel = new QLabel(QString::number(i));
-        textLabel->setFixedSize(20, 30);
         textLabel->setAlignment(Qt::AlignCenter);
-        textLabel->setStyleSheet("color: " + textColor + "; font-weight: bold; background: transparent; border: none;");
+
+        bool isVis = projectModel->isLayerVisible(i);
+        if (isVis) {
+            textLabel->setStyleSheet("color: " + textColor + "; font-weight: bold; background: transparent;");
+        } else {
+            textLabel->setStyleSheet("color: #777777; font-weight: bold; text-decoration: line-through; background: transparent;");
+        }
 
         layout->addWidget(imageLabel);
+        layout->addStretch();
         layout->addWidget(textLabel);
 
         layersList->setItemWidget(item, rowWidget);
@@ -1215,77 +1241,94 @@ void MainWindow::rebuildFramesList() {
     framesList->clear();
 
     const int frameCount = projectModel->getFrameCount();
-    framesList->setSpacing(5);
+
+    framesList->setSpacing(6);
+    framesList->setFixedHeight(125);
 
     QSettings settings("POD2d", "EditorSettings");
     QString theme = settings.value("ui/theme", "dark").toString();
 
-    QString topBorder, normalItemBorder, selectedItemBorder, frameBg, textColor;
+    QString topBorder, normalItemBorder, selectedItemBorder, itemBg, textColor;
     int borderRadius = (theme == "1bit") ? 0 : 6;
 
     if (theme == "1bit") {
         topBorder = "border-top: 2px solid white;";
         normalItemBorder = "border: 1px solid white;";
         selectedItemBorder = "border: 2px solid white;";
-        frameBg = "black";
+        itemBg = "black";
         textColor = "white";
     } else if (theme == "light") {
         topBorder = "border-top: 1px solid #d4d4d4;";
         normalItemBorder = "border: 1px solid #d4d4d4;";
         selectedItemBorder = "border: 2px solid #0078d7;";
-        frameBg = "#e0e0e0";
+        itemBg = "#e0e0e0";
         textColor = "#202020";
     } else { // dark
         topBorder = "border-top: 2px solid #333333;";
         normalItemBorder = "border: 1px solid #444444;";
         selectedItemBorder = "border: 2px solid #888888;";
-        frameBg = "#333333";
+        itemBg = "#333333";
         textColor = "white";
     }
 
     framesList->setStyleSheet(
-        "QListWidget { outline: 0; background: transparent; border: none; " + topBorder + " padding-top: 2px; }"
-                                                                                          "QListWidget::item { " + normalItemBorder + " border-radius: " + QString::number(borderRadius) + "px; margin: 2px; }"
-                                                                                  "QListWidget::item:selected { " + selectedItemBorder + " }"
+        "QListWidget { outline: 0; background: transparent; border: none; " + topBorder + " padding-top: 4px; }"
+                                                                                          "QListWidget::item { background-color: " + itemBg + "; " + normalItemBorder + " border-radius: " + QString::number(borderRadius) + "px; }"
+                                                                                                  "QListWidget::item:selected { " + selectedItemBorder + " }"
         );
+
+    framesList->setDragDropMode(QAbstractItemView::InternalMove);
+    framesList->setWrapping(false);
+    framesList->setViewMode(QListWidget::ListMode);
+    framesList->setFlow(QListView::LeftToRight);
+    framesList->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    framesList->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
     for (int i = 0; i < frameCount; ++i) {
         QListWidgetItem *item = new QListWidgetItem();
-        item->setSizeHint(QSize(150, 96));
+        item->setSizeHint(QSize(138, 98));
         framesList->addItem(item);
 
         QFrame *frameWidget = new QFrame();
-        frameWidget->setStyleSheet(
-            "QFrame {"
-            "   background-color: " + frameBg + ";"
-                        "   border: none;"
-                        "   border-radius: " + QString::number(borderRadius) + "px;"
-                                              "}"
-            );
+        frameWidget->setStyleSheet("background: transparent; border: none;");
 
         QVBoxLayout *layout = new QVBoxLayout(frameWidget);
-        layout->setContentsMargins(0, 0, 0, 4);
+        layout->setContentsMargins(5, 5, 5, 5);
         layout->setSpacing(2);
         layout->setAlignment(Qt::AlignCenter);
 
         QLabel *imageLabel = new QLabel();
         imageLabel->setObjectName("frameImage");
         imageLabel->setFixedSize(128, 64);
-
-        imageLabel->setStyleSheet("background-color: transparent; border: none;");
+        imageLabel->setStyleSheet("background-color: rgba(0, 0, 0, 0.2); border-radius: 2px;");
         imageLabel->setAlignment(Qt::AlignCenter);
 
         QImage thumb = projectModel->getFrameThumbnail(i);
         QPixmap pixmap = QPixmap::fromImage(thumb).scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
         imageLabel->setPixmap(pixmap);
 
+        QWidget *bottomRow = new QWidget();
+        bottomRow->setFixedHeight(20);
+        QHBoxLayout *bottomLayout = new QHBoxLayout(bottomRow);
+        bottomLayout->setContentsMargins(4, 0, 4, 0);
+        bottomLayout->setSpacing(0);
+
         QLabel *textLabel = new QLabel(QString::number(i + 1));
         textLabel->setAlignment(Qt::AlignCenter);
 
-        textLabel->setStyleSheet("color: " + textColor + "; font-size: 10px; border: none; background: transparent;");
+        bool isVis = projectModel->isFrameVisible(i);
+        if (isVis) {
+            textLabel->setStyleSheet("color: " + textColor + "; font-size: 11px; font-weight: bold; background: transparent;");
+        } else {
+            textLabel->setStyleSheet("color: #777777; font-size: 11px; font-weight: bold; text-decoration: line-through; background: transparent;");
+        }
+
+        bottomLayout->addStretch();
+        bottomLayout->addWidget(textLabel);
+        bottomLayout->addStretch();
 
         layout->addWidget(imageLabel);
-        layout->addWidget(textLabel);
+        layout->addWidget(bottomRow);
 
         framesList->setItemWidget(item, frameWidget);
     }
@@ -1506,6 +1549,23 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         return true;
     }
 
+    if (event->type() == QEvent::MouseButtonDblClick) {
+        if (watched == ui->framesListWidget->viewport()) {
+            QMouseEvent *me = static_cast<QMouseEvent*>(event);
+            if (!ui->framesListWidget->itemAt(me->pos())) {
+                projectModel->duplicateCurrentFrame();
+                return true;
+            }
+        }
+        else if (watched == ui->layersListWidget->viewport()) {
+            QMouseEvent *me = static_cast<QMouseEvent*>(event);
+            if (!ui->layersListWidget->itemAt(me->pos())) {
+                projectModel->addLayer();
+                return true;
+            }
+        }
+    }
+
     if (event->type() == QEvent::MouseButtonPress) {
         QWidget *clickedWidget = qobject_cast<QWidget*>(watched);
 
@@ -1591,6 +1651,93 @@ QIcon MainWindow::generate1bitIcon(const QString &text) {
     painter.drawText(pixmap.rect(), Qt::AlignCenter, text);
 
     return QIcon(pixmap);
+}
+
+void MainWindow::showLayerContextMenu(const QPoint &pos) {
+    QListWidgetItem *item = ui->layersListWidget->itemAt(pos);
+    if (!item) return;
+
+    int layerIndex = ui->layersListWidget->row(item);
+
+    QMenu contextMenu(this);
+
+    bool isVisible = projectModel->isLayerVisible(layerIndex);
+    QAction *actToggleVisibility = contextMenu.addAction(isVisible ? "Hide layer" : "Show layer");
+    actToggleVisibility->setShortcut(QKeySequence("Ctrl+H"));
+
+    QAction *actDuplicate = contextMenu.addAction("Duplicate layer");
+
+    QAction *actMergeDown = contextMenu.addAction("Merge from below");
+    actMergeDown->setEnabled(layerIndex > 0);
+
+    QAction *actMoveUp = contextMenu.addAction("Move up");
+    actMoveUp->setShortcut(QKeySequence("Ctrl+Shift+PgUp"));
+    actMoveUp->setEnabled(layerIndex < projectModel->getLayerCount() - 1);
+
+    QAction *actMoveDown = contextMenu.addAction("Move down");
+    actMoveDown->setShortcut(QKeySequence("Ctrl+Shift+PgDown"));
+    actMoveDown->setEnabled(layerIndex > 0);
+
+    QAction *actDelete = contextMenu.addAction("Delete layer");
+    actDelete->setShortcut(QKeySequence("Ctrl+Shift+Del"));
+    actDelete->setEnabled(projectModel->getLayerCount() > 1);
+
+    QAction *selectedAction = contextMenu.exec(ui->layersListWidget->mapToGlobal(pos));
+
+    if (selectedAction == actToggleVisibility) {
+        projectModel->toggleLayerVisibility(layerIndex);
+    } else if (selectedAction == actDuplicate) {
+        projectModel->duplicateLayer(layerIndex);
+    } else if (selectedAction == actMergeDown) {
+        projectModel->setCurrentLayer(layerIndex);
+        projectModel->mergeLayerDown();
+    } else if (selectedAction == actMoveUp) {
+        projectModel->moveLayer(layerIndex, layerIndex + 1);
+    } else if (selectedAction == actMoveDown) {
+        projectModel->moveLayer(layerIndex, layerIndex - 1);
+    } else if (selectedAction == actDelete) {
+        projectModel->setCurrentLayer(layerIndex);
+        projectModel->deleteCurrentLayer();
+    }
+}
+
+void MainWindow::showFrameContextMenu(const QPoint &pos) {
+    QListWidgetItem *item = ui->framesListWidget->itemAt(pos);
+    if (!item) return;
+
+    int frameIndex = ui->framesListWidget->row(item);
+
+    QMenu contextMenu(this);
+
+    bool isVisible = projectModel->isFrameVisible(frameIndex);
+    QAction *actToggleVisibility = contextMenu.addAction(isVisible ? "Hide frame" : "Show frame");
+
+    QAction *actDuplicate = contextMenu.addAction("Duplicate frame");
+
+    QAction *actMoveLeft = contextMenu.addAction("Move left");
+    actMoveLeft->setEnabled(frameIndex > 0);
+
+    QAction *actMoveRight = contextMenu.addAction("Move to the right");
+    actMoveRight->setEnabled(frameIndex < projectModel->getFrameCount() - 1);
+
+    QAction *actDelete = contextMenu.addAction("Delete frame");
+    actDelete->setEnabled(projectModel->getFrameCount() > 1);
+
+    QAction *selectedAction = contextMenu.exec(ui->framesListWidget->mapToGlobal(pos));
+
+    if (selectedAction == actToggleVisibility) {
+        projectModel->toggleFrameVisibility(frameIndex);
+    } else if (selectedAction == actDuplicate) {
+        projectModel->setCurrentFrame(frameIndex);
+        projectModel->duplicateCurrentFrame();
+    } else if (selectedAction == actMoveLeft) {
+        projectModel->moveFrame(frameIndex, frameIndex - 1);
+    } else if (selectedAction == actMoveRight) {
+        projectModel->moveFrame(frameIndex, frameIndex + 1);
+    } else if (selectedAction == actDelete) {
+        projectModel->setCurrentFrame(frameIndex);
+        projectModel->deleteCurrentFrame();
+    }
 }
 
 // Group C: Editor Controls & Tools

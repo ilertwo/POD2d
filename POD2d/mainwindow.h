@@ -64,6 +64,8 @@ private slots:
     void updateColorIndicators();
     void applyTheme(const QString &themeName);
     QIcon generate1bitIcon(const QString &text);
+    void showLayerContextMenu(const QPoint &pos);
+    void showFrameContextMenu(const QPoint &pos);
 
     void markProjectAsModified();
     bool maybeSave();

@@ -79,6 +79,8 @@ void SettingsDialog::loadSettings() {
     ui->spin_DefaultWidth->setValue(settings.value("editor/defaultWidth", 128).toInt());
     ui->spin_DefaultHeight->setValue(settings.value("editor/defaultHeight", 64).toInt());
     ui->spin_UndoLimit->setValue(settings.value("editor/undoLimit", 50).toInt());
+    ui->spin_MaxFrames->setValue(settings.value("editor/maxFrames", 64).toInt());
+    ui->spin_MaxLayers->setValue(settings.value("editor/maxLayers", 16).toInt());
     ui->chk_AutoSave->setChecked(autoSaveEnabled);
     ui->spin_AutoSaveInterval->setValue(settings.value("editor/autoSaveInterval", 5).toInt());
 
@@ -126,6 +128,8 @@ void SettingsDialog::saveSettings() {
     settings.setValue("editor/defaultWidth", ui->spin_DefaultWidth->value());
     settings.setValue("editor/defaultHeight", ui->spin_DefaultHeight->value());
     settings.setValue("editor/undoLimit", ui->spin_UndoLimit->value());
+    settings.setValue("editor/maxFrames", ui->spin_MaxFrames->value());
+    settings.setValue("editor/maxLayers", ui->spin_MaxLayers->value());
     settings.setValue("editor/autoSave", ui->chk_AutoSave->isChecked());
     settings.setValue("editor/autoSaveInterval", ui->spin_AutoSaveInterval->value());
 
