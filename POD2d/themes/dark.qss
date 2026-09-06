@@ -29,6 +29,11 @@ QMenu::item:selected {
     color: #ffffff;
 }
 
+QMenu::item:disabled {
+    color: #777777; 
+    background-color: transparent;
+}
+
 /* =======================================
    PANELS, FRAMES & LABELS
    ======================================= */
@@ -185,6 +190,21 @@ QCheckBox::indicator:checked {
     image: url("{BASE_PATH}/image/dark/checked.png");
 }
 
+QCheckBox:disabled {
+    color: #888888; 
+}
+
+QCheckBox::indicator:disabled {
+    border: 1px solid #666666;
+    background-color: transparent; 
+    border-radius: 3px;
+}
+
+QCheckBox::indicator:disabled:checked {
+    background-color: #444444; 
+    border: 1px solid #666666;
+}
+
 /* =======================================
    MENU BAR
    ======================================= */
@@ -202,4 +222,8 @@ QMenuBar::item {
 QMenuBar::item:selected {
     background-color: #3c3c3c; 
     border-radius: 4px;
+}
+
+QMenuBar::item:disabled {
+    color: #777777;
 }

@@ -669,6 +669,16 @@ void MainWindow::createProject() {
         ui->canvasWidget->resetToolState();
         ui->canvasWidget->setTool(DrawTool::Brush);
 
+        ui->slider_BrushSize->setValue(1);
+        ui->canvasWidget->setBrushSize(1);
+
+        currentPrimaryColor = Qt::white;
+        currentSecondaryColor = Qt::black;
+        ui->canvasWidget->setPrimaryColor(currentPrimaryColor);
+        ui->canvasWidget->setSecondaryColor(currentSecondaryColor);
+
+        updateColorIndicators();
+
         rebuildFramesList();
         rebuildLayersList();
 
@@ -677,10 +687,12 @@ void MainWindow::createProject() {
         if(!isRGB) {
             ui->act_Palette->setEnabled(false);
             ui->frm_Palette->setVisible(false);
+            ui->btn_Pipette->setVisible(false);
         }
         else {
             ui->act_Palette->setEnabled(true);
             ui->frm_Palette->setVisible(true);
+            ui->btn_Pipette->setVisible(true);
         }
 
         ui->stackedWidget->setCurrentIndex(1);

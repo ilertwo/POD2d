@@ -467,7 +467,7 @@ void ProjectModel::clearCanvas() {
     activeLayer.fill(Qt::transparent);
 
     saveHistoryStep(previousState);
-    emit imageChanged(getFlattenedImage());
+    notifyImageChanged();
 }
 
 // ==========================================

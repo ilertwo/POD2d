@@ -68,6 +68,15 @@ QMenu {
     border: 2px solid #ffffff;
 }
 
+QMenu::item:disabled {
+    color: #777777;
+    background-color: transparent;
+}
+
+QMenuBar::item:disabled {
+    color: #777777;
+}
+
 /* =======================================
    PUSH BUTTONS
    ======================================= */
@@ -212,6 +221,21 @@ QCheckBox::indicator:checked {
 QCheckBox::indicator:checked:hover {
     background-color: #ffffff;
     image: url("{BASE_PATH}/image/1bit/checked_black.png");
+}
+
+QCheckBox:disabled {
+    color: white; 
+    text-decoration: line-through;
+}
+
+QCheckBox::indicator:disabled {
+    border: 1px dashed white; 
+    background-color: transparent; 
+}
+
+QCheckBox::indicator:disabled:checked {
+    background-color: transparent; 
+    border: 1px dashed white;
 }
 
 /* =======================================

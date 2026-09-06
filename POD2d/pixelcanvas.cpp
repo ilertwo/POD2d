@@ -134,6 +134,8 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     x = qBound(-OVERSHOOT_MARGIN, x, canvasWidth + OVERSHOOT_MARGIN);
     y = qBound(-OVERSHOOT_MARGIN, y, canvasHeight + OVERSHOOT_MARGIN);
 
+    currentPoint = QPoint(x, y);
+
     QColor drawColor;
 
     if (currentTool == DrawTool::Eraser) {
@@ -161,13 +163,28 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     switch (currentTool) {
     case DrawTool::Pen:
         break;
+
     case DrawTool::Eraser:
-    case DrawTool::Brush:
-        PaintTools::drawBrush(layerImg, x, y, brushSize, drawColor);
+    case DrawTool::Brush: {
+        if (lastPoint == currentPoint) break;
+
+        QPainter p(&layerImg);
+        p.setRenderHint(QPainter::Antialiasing, false);
+        p.setCompositionMode(currentTool == DrawTool::Eraser ? QPainter::CompositionMode_Source : QPainter::CompositionMode_SourceOver);
+
+        QPen pen(drawColor, brushSize, Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin);
+        p.setPen(pen);
+
+        p.drawLine(lastPoint, currentPoint);
+
         if (m_verticalMirror) {
-            PaintTools::drawBrush(layerImg, canvasWidth - 1 - x, y, brushSize, drawColor);
+            p.drawLine(getMirroredPoint(lastPoint), getMirroredPoint(currentPoint));
         }
+
+        // Оновлюємо останню точку
+        lastPoint = currentPoint;
         break;
+    }
 
     case DrawTool::Lighten: {
         bool isRightClick = (event->buttons() & Qt::RightButton);
@@ -303,7 +320,7 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
     if (!m_model->getIsRGB() && replacementColor == m_monoColor) {
         replacementColor = Qt::white;
     }
-    
+
     if (currentTool == DrawTool::Fill || currentTool == DrawTool::Dithering) {
         if (x >= 0 && x < layerImg.width() && y >= 0 && y < layerImg.height()) {
             QColor targetColor = layerImg.pixelColor(x, y);
@@ -369,6 +386,19 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
         return;
     }
 
+    if (currentTool == DrawTool::Brush || currentTool == DrawTool::Eraser) {
+        lastPoint = currentPos;
+
+        QPainter p(&layerImg);
+        p.setCompositionMode(currentTool == DrawTool::Eraser ? QPainter::CompositionMode_Source : QPainter::CompositionMode_SourceOver);
+        p.fillRect(currentPos.x(), currentPos.y(), brushSize, brushSize, replacementColor);
+
+        m_model->notifyImageChanged();
+        update();
+        return;
+    }
+
+    lastPoint = currentPos;
     mouseMoveEvent(event);
 }
 
@@ -660,6 +690,34 @@ void PixelCanvas::setTool(DrawTool tool) {
         selectionRect = QRect();
         selectionPath = QPainterPath();
         hasSelection = false;
+    }
+
+    //this->setCursor(QCursor(QPixmap(":/image/pen_cursor.png").scaled(16, 16)));
+    switch (currentTool) {
+    case DrawTool::Pan:
+        this->setCursor(Qt::OpenHandCursor);
+        break;
+    case DrawTool::Text:
+        this->setCursor(Qt::IBeamCursor);
+        break;
+    case DrawTool::Brush:
+    case DrawTool::Eraser:
+    case DrawTool::Line:
+    case DrawTool::Rectangle:
+    case DrawTool::Circle:
+    case DrawTool::Fill:
+    case DrawTool::Pipette:
+    case DrawTool::Dithering:
+    case DrawTool::BrokenLine:
+    case DrawTool::Select:
+    case DrawTool::LassoSelect:
+    case DrawTool::ShapeSelect:
+    case DrawTool::Lighten:
+        this->setCursor(Qt::CrossCursor);
+        break;
+    default:
+        this->setCursor(Qt::ArrowCursor);
+        break;
     }
 
     update();
