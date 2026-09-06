@@ -19,6 +19,8 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    void loadProjectFromFile(const QString &path);
+
 private slots:
     // Start menu actions
     void createProject();
@@ -31,12 +33,12 @@ private slots:
     void addRecentProject(const QString &path);
 
     // File actions
-    void loadProjectFromFile(const QString &path);
     void saveProject();
     void saveProjectAs();
     void loadPalette();
     void savePalette();
     void actionImportPng();
+    void actionImportCArray();
     void importPngToCanvas(const QString &path);
     void openPngAsProject(const QString &path);
     void dragEnterEvent(QDragEnterEvent *event) override;

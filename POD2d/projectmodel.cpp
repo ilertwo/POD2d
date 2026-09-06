@@ -593,14 +593,21 @@ bool ProjectModel::loadProjectData(const QByteArray &data) {
 
     frames.clear();
     frames.reserve(loadedFramesData.size());
+
     for (const QList<QImage> &layers : loadedFramesData) {
         Frame f;
         f.layers = layers;
+        f.layerVisibility.fill(true, layers.size());
+        f.activeLayerIndex = 0;
+        f.visible = true;
         frames.append(f);
     }
 
     currentFrameIndex = 0;
-    frames[currentFrameIndex].activeLayerIndex = frames[0].layers.size() - 1;
+    if (!frames.isEmpty() && !frames[0].layers.isEmpty()) {
+        frames[0].activeLayerIndex = 0;
+    }
+
     history.clear();
     historyIndex = -1;
 
@@ -610,6 +617,7 @@ bool ProjectModel::loadProjectData(const QByteArray &data) {
     emit frameChanged(currentFrameIndex);
     emit layersListChanged();
     emit activeLayerChanged(getCurrentLayerIndex());
+    emit framesListChanged();
 
     return true;
 }

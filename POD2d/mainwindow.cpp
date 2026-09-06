@@ -33,6 +33,7 @@
 #include <QMimeData>
 #include <QEvent>
 #include <QMenu>
+#include <QInputDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -497,6 +498,7 @@ void MainWindow::connectFileActions() {
     connect(ui->act_SaveAs, &QAction::triggered, this, &MainWindow::saveProjectAs);
     connect(ui->act_ExportCode, &QAction::triggered, this, &MainWindow::openExportMenu);
     connect(ui->act_OpenFile, &QAction::triggered, this, &MainWindow::openProject);
+    connect(ui->act_ImportCArray, &QAction::triggered, this, &MainWindow::actionImportCArray);
     connect(ui->act_ImportPNG, &QAction::triggered, this, &MainWindow::actionImportPng);
     connect(ui->act_Close, &QAction::triggered, this, &MainWindow::closeProject);
     connect(ui->act_Exit, &QAction::triggered, this, &QWidget::close);
@@ -1103,6 +1105,66 @@ void MainWindow::actionImportPng() {
     importPngToCanvas(path);
 }
 
+void MainWindow::actionImportCArray() {
+    bool ok;
+    QString codeText = QInputDialog::getMultiLineText(this, "Import C-Array",
+                                                      "Insert your array (e.g., 0xFF, 0x00...):", "", &ok);
+    if (!ok || codeText.isEmpty()) return;
+
+    QSettings settings("POD2d", "EditorSettings");
+    bool isU8g2 = (settings.value("export/byteFormat", 0).toInt() == 1);
+
+    QImage img(projectWidth, projectHeight, QImage::Format_ARGB32);
+    img.fill(Qt::transparent);
+
+    QRegularExpression hexRegex("0x[0-9A-Fa-f]{1,2}");
+    QRegularExpressionMatchIterator i = hexRegex.globalMatch(codeText);
+
+    QVector<uint8_t> bytes;
+    while (i.hasNext()) {
+        QRegularExpressionMatch match = i.next();
+        bytes.append(match.captured(0).toUShort(nullptr, 16));
+    }
+
+    if (bytes.isEmpty()) {
+        QMessageBox::warning(this, "Error", "No valid data in 0xFF format found.");
+        return;
+    }
+
+    int byteIdx = 0;
+
+    if (isU8g2) {
+        for (int page = 0; page < projectHeight / 8; ++page) {
+            for (int x = 0; x < projectWidth; ++x) {
+                if (byteIdx >= bytes.size()) break;
+                uint8_t b = bytes[byteIdx++];
+                for (int bit = 0; bit < 8; ++bit) {
+                    if (b & (1 << bit)) { // LSB
+                        img.setPixelColor(x, page * 8 + bit, Qt::white);
+                    }
+                }
+            }
+        }
+    } else {
+        for (int y = 0; y < projectHeight; ++y) {
+            for (int x = 0; x < projectWidth; x += 8) {
+                if (byteIdx >= bytes.size()) break;
+                uint8_t b = bytes[byteIdx++];
+                for (int bit = 0; bit < 8; ++bit) {
+                    if (b & (1 << (7 - bit))) { // MSB
+                        img.setPixelColor(x + bit, y, Qt::white);
+                    }
+                }
+            }
+        }
+    }
+
+    if (projectModel) {
+        projectModel->setClipboardImage(img);
+        ui->canvasWidget->pasteToLayer();
+    }
+}
+
 void MainWindow::importPngToCanvas(const QString &path) {
     if (path.isEmpty()) return;
 
@@ -1113,6 +1175,46 @@ void MainWindow::importPngToCanvas(const QString &path) {
     }
 
     img = img.convertToFormat(QImage::Format_ARGB32);
+
+    if (projectModel && !projectModel->getIsRGB()) {
+        QMap<QRgb, int> colorCounts;
+        for (int y = 0; y < img.height(); ++y) {
+            for (int x = 0; x < img.width(); ++x) {
+                QRgb rgb = img.pixel(x, y);
+                if (qAlpha(rgb) > 128) {
+                    colorCounts[rgb]++;
+                }
+            }
+        }
+
+        if (colorCounts.size() > 2) {
+            QList<QRgb> keys = colorCounts.keys();
+            std::sort(keys.begin(), keys.end(), [&colorCounts](QRgb a, QRgb b) {
+                return colorCounts[a] > colorCounts[b];
+            });
+
+            QRgb dominantColor = keys.value(0, qRgb(0,0,0));
+            QRgb secondaryColor = keys.value(1, qRgb(255,255,255));
+
+            for (int y = 0; y < img.height(); ++y) {
+                for (int x = 0; x < img.width(); ++x) {
+                    QRgb rgb = img.pixel(x, y);
+                    if (qAlpha(rgb) <= 128) {
+                        img.setPixel(x, y, qRgba(0, 0, 0, 0));
+                    } else {
+                        int distDom = qAbs(qRed(rgb)-qRed(dominantColor)) + qAbs(qGreen(rgb)-qGreen(dominantColor)) + qAbs(qBlue(rgb)-qBlue(dominantColor));
+                        int distSec = qAbs(qRed(rgb)-qRed(secondaryColor)) + qAbs(qGreen(rgb)-qGreen(secondaryColor)) + qAbs(qBlue(rgb)-qBlue(secondaryColor));
+
+                        if (distDom < distSec) {
+                            img.setPixel(x, y, qRgb(0, 0, 0));
+                        } else {
+                            img.setPixel(x, y, qRgb(255, 255, 255));
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (projectModel) {
         projectModel->setClipboardImage(img);

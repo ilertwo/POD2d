@@ -2,19 +2,6 @@
 
 #include <QSettings>
 
-QVector<uint8_t> CodeGenerator::generateRawData(const QImage &img) {
-    QVector<uint8_t> data;
-    // (128 / 8) * 64 = 1024
-    data.reserve((CANVAS_WIDTH / 8) * CANVAS_HEIGHT);
-
-    for (int y = 0; y < CANVAS_HEIGHT; ++y) {
-        for (int x = 0; x < CANVAS_WIDTH; x += 8) {
-            data.append(extractByte(img, x, y));
-        }
-    }
-    return data;
-}
-
 QVector<uint8_t> CodeGenerator::generateCropData(const QImage &img, int &cX, int &cY, int &cW, int &cH) {
     int minX = CANVAS_WIDTH, maxX = -1;
     int minY = CANVAS_HEIGHT, maxY = -1;
@@ -46,7 +33,7 @@ QVector<uint8_t> CodeGenerator::generateCropData(const QImage &img, int &cX, int
 
     for (int y = cY; y < cY + cH; ++y) {
         for (int x = cX; x < cX + cW; x += 8) {
-            cropData.append(extractByte(img, x, y));
+            cropData.append(extractByteHorizontal(img, x, y));
         }
     }
 
@@ -243,7 +230,7 @@ def draw_image(frame_data):
     }
 }
 
-QString CodeGenerator::generateExportCode(const QList<QImage>& frames, int currentFrameIndex, bool optimize, bool isCpp, bool exportAnimation, bool isRGB) {
+QString CodeGenerator::generateExportCode(const QList<QImage>& frames, int currentFrameIndex, bool optimize, bool isCpp, bool exportAnimation, bool isRGB, bool isDataOnly) {
     QSettings settings("POD2d", "EditorSettings");
     QString prefix = settings.value("export/variablePrefix", "bitmap_").toString();
     bool useProgmem = settings.value("export/useProgmem", true).toBool();
@@ -479,17 +466,54 @@ display.show()
 
     }
 
+    if (isDataOnly) {
+        return arrayDeclarations + arrayPointers + sizesArray;
+    }
+
     return includes + arrayDeclarations + arrayPointers + sizesArray + drawCode + mainLogic;
 }
 
-uint8_t CodeGenerator::extractByte(const QImage &img, int startX, int y) {
+uint8_t CodeGenerator::extractByteHorizontal(const QImage &img, int startX, int y) {
     uint8_t byteVal = 0;
     for (int bit = 0; bit < 8; ++bit) {
-        if (img.pixelColor(startX + bit, y) == Qt::white) {
-            byteVal |= (1 << (7 - bit));
+        if (startX + bit < CANVAS_WIDTH && img.pixelColor(startX + bit, y) == Qt::white) {
+            byteVal |= (1 << (7 - bit)); // MSB first
         }
     }
     return byteVal;
+}
+
+uint8_t CodeGenerator::extractByteVertical(const QImage &img, int x, int startY) {
+    uint8_t byteVal = 0;
+    for (int bit = 0; bit < 8; ++bit) {
+        if (startY + bit < CANVAS_HEIGHT && img.pixelColor(x, startY + bit) == Qt::white) {
+            byteVal |= (1 << bit); // LSB is top pixel
+        }
+    }
+    return byteVal;
+}
+
+QVector<uint8_t> CodeGenerator::generateRawData(const QImage &img) {
+    QVector<uint8_t> data;
+    QSettings settings("POD2d", "EditorSettings");
+    bool isU8g2 = (settings.value("export/byteFormat", 0).toInt() == 1);
+
+    if (isU8g2) {
+        data.reserve(CANVAS_WIDTH * (CANVAS_HEIGHT / 8));
+        for (int page = 0; page < CANVAS_HEIGHT / 8; ++page) {
+            for (int x = 0; x < CANVAS_WIDTH; ++x) {
+                data.append(extractByteVertical(img, x, page * 8));
+            }
+        }
+    } else {
+        data.reserve((CANVAS_WIDTH / 8) * CANVAS_HEIGHT);
+        for (int y = 0; y < CANVAS_HEIGHT; ++y) {
+            for (int x = 0; x < CANVAS_WIDTH; x += 8) {
+                data.append(extractByteHorizontal(img, x, y));
+            }
+        }
+    }
+    return data;
 }
 
 QVector<uint16_t> CodeGenerator::generateRawDataRGB(const QImage &img) {

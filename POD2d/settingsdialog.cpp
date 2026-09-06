@@ -86,6 +86,7 @@ void SettingsDialog::loadSettings() {
 
     ui->cmb_Language->setCurrentIndex(settings.value("export/defaultFormat", 0).toInt());
     ui->input_VariablePrefix->setText(settings.value("export/variablePrefix", "bitmap_").toString());
+    ui->cmb_ByteFormat->setCurrentIndex(settings.value("export/byteFormat", 0).toInt());
     ui->chk_Progmem->setChecked(useProgmemEnabled);
     ui->chk_AutoCopy->setChecked(autoCopyEnabled);
 
@@ -135,6 +136,7 @@ void SettingsDialog::saveSettings() {
 
     settings.setValue("export/defaultFormat", ui->cmb_Language->currentIndex());
     settings.setValue("export/variablePrefix", ui->input_VariablePrefix->text().trimmed());
+    settings.setValue("export/byteFormat", ui->cmb_ByteFormat->currentIndex());
     settings.setValue("export/useProgmem", ui->chk_Progmem->isChecked());
     settings.setValue("export/autoCopy", ui->chk_AutoCopy->isChecked());
 

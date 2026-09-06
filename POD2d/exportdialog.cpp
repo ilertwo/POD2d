@@ -55,8 +55,9 @@ void ExportDialog::generateCode() {
     bool isOptimize = ui->chk_Optimize->isChecked();
     bool language = (ui->cmb_Language->currentIndex() == 0);
     bool exportAnimation = ui->chk_Animation->isChecked();
-
     bool isRGBMode = projectModel->getIsRGB();
+
+    bool isDataOnly = ui->chk_DataOnly->isChecked();
 
     const int frameCount = projectModel->getFrameCount();
     QList<QImage> flattenedFrames;
@@ -74,7 +75,8 @@ void ExportDialog::generateCode() {
         isOptimize,
         language,
         exportAnimation,
-        isRGBMode
+        isRGBMode,
+        isDataOnly
         );
 
     ui->codeOutputTextEdit->setPlainText(finalCode);

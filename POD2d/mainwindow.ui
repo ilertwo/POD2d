@@ -1748,7 +1748,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
      <x>0</x>
      <y>0</y>
      <width>1301</width>
-     <height>25</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -1767,6 +1767,8 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <addaction name="act_SaveAs"/>
     <addaction name="separator"/>
     <addaction name="act_ExportCode"/>
+    <addaction name="separator"/>
+    <addaction name="act_ImportCArray"/>
     <addaction name="act_ImportPNG"/>
     <addaction name="separator"/>
     <addaction name="act_Close"/>
@@ -2050,6 +2052,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
   <action name="act_ImportPNG">
    <property name="text">
     <string>Import PNG</string>
+   </property>
+  </action>
+  <action name="act_ImportCArray">
+   <property name="text">
+    <string>Import C-array</string>
    </property>
   </action>
  </widget>

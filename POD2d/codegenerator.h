@@ -15,7 +15,7 @@ enum class ExportMethod {
 
 class CodeGenerator {
 public:
-    static QString generateExportCode(const QList<QImage>& frames, int currentFrameIndex, bool optimize, bool isCpp, bool exportAnimation, bool isRGB);
+    static QString generateExportCode(const QList<QImage>& frames, int currentFrameIndex, bool optimize, bool isCpp, bool exportAnimation, bool isRGB, bool isDataOnly = false);
 
     static QVector<uint8_t> generateRawData(const QImage &img);
     static QVector<uint8_t> generateCropData(const QImage &img, int &cX, int &cY, int &cW, int &cH);
@@ -32,7 +32,8 @@ private:
     static constexpr int CANVAS_WIDTH = 128;
     static constexpr int CANVAS_HEIGHT = 64;
 
-    static uint8_t extractByte(const QImage &img, int startX, int y);
+    static uint8_t extractByteHorizontal(const QImage &img, int startX, int y);
+    static uint8_t extractByteVertical(const QImage &img, int x, int startY);
 };
 
 #endif // CODEGENERATOR_H

@@ -23,7 +23,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>1</number>
+      <number>2</number>
      </property>
      <widget class="QWidget" name="general">
       <attribute name="title">
@@ -610,7 +610,20 @@
           <property name="geometry">
            <rect>
             <x>10</x>
-            <y>80</y>
+            <y>70</y>
+            <width>51</width>
+            <height>20</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Other:</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_22">
+          <property name="geometry">
+           <rect>
+            <x>10</x>
+            <y>100</y>
             <width>51</width>
             <height>20</height>
            </rect>
@@ -668,8 +681,8 @@
          <widget class="QCheckBox" name="chk_AutoCopy">
           <property name="geometry">
            <rect>
-            <x>5</x>
-            <y>75</y>
+            <x>0</x>
+            <y>100</y>
             <width>311</width>
             <height>26</height>
            </rect>
@@ -684,8 +697,8 @@
          <widget class="QCheckBox" name="chk_Progmem">
           <property name="geometry">
            <rect>
-            <x>5</x>
-            <y>105</y>
+            <x>0</x>
+            <y>120</y>
             <width>321</width>
             <height>26</height>
            </rect>
@@ -696,6 +709,26 @@
           <property name="text">
            <string>Include PROGMEM optimization by default</string>
           </property>
+         </widget>
+         <widget class="QComboBox" name="cmb_ByteFormat">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>65</y>
+            <width>221</width>
+            <height>28</height>
+           </rect>
+          </property>
+          <item>
+           <property name="text">
+            <string>Adafruit GFX (Horizontal)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>U8g2 (Vertical)</string>
+           </property>
+          </item>
          </widget>
         </widget>
        </item>
