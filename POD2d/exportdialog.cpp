@@ -31,6 +31,9 @@ ExportDialog::ExportDialog(ProjectModel *model, const QString &projName, QWidget
     if (projectModel->getIsRGB()) {
         ui->chk_Optimize->setEnabled(false);
         ui->chk_Optimize->setToolTip("Optimization is currently supported only for Monochrome projects.");
+
+        ui->chk_InvertColors->setEnabled(false);
+        ui->chk_InvertColors->setToolTip("Color inversion is supported only for Monochrome projects.");
     }
 
     // CODE GENERATION
@@ -56,8 +59,10 @@ void ExportDialog::generateCode() {
     bool language = (ui->cmb_Language->currentIndex() == 0);
     bool exportAnimation = ui->chk_Animation->isChecked();
     bool isRGBMode = projectModel->getIsRGB();
-
     bool isDataOnly = ui->chk_DataOnly->isChecked();
+
+    // --- ДОДАНО ---
+    bool invertColors = ui->chk_InvertColors->isChecked();
 
     const int frameCount = projectModel->getFrameCount();
     QList<QImage> flattenedFrames;
@@ -76,7 +81,8 @@ void ExportDialog::generateCode() {
         language,
         exportAnimation,
         isRGBMode,
-        isDataOnly
+        isDataOnly,
+        invertColors
         );
 
     ui->codeOutputTextEdit->setPlainText(finalCode);

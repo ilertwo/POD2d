@@ -50,6 +50,7 @@ public:
     void fitToScreen();
     void resetToolState();
     void setVerticalMirror(bool enabled);
+    void toggleCenterView();
 
 signals:
     void colorPicked(const QColor &color, bool isPrimary);
@@ -87,6 +88,10 @@ private:
     bool m_showGrid = true;
     QColor m_gridColor = QColor(50, 50, 50);
     QString m_bgStyle = "Checkerboard";
+
+    QPointF savedOffset;
+    int savedScaleFactor = 1;
+    bool isViewCentered = false;
 
     // Drawing supplies
     QPoint startPoint;

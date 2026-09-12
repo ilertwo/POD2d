@@ -11,6 +11,7 @@
 #include <QRegularExpression>
 #include <QLineEdit>
 #include <QSettings>
+#include <QColorDialog>
 
 PaletteDialog::PaletteDialog(QWidget *parent) :
     QDialog(parent),
@@ -85,12 +86,13 @@ PaletteDialog::~PaletteDialog() {
 
 void PaletteDialog::setPaletteData(const QList<QColor> &palette, int activeIndex) {
     m_palette = palette;
-    m_activeIndex = activeIndex;
 
-    if (m_activeIndex >= 0 && m_activeIndex < m_palette.size()) {
+    if (activeIndex >= 0 && activeIndex < m_palette.size()) {
+        m_activeIndex = activeIndex;
         m_currentColor = m_palette[m_activeIndex];
     } else {
-        m_currentColor = QColor(Qt::red);
+        m_activeIndex = m_palette.size();
+        m_currentColor = QColor(Qt::white);
     }
 
     rebuildGrid();
@@ -98,9 +100,14 @@ void PaletteDialog::setPaletteData(const QList<QColor> &palette, int activeIndex
 }
 
 QList<QColor> PaletteDialog::getPalette() const {
-    return m_palette;
-}
+    QList<QColor> finalPalette = m_palette;
 
+    if (m_activeIndex == m_palette.size()) {
+        finalPalette.append(m_currentColor);
+    }
+
+    return finalPalette;
+}
 // INTERFACE AND GRADIENT LOGIC
 void PaletteDialog::syncColorToUI(bool updateSpins) {
     updateSpectrums();
@@ -122,6 +129,8 @@ void PaletteDialog::syncColorToUI(bool updateSpins) {
 
     if (m_activeIndex >= 0 && m_activeIndex < m_palette.size()) {
         m_palette[m_activeIndex] = m_currentColor;
+        rebuildGrid();
+    } else if (m_activeIndex == m_palette.size()) {
         rebuildGrid();
     }
 }
@@ -181,19 +190,25 @@ void PaletteDialog::rebuildGrid() {
     QGridLayout *gridLayout = qobject_cast<QGridLayout*>(ui->widget_Palette->layout());
 
     if (!gridLayout) {
-        if (ui->widget_Palette->layout()) delete ui->widget_Palette->layout();
+        if (ui->widget_Palette->layout()) {
+            delete ui->widget_Palette->layout();
+        }
         gridLayout = new QGridLayout(ui->widget_Palette);
         gridLayout->setSpacing(2);
-        gridLayout->setContentsMargins(0, 0, 0, 0);
+        gridLayout->setContentsMargins(5, 5, 5, 5);
     }
 
     QLayoutItem *child;
     while ((child = gridLayout->takeAt(0)) != nullptr) {
         if (child->widget()) {
+            child->widget()->hide();
             child->widget()->deleteLater();
         }
         delete child;
     }
+
+    for (int i = 0; i < gridLayout->rowCount(); ++i) gridLayout->setRowStretch(i, 0);
+    for (int i = 0; i < gridLayout->columnCount(); ++i) gridLayout->setColumnStretch(i, 0);
 
     int columns = 6;
 
@@ -201,9 +216,13 @@ void PaletteDialog::rebuildGrid() {
         QPushButton *btn = new QPushButton();
         btn->setFixedSize(24, 24);
         btn->setCursor(Qt::PointingHandCursor);
+        btn->setFocusPolicy(Qt::NoFocus);
 
         QString border = (i == m_activeIndex) ? "border: 2px solid white;" : "border: 1px solid #555;";
-        btn->setStyleSheet(QString("background-color: %1; %2 border-radius: 2px;").arg(m_palette[i].name(), border));
+
+        QString style = QString("QPushButton { background-color: %1; %2 border-radius: 2px; outline: none; margin: 0px; padding: 0px; }")
+                            .arg(m_palette[i].name(), border);
+        btn->setStyleSheet(style);
 
         btn->setProperty("colorIndex", i);
         btn->installEventFilter(this);
@@ -211,23 +230,37 @@ void PaletteDialog::rebuildGrid() {
         gridLayout->addWidget(btn, i / columns, i % columns);
     }
 
-    QPushButton *addBtn = new QPushButton("+");
+    QPushButton *addBtn = new QPushButton();
     addBtn->setFixedSize(24, 24);
-    addBtn->setStyleSheet("background-color: #333; color: white; border: 1px dashed #777; border-radius: 2px;");
     addBtn->setCursor(Qt::PointingHandCursor);
+    addBtn->setFocusPolicy(Qt::NoFocus);
+
+    if (m_activeIndex == m_palette.size()) {
+        addBtn->setText("");
+        QString style = QString("QPushButton { background-color: %1; border: 2px solid white; border-radius: 2px; outline: none; margin: 0px; padding: 0px; }")
+                            .arg(m_currentColor.name());
+        addBtn->setStyleSheet(style);
+    } else {
+        addBtn->setText("+");
+        addBtn->setStyleSheet("QPushButton { background-color: transparent; color: white; border: 1px dashed #777; border-radius: 2px; font-weight: bold; outline: none; margin: 0px; padding: 0px; }");
+    }
 
     connect(addBtn, &QPushButton::clicked, this, [this]() {
-        m_palette.append(m_currentColor);
-        m_activeIndex = m_palette.size() - 1;
-        rebuildGrid();
+        if (m_activeIndex != m_palette.size()) {
+            m_activeIndex = m_palette.size();
+            rebuildGrid();
+            syncColorToUI(true);
+        }
     });
 
     gridLayout->addWidget(addBtn, m_palette.size() / columns, m_palette.size() % columns);
+
+    gridLayout->setRowStretch((m_palette.size() / columns) + 1, 1);
+    gridLayout->setColumnStretch(columns, 1);
 }
 
 // MESH PROCESSING (INTERACTION WITH GRADIENTS AND THE GRID)
 bool PaletteDialog::eventFilter(QObject *watched, QEvent *event) {
-
     if (watched->parent() == ui->widget_Palette && event->type() == QEvent::MouseButtonPress) {
         QPushButton *btn = qobject_cast<QPushButton*>(watched);
         if (btn && btn->property("colorIndex").isValid()) {
@@ -235,12 +268,20 @@ bool PaletteDialog::eventFilter(QObject *watched, QEvent *event) {
             int index = btn->property("colorIndex").toInt();
 
             if (me->button() == Qt::LeftButton) {
+                if (m_activeIndex == m_palette.size()) {
+                    m_palette.append(m_currentColor);
+                }
+
                 m_activeIndex = index;
                 m_currentColor = m_palette[index];
-                syncColorToUI();
+                syncColorToUI(true);
             } else if (me->button() == Qt::MiddleButton) {
                 m_palette.removeAt(index);
-                if (m_activeIndex == index) m_activeIndex = -1;
+                if (m_activeIndex == index) {
+                    m_activeIndex = -1;
+                } else if (m_activeIndex > index) {
+                    m_activeIndex--;
+                }
                 rebuildGrid();
             }
             return true;

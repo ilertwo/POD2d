@@ -168,6 +168,7 @@ void MainWindow::loadIcons() {
     setBtnIcon(ui->btn_Pan, "W", "pan.png");
     setBtnIcon(ui->btn_Rotate, "G", "rotate.png");
     setBtnIcon(ui->btn_VerticalMiror, "|", "mirror.png");
+    setBtnIcon(ui->btn_CenterView, "+", "center.png");
 
     setBtnIcon(ui->btn_HideMiniMap, "m", "hide_minimap.png");
     setBtnIcon(ui->btn_HideFrames, "f", "hide_frames.png");
@@ -411,7 +412,22 @@ void MainWindow::connectPlayerControls() {
             playBtn->setIcon(QIcon(basePath + "/image/" + theme + "/" + iconName));
         }
     });
+
+    connect(ui->timeEdit, &QTimeEdit::timeChanged, this, [this](const QTime &time) {
+        int msecs = time.msec() + (time.second() * 1000) + (time.minute() * 60000);
+
+        if (msecs < 10) msecs = 10;
+
+        projectModel->setFrameDelay(msecs);
+    });
+
+    QTime startTime = ui->timeEdit->time();
+    int startMsecs = startTime.msec() + (startTime.second() * 1000) + (startTime.minute() * 60000);
+    if (startMsecs < 10) startMsecs = 100;
+
+    projectModel->setFrameDelay(startMsecs);
 }
+
 void MainWindow::connectAutoSaveTimer() {
     autoSaveTimer = new QTimer(this);
     connect(autoSaveTimer, &QTimer::timeout, this, [this]() {
@@ -473,6 +489,12 @@ void MainWindow::connectDrawingTools() {
         } else {
             ui->lbl_Position->setText(QString("Pos %1 %2").arg(x).arg(y));
         }
+    });
+
+    ui->btn_CenterView->setCheckable(true);
+
+    connect(ui->btn_CenterView, &QPushButton::toggled, this, [this]() {
+        ui->canvasWidget->toggleCenterView();
     });
 }
 
@@ -1505,6 +1527,22 @@ void MainWindow::rebuildPaletteGrid() {
         gridLayout->addWidget(colorBtn, i / columns, i % columns);
     }
 
+    QPushButton *btnAddColor = new QPushButton("+");
+    btnAddColor->setFixedHeight(24);
+    btnAddColor->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    btnAddColor->setCursor(Qt::PointingHandCursor);
+
+    if (theme == "1bit") {
+        btnAddColor->setStyleSheet("background-color: transparent; border: 1px dashed white; color: white; font-size: 16px; font-weight: bold;");
+    } else {
+        btnAddColor->setStyleSheet("background-color: transparent; border: 1px dashed #888888; color: #aaaaaa; font-size: 16px; font-weight: bold; border-radius: 2px;");
+    }
+
+    connect(btnAddColor, &QPushButton::clicked, this, &MainWindow::onAddNewColorClicked);
+
+    int nextIndex = customPalette.size();
+    gridLayout->addWidget(btnAddColor, nextIndex / columns, nextIndex % columns);
+
     updateColorIndicators();
 }
 
@@ -1900,6 +1938,10 @@ void MainWindow::chooseAndSetColor() {
         currentPrimaryColor = selectedColor;
         updateColorIndicators();
     }
+}
+
+void MainWindow::onAddNewColorClicked() {
+    openPaletteEditor(-1);
 }
 
 // Group D: Layer Management (Delegations to ProjectModel)

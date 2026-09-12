@@ -242,6 +242,14 @@ void ProjectModel::duplicateLayer(int index) {
     syncUIAfterHistoryStep();
 }
 
+void ProjectModel::setFrameDelay(int msecs) {
+    if (msecs < 10) msecs = 10;
+
+    if (playTimer) {
+        playTimer->setInterval(msecs);
+    }
+}
+
 // ==========================================
 // 2. LAYER MANAGEMENT
 // ==========================================
@@ -653,7 +661,8 @@ void ProjectModel::togglePlay() {
     } else {
         if (frames.size() <= 1) return;
 
-        playTimer->start(PLAYBACK_SPEED_MS);
+        playTimer->start();
+
         emit isPlayingChanged(true);
     }
 }

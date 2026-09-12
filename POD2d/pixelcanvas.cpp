@@ -168,20 +168,30 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     case DrawTool::Brush: {
         if (lastPoint == currentPoint) break;
 
-        QPainter p(&layerImg);
-        p.setRenderHint(QPainter::Antialiasing, false);
-        p.setCompositionMode(currentTool == DrawTool::Eraser ? QPainter::CompositionMode_Source : QPainter::CompositionMode_SourceOver);
+        int x0 = lastPoint.x();
+        int y0 = lastPoint.y();
+        int x1 = currentPoint.x();
+        int y1 = currentPoint.y();
 
-        QPen pen(drawColor, brushSize, Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin);
-        p.setPen(pen);
+        int dx = std::abs(x1 - x0);
+        int dy = std::abs(y1 - y0);
+        int sx = (x0 < x1) ? 1 : -1;
+        int sy = (y0 < y1) ? 1 : -1;
+        int err = dx - dy;
 
-        p.drawLine(lastPoint, currentPoint);
+        while (true) {
+            PaintTools::drawBrush(layerImg, x0, y0, brushSize, drawColor);
 
-        if (m_verticalMirror) {
-            p.drawLine(getMirroredPoint(lastPoint), getMirroredPoint(currentPoint));
+            if (m_verticalMirror) {
+                PaintTools::drawBrush(layerImg, canvasWidth - 1 - x0, y0, brushSize, drawColor);
+            }
+
+            if (x0 == x1 && y0 == y1) break;
+            int e2 = 2 * err;
+            if (e2 > -dy) { err -= dy; x0 += sx; }
+            if (e2 < dx) { err += dx; y0 += sy; }
         }
 
-        // Оновлюємо останню точку
         lastPoint = currentPoint;
         break;
     }
@@ -389,9 +399,10 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
     if (currentTool == DrawTool::Brush || currentTool == DrawTool::Eraser) {
         lastPoint = currentPos;
 
-        QPainter p(&layerImg);
-        p.setCompositionMode(currentTool == DrawTool::Eraser ? QPainter::CompositionMode_Source : QPainter::CompositionMode_SourceOver);
-        p.fillRect(currentPos.x(), currentPos.y(), brushSize, brushSize, replacementColor);
+        PaintTools::drawBrush(layerImg, currentPos.x(), currentPos.y(), brushSize, replacementColor);
+        if (m_verticalMirror) {
+            PaintTools::drawBrush(layerImg, canvasWidth - 1 - currentPos.x(), currentPos.y(), brushSize, replacementColor);
+        }
 
         m_model->notifyImageChanged();
         update();
@@ -945,4 +956,20 @@ void PixelCanvas::setVerticalMirror(bool enabled) {
 
 QPoint PixelCanvas::getMirroredPoint(const QPoint &pt) const {
     return QPoint(canvasWidth - 1 - pt.x(), pt.y());
+}
+
+void PixelCanvas::toggleCenterView() {
+    if (isViewCentered) {
+        offset = savedOffset;
+        scaleFactor = savedScaleFactor;
+        isViewCentered = false;
+    } else {
+        savedOffset = offset;
+        savedScaleFactor = scaleFactor;
+
+        fitToScreen();
+
+        isViewCentered = true;
+    }
+    update();
 }

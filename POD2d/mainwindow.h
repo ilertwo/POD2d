@@ -54,6 +54,7 @@ private slots:
     void chooseAndSetColor();
     void on_spin_brushSize_valueChanged(int value);
     void selectAll();
+    void onAddNewColorClicked();
 
     void openExportMenu();
     void openSettings(int tabIndex = 0);

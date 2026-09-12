@@ -52,6 +52,7 @@ public:
     void moveFrame(int fromIndex, int toIndex);
     void toggleFrameVisibility(int index);
     bool isFrameVisible(int index) const;
+    void setFrameDelay(int msecs);
 
     // 2. LAYER MANAGEMENT
     void addLayer();
@@ -123,7 +124,6 @@ private:
     // Configuration constants
     int maxFrames = 64;
     int maxLayers = 16;
-    static constexpr int PLAYBACK_SPEED_MS = 200;
 
     // Width X Height, Color mode
     int CANVAS_WIDTH = 128;

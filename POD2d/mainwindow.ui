@@ -113,7 +113,7 @@
               </font>
              </property>
              <property name="cursor">
-              <cursorShape>CrossCursor</cursorShape>
+              <cursorShape>ArrowCursor</cursorShape>
              </property>
              <property name="text">
               <string>POD2d</string>
@@ -460,6 +460,28 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                   </size>
                  </property>
                 </spacer>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btn_CenterView">
+                 <property name="minimumSize">
+                  <size>
+                   <width>30</width>
+                   <height>30</height>
+                  </size>
+                 </property>
+                 <property name="maximumSize">
+                  <size>
+                   <width>30</width>
+                   <height>30</height>
+                  </size>
+                 </property>
+                 <property name="cursor">
+                  <cursorShape>PointingHandCursor</cursorShape>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
                </item>
                <item>
                 <widget class="QWidget" name="widget_6" native="true">
@@ -1667,9 +1689,9 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                      <property name="geometry">
                       <rect>
                        <x>0</x>
-                       <y>10</y>
+                       <y>50</y>
                        <width>41</width>
-                       <height>81</height>
+                       <height>41</height>
                       </rect>
                      </property>
                      <property name="cursor">
@@ -1682,14 +1704,24 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                     <widget class="QTimeEdit" name="timeEdit">
                      <property name="geometry">
                       <rect>
-                       <x>40</x>
+                       <x>0</x>
                        <y>10</y>
-                       <width>81</width>
+                       <width>121</width>
                        <height>41</height>
                       </rect>
                      </property>
                      <property name="cursor">
                       <cursorShape>PointingHandCursor</cursorShape>
+                     </property>
+                     <property name="minimumTime">
+                      <time>
+                       <hour>0</hour>
+                       <minute>0</minute>
+                       <second>0</second>
+                      </time>
+                     </property>
+                     <property name="displayFormat">
+                      <string>ss:zzz</string>
                      </property>
                     </widget>
                     <widget class="QPushButton" name="btn_DeleteFrame">
