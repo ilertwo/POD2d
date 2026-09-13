@@ -496,6 +496,8 @@ void MainWindow::connectDrawingTools() {
     connect(ui->btn_CenterView, &QPushButton::toggled, this, [this]() {
         ui->canvasWidget->toggleCenterView();
     });
+
+    ui->slider_BrushSize->setToolTip(QString("Brush Size: %1").arg(ui->slider_BrushSize->value()));
 }
 
 void MainWindow::connectActions() {
@@ -506,14 +508,14 @@ void MainWindow::connectActions() {
     connectHelpActions();
 }
 
-void MainWindow::connectFileActions() {
+void MainWindow::connectFileActions() {/*
     ui->act_NewFile->setShortcut(QKeySequence::New);
     ui->act_Save->setShortcut(QKeySequence::Save);
     ui->act_SaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
     ui->act_ExportCode->setShortcut(QKeySequence("Ctrl+E"));
     ui->act_OpenFile->setShortcut(QKeySequence::Open);
     ui->act_Close->setShortcut(QKeySequence("Ctrl+W"));
-    ui->act_Exit->setShortcut(QKeySequence("Alt+F4"));
+    ui->act_Exit->setShortcut(QKeySequence("Alt+F4"));*/
 
     connect(ui->act_NewFile, &QAction::triggered, this, &MainWindow::createProject);
     connect(ui->act_Save, &QAction::triggered, this, &MainWindow::saveProject);
@@ -526,7 +528,7 @@ void MainWindow::connectFileActions() {
     connect(ui->act_Exit, &QAction::triggered, this, &QWidget::close);
 }
 
-void MainWindow::connectEditActions() {
+void MainWindow::connectEditActions() {/*
     ui->act_Undo->setShortcut(QKeySequence::Undo);
     ui->act_Redo->setShortcut(QKeySequence::Redo);
 
@@ -535,7 +537,7 @@ void MainWindow::connectEditActions() {
     ui->act_Copy->setShortcut(QKeySequence::Copy);
     ui->act_Paste->setShortcut(QKeySequence::Paste);
 
-    ui->act_Clear->setShortcut(QKeySequence("Delete"));
+    ui->act_Clear->setShortcut(QKeySequence("Delete"));*/
 
     connect(ui->act_Undo, &QAction::triggered, projectModel, &ProjectModel::undo);
     connect(ui->act_Redo, &QAction::triggered, projectModel, &ProjectModel::redo);
@@ -626,29 +628,83 @@ void MainWindow::connectHelpActions() {
 void MainWindow::setupShortcuts() {
     QSettings settings("POD2d", "EditorSettings");
 
+    auto setShortcutAndToolTip = [&](auto* element, const QString& tooltipName, const QString& settingsKey, const QString& defaultShortcut) {
+        if (!element) return;
+
+        QString shortcutStr = settings.value(settingsKey, defaultShortcut).toString();
+        QKeySequence sequence(shortcutStr);
+
+        element->setShortcut(sequence);
+
+        if (shortcutStr.isEmpty()) {
+            element->setToolTip(tooltipName);
+        } else {
+            element->setToolTip(QString("%1 (%2)").arg(tooltipName, sequence.toString(QKeySequence::NativeText)));
+        }
+    };
+
+    // File (QAction)
+    setShortcutAndToolTip(ui->act_NewFile, "New Project", "shortcuts/newFile", "Ctrl+N");
+    setShortcutAndToolTip(ui->act_Save, "Save", "shortcuts/save", "Ctrl+S");
+    setShortcutAndToolTip(ui->act_SaveAs, "Save As", "shortcuts/saveAs", "Ctrl+Shift+S");
+    setShortcutAndToolTip(ui->act_OpenFile, "Open", "shortcuts/openFile", "Ctrl+O");
+    setShortcutAndToolTip(ui->act_Close, "Close Project", "shortcuts/close", "Ctrl+W");
+    setShortcutAndToolTip(ui->act_Exit, "Exit", "shortcuts/exit", "Alt+F4");
+    setShortcutAndToolTip(ui->act_ExportCode, "Export", "shortcuts/export", "Ctrl+E");
+
+    // Edit (QAction)
+    setShortcutAndToolTip(ui->act_Undo, "Undo", "shortcuts/undo", "Ctrl+Z");
+    setShortcutAndToolTip(ui->act_Redo, "Redo", "shortcuts/redo", "Ctrl+Y");
+    setShortcutAndToolTip(ui->act_Copy, "Copy", "shortcuts/copy", "Ctrl+C");
+    setShortcutAndToolTip(ui->act_Cut, "Cut", "shortcuts/cut", "Ctrl+X");
+    setShortcutAndToolTip(ui->act_Paste, "Paste", "shortcuts/paste", "Ctrl+V");
+    setShortcutAndToolTip(ui->act_Select, "Select All", "shortcuts/selectAll", "Ctrl+A");
+    setShortcutAndToolTip(ui->act_Clear, "Clear Canvas", "shortcuts/clear", "Delete");
+
     // Drawing tools
-    ui->btn_Pen->setShortcut(QKeySequence(settings.value("shortcuts/pen", "P").toString()));
-    ui->btn_Fill->setShortcut(QKeySequence(settings.value("shortcuts/fill", "F").toString()));
-    ui->btn_Line->setShortcut(QKeySequence(settings.value("shortcuts/line", "L").toString()));
-    ui->btn_Rectangle->setShortcut(QKeySequence(settings.value("shortcuts/rectangle", "R").toString()));
-    ui->btn_Circle->setShortcut(QKeySequence(settings.value("shortcuts/circle", "C").toString()));
-    ui->btn_Text->setShortcut(QKeySequence(settings.value("shortcuts/text", "T").toString()));
-    ui->btn_Dithering->setShortcut(QKeySequence(settings.value("shortcuts/dithering", "D").toString()));
-    ui->btn_BrokenLine->setShortcut(QKeySequence(settings.value("shortcuts/brokenLine", "B").toString()));
+    setShortcutAndToolTip(ui->btn_Pen, "Pen Tool", "shortcuts/pen", "P");
+    setShortcutAndToolTip(ui->btn_Eraser, "Eraser Tool", "shortcuts/eraser", "E");
+    setShortcutAndToolTip(ui->btn_Fill, "Fill Tool", "shortcuts/fill", "F");
+    setShortcutAndToolTip(ui->btn_Line, "Line Tool", "shortcuts/line", "L");
+    setShortcutAndToolTip(ui->btn_Rectangle, "Rectangle", "shortcuts/rectangle", "R");
+    setShortcutAndToolTip(ui->btn_Circle, "Circle", "shortcuts/circle", "C");
+    setShortcutAndToolTip(ui->btn_Text, "Text Tool", "shortcuts/text", "T");
+    setShortcutAndToolTip(ui->btn_Dithering, "Dithering Tool", "shortcuts/dithering", "D");
+    setShortcutAndToolTip(ui->btn_BrokenLine, "Broken Line Tool", "shortcuts/brokenLine", "B");
 
     // Navigation and selection
-    ui->btn_Pan->setShortcut(QKeySequence(settings.value("shortcuts/pan", "Space").toString()));
-    ui->btn_RectangleSelection->setShortcut(QKeySequence(settings.value("shortcuts/select", "S").toString()));
-    //ui->btn_Clear->setShortcut(QKeySequence(settings.value("shortcuts/clear", "Delete").toString()));********************************
+    setShortcutAndToolTip(ui->btn_Pan, "Pan Tool", "shortcuts/pan", "Space");
+    setShortcutAndToolTip(ui->btn_LassoSelection, "Lasso Selection", "shortcuts/lassoSelection", "S");
+    setShortcutAndToolTip(ui->btn_RectangleSelection, "Selection", "shortcuts/select", "");
+    setShortcutAndToolTip(ui->btn_ShapeSelection, "Shape Selection", "shortcuts/shapeSelection", "");
+
+    // Modifiers & Views
+    setShortcutAndToolTip(ui->btn_Rotate, "Rotate", "shortcuts/rotate", "");
+    setShortcutAndToolTip(ui->btn_Lighten, "Lighten", "shortcuts/lighten", "");
+    setShortcutAndToolTip(ui->btn_VerticalMiror, "Vertical Miror", "shortcuts/verticalMiror", "");
+    setShortcutAndToolTip(ui->btn_CenterView, "Center View", "shortcuts/centerView", "");
 
     // Frames and Layers
-    ui->btn_AddFrame->setShortcut(QKeySequence(settings.value("shortcuts/addFrame", "Ctrl+N").toString()));
-    ui->btn_DeleteFrame->setShortcut(QKeySequence(settings.value("shortcuts/deleteFrame", "Ctrl+Shift+D").toString()));
-    ui->btn_AddLayer->setShortcut(QKeySequence(settings.value("shortcuts/addLayer", "Ctrl+Shift+N").toString()));
-    ui->btn_DeleteLayer->setShortcut(QKeySequence(settings.value("shortcuts/deleteLayer", "Ctrl+Alt+D").toString()));
+    setShortcutAndToolTip(ui->btn_AddFrame, "Add Frame", "shortcuts/addFrame", "Ctrl+N");
+    setShortcutAndToolTip(ui->btn_DeleteFrame, "Delete Frame", "shortcuts/deleteFrame", "Ctrl+Shift+D");
+    setShortcutAndToolTip(ui->btn_AddLayer, "Add Layer", "shortcuts/addLayer", "Ctrl+Shift+N");
+    setShortcutAndToolTip(ui->btn_DeleteLayer, "Delete Layer", "shortcuts/deleteLayer", "Ctrl+Alt+D");
 
-    // Animation player
-    ui->btn_Play->setShortcut(QKeySequence(settings.value("shortcuts/play", "Enter").toString()));
+    // Player & UI Toggles
+    setShortcutAndToolTip(ui->btn_Play, "Play Animation", "shortcuts/play", "Return");
+    setShortcutAndToolTip(ui->btn_HideMiniMap, "Mini Map", "shortcuts/miniMap", "");
+    setShortcutAndToolTip(ui->btn_HideFrames, "Frames", "shortcuts/hideFrames", "");
+    setShortcutAndToolTip(ui->btn_HideLayers, "Layers", "shortcuts/hideLayers", "");
+    setShortcutAndToolTip(ui->btn_EditMode, "Edit Mode", "shortcuts/editMode", "");
+
+    // Actions (QAction)
+    setShortcutAndToolTip(ui->act_Clear, "Clear", "shortcuts/clear", "Delete");
+    setShortcutAndToolTip(ui->act_Undo, "Undo", "shortcuts/undo", "Ctrl+Z");
+    setShortcutAndToolTip(ui->act_Redo, "Redo", "shortcuts/redo", "Ctrl+Y");
+    setShortcutAndToolTip(ui->act_Copy, "Copy", "shortcuts/copy", "Ctrl+C");
+    setShortcutAndToolTip(ui->act_Cut, "Cut", "shortcuts/cut", "Ctrl+X");
+    setShortcutAndToolTip(ui->act_Paste, "Paste", "shortcuts/paste", "Ctrl+V");
+    setShortcutAndToolTip(ui->act_ExportCode, "Export", "shortcuts/export", "Ctrl+E");
 }
 
 // ==========================================
@@ -1926,7 +1982,10 @@ void MainWindow::setScale(int newScale) {
     ui->canvasWidget->update();
 }
 
-void MainWindow::on_spin_brushSize_valueChanged(int value) { ui->canvasWidget->setBrushSize(value); }
+void MainWindow::on_spin_brushSize_valueChanged(int value) {
+    ui->canvasWidget->setBrushSize(value);
+    ui->slider_BrushSize->setToolTip(QString("Brush Size: %1").arg(value));
+}
 
 void MainWindow::chooseAndSetColor() {
     const QColor selectedColor = QColorDialog::getColor(ui->canvasWidget->getMonoDisplayColor(), this, "Choose OLED Color");

@@ -25,7 +25,7 @@
    <string>MainWindow</string>
   </property>
   <property name="toolTip">
-   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   <string/>
   </property>
   <property name="locale">
    <locale language="English" country="UnitedKingdom"/>
@@ -55,7 +55,7 @@
       <item row="1" column="1">
        <widget class="QStackedWidget" name="stackedWidget">
         <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         <string/>
         </property>
         <property name="styleSheet">
          <string notr="true"/>

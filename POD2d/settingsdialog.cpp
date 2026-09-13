@@ -15,21 +15,38 @@ struct ShortcutItem {
 // List of all binds
 const QList<ShortcutItem> HOTKEYS = {
     {"Pen Tool", "shortcuts/pen", "P"},
+    {"Eraser Tool", "shortcuts/eraser", "E"},
     {"Fill Tool", "shortcuts/fill", "F"},
     {"Line Tool", "shortcuts/line", "L"},
-    {"Undo", "shortcuts/rectangle", "R"},
-    {"Redo", "shortcuts/circle", "C"},
+    {"Rectangle", "shortcuts/rectangle", "R"},
+    {"Circle", "shortcuts/circle", "C"},
     {"Text Tool", "shortcuts/text", "T"},
     {"Dithering Tool", "shortcuts/dithering", "D"},
     {"Broken Line Tool", "shortcuts/brokenLine", "B"},
     {"Pan Tool", "shortcuts/pan", "Space"},
-    {"Select", "shortcuts/select", "S"},
+    {"Selection", "shortcuts/lassoSelection", "S"},
+    {"Lasso Selection", "shortcuts/select", ""},
+    {"Shape Selection", "shortcuts/shapeSelection", ""},
+    {"Rotate", "shortcuts/rotate", ""},
+    {"Lighten", "shortcuts/lighten", ""},
+    {"Vertical Miror", "shortcuts/verticalMiror", ""},
+    {"Center View", "shortcuts/centerView", ""},
     {"Clear", "shortcuts/clear", "Delete"},
     {"Add Frame", "shortcuts/addFrame", "Ctrl+N"},
     {"Delete Frame", "shortcuts/deleteFrame", "Ctrl+Shift+D"},
     {"Add Layer", "shortcuts/addLayer", "Ctrl+Shift+N"},
     {"Delete Layer", "shortcuts/deleteLayer", "Ctrl+Alt+D"},
-    {"Play Animation", "shortcuts/play", "Return"}
+    {"Play Animation", "shortcuts/play", "Return"},
+    {"Mini Map", "shortcuts/miniMap", ""},
+    {"Frames", "shortcuts/hideFrames", ""},
+    {"Layers", "shortcuts/hideLayers", ""},
+    {"Edit Mode", "shortcuts/editMode", ""},
+    {"Undo", "shortcuts/undo", "Ctrl+Z"},
+    {"Redo", "shortcuts/redo", "Ctrl+Y"},
+    {"Copy", "shortcuts/copy", "Ctrl+C"},
+    {"Cut", "shortcuts/cut", "Ctrl+X"},
+    {"Paste", "shortcuts/paste", "Ctrl+V"},
+    {"Export", "shortcuts/export", "Ctrl+E"}
 
     // TODO:*********************************************************
 };
