@@ -1777,7 +1777,10 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::MouseButtonPress) {
         QWidget *clickedWidget = qobject_cast<QWidget*>(watched);
 
-        if (clickedWidget && clickedWidget != ui->canvasWidget) {
+        bool isModifierButton = (clickedWidget == ui->btn_Rotate ||
+                                 clickedWidget == ui->btn_VerticalMiror);
+
+        if (clickedWidget && clickedWidget != ui->canvasWidget && !isModifierButton) {
             ui->canvasWidget->commitFloatingImage();
         }
     }

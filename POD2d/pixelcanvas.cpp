@@ -41,6 +41,22 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     QPoint currentPoint(x, y);
     emit cursorPositionChanged(x, y);
 
+    if (isRotating) {
+        QPoint center = selectionRect.center();
+        double radians = qAtan2(currentPoint.y() - center.y(), currentPoint.x() - center.x());
+        double degrees = qRadiansToDegrees(radians) + 90.0;
+        QTransform transform;
+        transform.rotate(degrees);
+        floatingImage = originalFloatingImage.transformed(transform, Qt::FastTransformation);
+
+        selectionRect.setWidth(floatingImage.width());
+        selectionRect.setHeight(floatingImage.height());
+        selectionRect.moveCenter(center);
+
+        update();
+        return;
+    }
+
     if (currentTool == DrawTool::Select && activeHandle != HandleType::None) {
         QPoint currentPos(x, y);
 
@@ -160,6 +176,28 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
         drawColor = Qt::white;
     }
 
+    if (event->modifiers() & Qt::ShiftModifier) {
+        int dx = currentPoint.x() - startPoint.x();
+        int dy = currentPoint.y() - startPoint.y();
+
+        if (currentTool == DrawTool::Rectangle || currentTool == DrawTool::Circle) {
+            int size = qMax(qAbs(dx), qAbs(dy));
+            currentPoint.setX(startPoint.x() + (dx >= 0 ? size : -size));
+            currentPoint.setY(startPoint.y() + (dy >= 0 ? size : -size));
+        }
+        else if (currentTool == DrawTool::Line) {
+            if (qAbs(dx) > qAbs(dy) * 2) {
+                currentPoint.setY(startPoint.y());
+            } else if (qAbs(dy) > qAbs(dx) * 2) {
+                currentPoint.setX(startPoint.x());
+            } else {
+                int size = qMin(qAbs(dx), qAbs(dy));
+                currentPoint.setX(startPoint.x() + (dx >= 0 ? size : -size));
+                currentPoint.setY(startPoint.y() + (dy >= 0 ? size : -size));
+            }
+        }
+    }
+
     switch (currentTool) {
     case DrawTool::Pen:
         break;
@@ -266,6 +304,15 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
     }
 
     if (currentTool == DrawTool::Select) {
+        if (isFloating && getRotationHandleRect().adjusted(-2, -2, 2, 2).contains(currentPos)) {
+            isRotating = true;
+            isDrawing = true;
+            if (originalFloatingImage.isNull()) {
+                originalFloatingImage = floatingImage;
+            }
+            return;
+        }
+
         activeHandle = getHandleAt(currentPos);
         if (activeHandle != HandleType::None) {
             dragStartMousePos = currentPos;
@@ -414,6 +461,11 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
 }
 
 void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
+    if (isRotating) {
+        isRotating = false;
+        return;
+    }
+
     if (!isDrawing) return;
 
     if (currentTool == DrawTool::Pan) {
@@ -542,6 +594,17 @@ void PixelCanvas::paintEvent(QPaintEvent *event) {
 
         if (isFloating && !floatingImage.isNull()) {
             painter.drawImage(selectionRect.topLeft(), floatingImage);
+
+            QRect rotRect = getRotationHandleRect();
+            int centerX = rotRect.x() + 1;
+
+            int legY = rotRect.bottom() + 1;
+            int legHeight = selectionRect.top() - legY;
+            if (legHeight > 0) {
+                painter.fillRect(centerX, legY, 1, legHeight, QColor(139, 0, 0, 150));
+            }
+            painter.fillRect(rotRect, QColor(139, 0, 0));
+            painter.fillRect(centerX, rotRect.y() + 1, 1, 1, Qt::black);
         }
 
         QVector<qreal> dashes;
@@ -737,14 +800,16 @@ void PixelCanvas::setTool(DrawTool tool) {
 void PixelCanvas::commitFloatingImage() {
     if (!isFloating || !m_model) return;
 
+    m_model->saveHistoryStep(m_model->getActiveLayerImage());
+
     m_model->commitImageToCurrentLayer(selectionRect.topLeft(), floatingImage);
 
     isFloating = false;
     hasSelection = false;
+    originalFloatingImage = QImage();
     update();
 
     m_model->notifyImageChanged();
-    update();
 }
 
 void PixelCanvas::setPrimaryColor(const QColor &color) {
@@ -784,16 +849,21 @@ QColor PixelCanvas::getMonoDisplayColor() const {
 }
 
 void PixelCanvas::rotateFloatingImage() {
-    if (!isFloating) return;
+    if (!isFloating || floatingImage.isNull()) return;
 
     QTransform transform;
     transform.rotate(90);
-    floatingImage = floatingImage.transformed(transform);
+    floatingImage = floatingImage.transformed(transform, Qt::FastTransformation);
+
     originalFloatingImage = floatingImage;
 
-    const QPoint center = selectionRect.center();
-    selectionRect.setSize(QSize(selectionRect.height(), selectionRect.width()));
-    selectionRect.moveCenter(center);
+    int cx = selectionRect.center().x();
+    int cy = selectionRect.center().y();
+    int newW = floatingImage.width();
+    int newH = floatingImage.height();
+
+    selectionRect = QRect(cx - newW / 2, cy - newH / 2, newW, newH);
+    dragStartRect = selectionRect;
 
     update();
 }
@@ -883,7 +953,8 @@ void PixelCanvas::cutLayer() {
     if (!m_model || !hasSelection || selectionRect.isEmpty()) return;
 
     copyLayer();
-    m_model->saveHistoryStep(tempState);
+
+    m_model->saveHistoryStep(m_model->getActiveLayerImage());
 
     QImage &layer = m_model->getActiveLayerImage();
     QPainter p(&layer);
@@ -911,6 +982,18 @@ void PixelCanvas::setBrushSize(int size) {
 
 int PixelCanvas::getBrushSize() const {
     return brushSize;
+}
+
+QRect PixelCanvas::getRotationHandleRect() const {
+    if (!isFloating) return QRect();
+
+    const int hs = 1;
+    const int distance = 6;
+
+    int cx = selectionRect.x() + selectionRect.width() / 2;
+    int cy = selectionRect.top() - distance;
+
+    return QRect(cx - hs, cy - hs, hs * 2 + 1, hs * 2 + 1);
 }
 
 void PixelCanvas::fitToScreen() {

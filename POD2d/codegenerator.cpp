@@ -232,6 +232,12 @@ def draw_image(frame_data):
 }
 
 QString CodeGenerator::generateExportCode(const QList<QImage>& frames, int currentFrameIndex, bool optimize, bool isCpp, bool exportAnimation, bool isRGB, bool isDataOnly, bool invertColors) {
+
+    if (!frames.isEmpty()) {
+        CANVAS_WIDTH = frames.first().width();
+        CANVAS_HEIGHT = frames.first().height();
+    }
+
     QSettings settings("POD2d", "EditorSettings");
     QString prefix = settings.value("export/variablePrefix", "bitmap_").toString();
     bool useProgmem = settings.value("export/useProgmem", true).toBool();

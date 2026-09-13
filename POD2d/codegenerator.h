@@ -29,8 +29,8 @@ public:
     static QString generateDrawImageCodeRGB(bool isCpp);
 
 private:
-    static constexpr int CANVAS_WIDTH = 128;
-    static constexpr int CANVAS_HEIGHT = 64;
+    static inline int CANVAS_WIDTH = 128;
+    static inline int CANVAS_HEIGHT = 64;
 
     static uint8_t extractByteHorizontal(const QImage &img, int startX, int y, bool invertColors = false);
     static uint8_t extractByteVertical(const QImage &img, int x, int startY, bool invertColors = false);

@@ -7,6 +7,7 @@
 #include <QPoint>
 #include <QPointF>
 #include <QPainterPath>
+#include <QtMath>
 #include "projectmodel.h"
 
 // Enum
@@ -29,6 +30,7 @@ public:
     void setZoom(double scale);
     void setCanvasSize(int width, int height);
     int getBrushSize() const;
+    QRect getRotationHandleRect() const;
 
     // Methods for setting colors
     void setPrimaryColor(const QColor &color);
@@ -84,6 +86,7 @@ private:
     QPointF offset;
     QPoint currentMousePos;
     bool isMouseOnCanvas = false;
+    bool isRotating = false;
 
     bool m_showGrid = true;
     QColor m_gridColor = QColor(50, 50, 50);
