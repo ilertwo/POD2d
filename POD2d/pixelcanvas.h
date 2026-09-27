@@ -31,6 +31,7 @@ public:
     void setCanvasSize(int width, int height);
     int getBrushSize() const;
     QRect getRotationHandleRect() const;
+    void setEraserOnRightClick(bool rightEraser);
 
     // Methods for setting colors
     void setPrimaryColor(const QColor &color);
@@ -88,6 +89,7 @@ private:
     bool isMouseOnCanvas = false;
     bool isRotating = false;
 
+    bool m_eraserOnRightClick = false;
     bool m_showGrid = true;
     QColor m_gridColor = QColor(50, 50, 50);
     QString m_bgStyle = "Checkerboard";

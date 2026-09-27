@@ -104,12 +104,18 @@ void MainWindow::setupLayersListWidget() {
 }
 
 void MainWindow::setupPalette() {
-    customPalette = {
-        QColor(0, 0, 0), QColor(255, 255, 255), QColor(255, 0, 0),
-        QColor(0, 255, 0), QColor(0, 0, 255), QColor(255, 255, 0)
-    };
-    rebuildPaletteGrid();
+    QSettings settings("POD2d", "EditorSettings");
+    QStringList savedColors = settings.value("customPalette").toStringList();
 
+    customPalette.clear();
+    if (savedColors.isEmpty()) {
+        customPalette = { QColor(0, 0, 0), QColor(255, 255, 255), QColor(255, 0, 0), QColor(0, 255, 0), QColor(0, 0, 255), QColor(255, 255, 0) };
+    } else {
+        for (const QString& hex : savedColors) {
+            customPalette.append(QColor(hex));
+        }
+    }
+    rebuildPaletteGrid();
     ui->widget_Palette->installEventFilter(this);
 }
 
@@ -327,6 +333,8 @@ void MainWindow::connectLayersList() {
 
 void MainWindow::connectMiniCanvas() {
     QLabel* miniCanvas = ui->miniCanvasWidget;
+
+    miniCanvas->setAlignment(Qt::AlignCenter);
 
     QImage initialImg = projectModel->getFlattenedImage();
     QPixmap initialPixmap = QPixmap::fromImage(initialImg).scaled(
@@ -762,6 +770,12 @@ void MainWindow::createProject() {
 
         setEditorUIEnabled(true);
 
+        QSettings settings("POD2d", "EditorSettings");
+        setLayerListVisible(settings.value("ui/showLayers", true).toBool());
+        setFrameListVisible(settings.value("ui/showFrames", true).toBool());
+        setToolsVisible(settings.value("ui/showTools", true).toBool());
+        setMiniMapVisible(settings.value("ui/showMiniMap", true).toBool());
+
         if(!isRGB) {
             ui->act_Palette->setEnabled(false);
             ui->frm_Palette->setVisible(false);
@@ -786,13 +800,18 @@ void MainWindow::createProject() {
 }
 
 void MainWindow::openProject() {
+    QSettings settings("POD2d", "EditorSettings");
+    QString lastDir = settings.value("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
+
     const QString path = QFileDialog::getOpenFileName(
         this, "Open project",
-        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
+        lastDir,
         "All Supported Files (*.pod2d *.png);;Pod2D Project (*.pod2d);;PNG Image (*.png)"
         );
 
     if (path.isEmpty()) return;
+
+    settings.setValue("lastDirectory", QFileInfo(path).absolutePath());
 
     if (path.endsWith(".png", Qt::CaseInsensitive)) {
         openPngAsProject(path);
@@ -840,6 +859,12 @@ void MainWindow::loadProjectFromFile(const QString &path) {
 
     setEditorUIEnabled(true);
 
+    QSettings settings("POD2d", "EditorSettings");
+    setLayerListVisible(settings.value("ui/showLayers", true).toBool());
+    setFrameListVisible(settings.value("ui/showFrames", true).toBool());
+    setToolsVisible(settings.value("ui/showTools", true).toBool());
+    setMiniMapVisible(settings.value("ui/showMiniMap", true).toBool());
+
     bool isRGB = projectModel->getIsRGB();
     if (!isRGB) {
         ui->act_Palette->setEnabled(false);
@@ -863,22 +888,29 @@ void MainWindow::loadProjectFromFile(const QString &path) {
 }
 
 void MainWindow::saveProjectAs() {
+    QSettings settings("POD2d", "EditorSettings");
+    QString lastDir = settings.value("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
+
     QString defaultFileName = currentProjectName;
     if (defaultFileName.isEmpty()) {
         defaultFileName = "Untitled";
     }
     defaultFileName += ".pod2d";
 
+    QString fullPath = lastDir + "/" + defaultFileName;
+
     QString filePath = QFileDialog::getSaveFileName(
         this,
         "Save project as...",
-        defaultFileName,
+        fullPath,
         "POD2d Project (*.pod2d);;All Files (*)"
         );
 
     if (filePath.isEmpty()) {
         return;
     }
+
+    settings.setValue("lastDirectory", QFileInfo(filePath).absolutePath());
 
     currentFilePath = filePath;
     QFileInfo fileInfo(filePath);
@@ -937,6 +969,18 @@ void MainWindow::closeProject() {
 
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (maybeSave()) {
+        QSettings settings("POD2d", "EditorSettings");
+        settings.setValue("ui/showLayers", ui->layersListWidget->isVisible());
+        settings.setValue("ui/showFrames", ui->framesListWidget->isVisible());
+        settings.setValue("ui/showTools", ui->frm_Tools->isVisible());
+        settings.setValue("ui/showMiniMap", ui->miniCanvasFrame->isVisible());
+
+        QStringList hexColors;
+        for (const QColor& c : customPalette) {
+            hexColors.append(c.name(QColor::HexArgb));
+        }
+        settings.setValue("customPalette", hexColors);
+
         event->accept();
     } else {
         event->ignore();
@@ -1004,6 +1048,9 @@ void MainWindow::applySettings() {
     } else {
         autoSaveTimer->stop();
     }
+
+    bool rightEraser = settings.value("editor/rightClickEraser", false).toBool();
+    ui->canvasWidget->setEraserOnRightClick(rightEraser);
 
     projectModel->loadSettings();
     setupShortcuts();
@@ -1171,6 +1218,12 @@ void MainWindow::openPngAsProject(const QString &path) {
 
     setEditorUIEnabled(true);
 
+    QSettings settings("POD2d", "EditorSettings");
+    setLayerListVisible(settings.value("ui/showLayers", true).toBool());
+    setFrameListVisible(settings.value("ui/showFrames", true).toBool());
+    setToolsVisible(settings.value("ui/showTools", true).toBool());
+    setMiniMapVisible(settings.value("ui/showMiniMap", true).toBool());
+
     ui->act_Palette->setEnabled(isRgbMode);
     ui->frm_Palette->setVisible(isRgbMode);
 
@@ -1186,11 +1239,15 @@ void MainWindow::openPngAsProject(const QString &path) {
 }
 
 void MainWindow::actionImportPng() {
+    QSettings settings("POD2d", "EditorSettings");
+    QString lastDir = settings.value("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
     QString path = QFileDialog::getOpenFileName(
         this, "Import PNG",
-        QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),
+        lastDir,
         "Images (*.png *.jpg *.bmp)"
         );
+
+    settings.setValue("lastDirectory", QFileInfo(path).absolutePath());
 
     importPngToCanvas(path);
 }
@@ -1598,6 +1655,12 @@ void MainWindow::rebuildPaletteGrid() {
 
     int nextIndex = customPalette.size();
     gridLayout->addWidget(btnAddColor, nextIndex / columns, nextIndex % columns);
+
+    QStringList hexColors;
+    for (const QColor& c : customPalette) {
+        hexColors.append(c.name(QColor::HexArgb));
+    }
+    settings.setValue("customPalette", hexColors);
 
     updateColorIndicators();
 }

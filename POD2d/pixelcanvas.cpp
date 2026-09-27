@@ -164,7 +164,11 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
         if (event->buttons() & Qt::LeftButton) {
             drawColor = primaryColor;
         } else if (event->buttons() & Qt::RightButton) {
-            drawColor = secondaryColor;
+            if (m_eraserOnRightClick) {
+                drawColor = (!m_model->getIsRGB() && m_model->getCurrentLayerIndex() == 0) ? Qt::black : Qt::transparent;
+            } else {
+                drawColor = secondaryColor;
+            }
         } else {
             return;
         }
@@ -368,7 +372,13 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
         if (event->buttons() & Qt::LeftButton) {
             replacementColor = primaryColor;
         } else if (event->buttons() & Qt::RightButton) {
-            replacementColor = secondaryColor;
+
+            if (m_eraserOnRightClick) {
+                replacementColor = (!m_model->getIsRGB() && m_model->getCurrentLayerIndex() == 0) ? Qt::black : Qt::transparent;
+            } else {
+                replacementColor = secondaryColor;
+            }
+
         } else {
             return;
         }
@@ -994,6 +1004,10 @@ QRect PixelCanvas::getRotationHandleRect() const {
     int cy = selectionRect.top() - distance;
 
     return QRect(cx - hs, cy - hs, hs * 2 + 1, hs * 2 + 1);
+}
+
+void PixelCanvas::setEraserOnRightClick(bool rightEraser) {
+    m_eraserOnRightClick = rightEraser;
 }
 
 void PixelCanvas::fitToScreen() {

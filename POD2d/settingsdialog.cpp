@@ -5,6 +5,7 @@
 #include <QKeySequenceEdit>
 #include <QTableWidgetItem>
 #include <QColorDialog>
+#include <QMessageBox>
 
 struct ShortcutItem {
     QString displayName;
@@ -72,6 +73,18 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
     connect(ui->btn_GridColor, &QPushButton::clicked, this, &SettingsDialog::chooseGridColor);
 
     loadSettings();
+
+    connect(ui->btn_ResetDefaults, &QPushButton::clicked, this, [this]() {
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question(this, "Reset Settings", "Are you sure you want to reset ALL settings to default?", QMessageBox::Yes | QMessageBox::No);
+
+        if (reply == QMessageBox::Yes) {
+            QSettings settings("POD2d", "EditorSettings");
+            settings.clear();
+
+            loadSettings();
+        }
+    });
 }
 
 SettingsDialog::~SettingsDialog()
@@ -92,6 +105,7 @@ void SettingsDialog::loadSettings() {
     bool useProgmemEnabled = settings.value("export/useProgmem", true).toBool();
     bool autoCopyEnabled = settings.value("export/autoCopy", false).toBool();
     bool showGridEnabled = settings.value("canvas/showGrid", false).toBool();
+    bool rightClickEraser = settings.value("export/rightClickEraser", false).toBool();
 
     ui->spin_DefaultWidth->setValue(settings.value("editor/defaultWidth", 128).toInt());
     ui->spin_DefaultHeight->setValue(settings.value("editor/defaultHeight", 64).toInt());
@@ -106,6 +120,7 @@ void SettingsDialog::loadSettings() {
     ui->cmb_ByteFormat->setCurrentIndex(settings.value("export/byteFormat", 0).toInt());
     ui->chk_Progmem->setChecked(useProgmemEnabled);
     ui->chk_AutoCopy->setChecked(autoCopyEnabled);
+    ui->chk_RightClickEraser->setChecked(rightClickEraser);
 
     ui->table_Controls->setRowCount(HOTKEYS.size());
     ui->table_Controls->setColumnCount(2);
@@ -150,6 +165,7 @@ void SettingsDialog::saveSettings() {
     settings.setValue("editor/maxLayers", ui->spin_MaxLayers->value());
     settings.setValue("editor/autoSave", ui->chk_AutoSave->isChecked());
     settings.setValue("editor/autoSaveInterval", ui->spin_AutoSaveInterval->value());
+    settings.setValue("editor/rightClickEraser", ui->chk_RightClickEraser->isChecked());
 
     settings.setValue("export/defaultFormat", ui->cmb_Language->currentIndex());
     settings.setValue("export/variablePrefix", ui->input_VariablePrefix->text().trimmed());
