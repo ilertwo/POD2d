@@ -111,7 +111,6 @@ private:
     void connectViewActions();
     void connectPreferencesActions();
     void connectHelpActions();
-    void setupShortcuts();
 };
 
 #endif // MAINWINDOW_H

@@ -1,10 +1,13 @@
 #ifndef ACTIONMANAGER_H
 #define ACTIONMANAGER_H
 
-class ActionManager
-{
+#include <QString>
+
+namespace Ui { class MainWindow; }
+
+class ActionManager {
 public:
-    ActionManager();
+    static void setupShortcuts(Ui::MainWindow *ui);
 };
 
 #endif // ACTIONMANAGER_H
