@@ -60,8 +60,6 @@ private slots:
     void updateUIProportions(int projWidth, int projHeight);
     void updateRecentProjectsUI();
     void updateColorIndicators();
-    void applyTheme(const QString &themeName);
-    QIcon generate1bitIcon(const QString &text);
 
     bool maybeSave();
     void closeProject();
@@ -95,7 +93,6 @@ private:
     // Initialization Stages (Startup)
     void initModels();
     void setupTheme();
-    void loadIcons();
     void setupConnections();
     void setupPalette();
 

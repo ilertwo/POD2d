@@ -8,6 +8,7 @@
 #include "settingsdialog.h"
 #include "palettedialog.h"
 #include "filecontroller.h"
+#include "thememanager.h"
 
 #include <QFileDialog>
 #include <QStandardPaths>
@@ -45,7 +46,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     initModels();
     setupTheme();
-    loadIcons();
     setupConnections();
 
     updateRecentProjectsUI();
@@ -85,77 +85,9 @@ void MainWindow::initModels() {
 void MainWindow::setupTheme() {
     QSettings settings("POD2d", "EditorSettings");
     QString currentTheme = settings.value("ui/theme", "dark").toString();
-    applyTheme(currentTheme);
-}
 
-void MainWindow::loadIcons() {
-    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
-    QSettings settings("POD2d", "EditorSettings");
-    QString theme = settings.value("ui/theme", "dark").toString();
-
-    QFont pixelFont("Courier New", 14, QFont::Bold);
-
-    auto setBtnIcon = [&](QPushButton* btn, const QString& text, const QString& iconName) {
-        if (theme == "1bit") {
-            btn->setIcon(QIcon());
-            btn->setText(text);
-            btn->setFont(pixelFont);
-        } else {
-            btn->setText("");
-            QString fullPath = basePath + "/image/" + theme + "/" + iconName;
-            btn->setIcon(QIcon(fullPath));
-        }
-    };
-
-    this->setWindowIcon(QIcon(basePath + "/image/" + "POD2d_icon.png"));
-
-    QPixmap logoPixmap;
-
-    if (theme == "light")
-        logoPixmap = QPixmap(basePath + "/image/POD2d_icon_white.png");
-    else
-        logoPixmap = QPixmap(basePath + "/image/POD2d_icon.png");
-
-    QPixmap scaledLogo = logoPixmap.scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    ui->lbl_Logo->setPixmap(scaledLogo);
-
-
-    setBtnIcon(ui->btn_Save, "S", "save.png");
-    setBtnIcon(ui->btn_Undo, "<", "undo.png");
-    setBtnIcon(ui->btn_Redo, ">", "redo.png");
-
-    setBtnIcon(ui->btn_RectangleSelection, "[:]", "select.png");
-    setBtnIcon(ui->btn_LassoSelection, "@", "lasso.png");
-    setBtnIcon(ui->btn_ShapeSelection, "!", "shape.png");
-    setBtnIcon(ui->btn_Lighten, "*", "lighten.png");
-
-    setBtnIcon(ui->btn_Pen, "/", "pen.png");
-    setBtnIcon(ui->btn_Eraser, "=", "eraser.png");
-    setBtnIcon(ui->btn_Pipette, "j", "pipette.png");
-    setBtnIcon(ui->btn_Dithering, "#", "dithering.png");
-    setBtnIcon(ui->btn_Fill, "U", "pain.png");
-    setBtnIcon(ui->btn_Text, "A", "text.png");
-    setBtnIcon(ui->btn_Line, "\\", "line.png");
-    setBtnIcon(ui->btn_BrokenLine, "N", "brokenLine.png");
-    setBtnIcon(ui->btn_Circle, "O", "circle.png");
-    setBtnIcon(ui->btn_Rectangle, "[]", "rectangle.png");
-
-    setBtnIcon(ui->btn_Pan, "W", "pan.png");
-    setBtnIcon(ui->btn_Rotate, "G", "rotate.png");
-    setBtnIcon(ui->btn_VerticalMiror, "|", "mirror.png");
-    setBtnIcon(ui->btn_CenterView, "+", "center.png");
-
-    setBtnIcon(ui->btn_HideMiniMap, "m", "hide_minimap.png");
-    setBtnIcon(ui->btn_HideFrames, "f", "hide_frames.png");
-    setBtnIcon(ui->btn_HideLayers, "l", "hide_layers.png");
-    setBtnIcon(ui->btn_EditMode, "E", "edit_mode.png");
-
-    bool isPlaying = projectModel && projectModel->isPlaying();
-    if (isPlaying) {
-        setBtnIcon(ui->btn_Play, "X", "stop.png");
-    } else {
-        setBtnIcon(ui->btn_Play, ">", "play.png");
-    }
+    ThemeManager::applyTheme(currentTheme, this);
+    ThemeManager::loadIcons(ui, currentTheme, projectModel, this);
 }
 
 // ==========================================
@@ -249,20 +181,10 @@ void MainWindow::connectPlayerControls() {
 
     connect(playBtn, &QPushButton::clicked, projectModel, &ProjectModel::togglePlay);
 
-    connect(projectModel, &ProjectModel::isPlayingChanged, this, [playBtn](bool playing) {
+    connect(projectModel, &ProjectModel::isPlayingChanged, this, [this](bool playing) {
         QSettings settings("POD2d", "EditorSettings");
         QString theme = settings.value("ui/theme", "dark").toString();
-
-        if (theme == "1bit") {
-            playBtn->setIcon(QIcon());
-            playBtn->setText(playing ? "X" : ">");
-            playBtn->setFont(QFont("Courier New", 14, QFont::Bold));
-        } else {
-            playBtn->setText("");
-            QString basePath = QFileInfo(__FILE__).dir().absolutePath();
-            QString iconName = playing ? "stop.png" : "play.png";
-            playBtn->setIcon(QIcon(basePath + "/image/" + theme + "/" + iconName));
-        }
+        ThemeManager::loadIcons(ui, theme, projectModel, this);
     });
 
     connect(ui->timeEdit, &QTimeEdit::timeChanged, this, [this](const QTime &time) {
@@ -431,9 +353,24 @@ void MainWindow::connectViewActions() {
         setPaletteVisible(!ui->frm_Palette->isVisible());
     });
 
-    connect(ui->act_ThemeDark, &QAction::triggered, this, [this]() { applyTheme("dark"); });
-    connect(ui->act_ThemeLight, &QAction::triggered, this, [this]() { applyTheme("light"); });
-    connect(ui->act_Theme1Bit, &QAction::triggered, this, [this]() { applyTheme("1bit"); });
+    connect(ui->act_ThemeDark, &QAction::triggered, this, [this]() {
+        ThemeManager::applyTheme("dark", this);
+        ThemeManager::loadIcons(ui, "dark", projectModel, this);
+        ui->framesListWidget->reloadTheme();
+        ui->layersListWidget->reloadTheme();
+    });
+    connect(ui->act_ThemeLight, &QAction::triggered, this, [this]() {
+        ThemeManager::applyTheme("light", this);
+        ThemeManager::loadIcons(ui, "light", projectModel, this);
+        ui->framesListWidget->reloadTheme();
+        ui->layersListWidget->reloadTheme();
+    });
+    connect(ui->act_Theme1Bit, &QAction::triggered, this, [this]() {
+        ThemeManager::applyTheme("1bit", this);
+        ThemeManager::loadIcons(ui, "1bit", projectModel, this);
+        ui->framesListWidget->reloadTheme();
+        ui->layersListWidget->reloadTheme();
+    });
 }
 
 void MainWindow::connectPreferencesActions(){
@@ -713,7 +650,8 @@ void MainWindow::applySettings() {
     qApp->setFont(f);
 
     QString theme = settings.value("ui/theme", "dark").toString();
-    applyTheme(theme);
+    ThemeManager::applyTheme(theme, this);
+    ThemeManager::loadIcons(ui, theme, projectModel, this);
 
     bool showGrid = settings.value("canvas/showGrid", true).toBool();
     QString gridColor = settings.value("canvas/gridColor", "#333333").toString();
@@ -723,8 +661,6 @@ void MainWindow::applySettings() {
     ui->canvasWidget->setGridColor(QColor(gridColor));
     ui->canvasWidget->setBackgroundStyle(bgStyle);
     ui->canvasWidget->update();
-
-    loadIcons();
 }
 
 void MainWindow::addRecentProject(const QString &path) {
@@ -1014,47 +950,6 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     }
 
     return QMainWindow::eventFilter(watched, event);
-}
-
-void MainWindow::applyTheme(const QString &themeName) {
-    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
-
-    QString filePath = QString(basePath + "/themes/%1.qss").arg(themeName);
-
-    QFile file(filePath);
-    if (file.open(QFile::ReadOnly | QFile::Text)) {
-        QTextStream stream(&file);
-        QString styleSheet = stream.readAll();
-
-        styleSheet.replace("{BASE_PATH}", basePath);
-
-        qApp->setStyleSheet(styleSheet);
-        file.close();
-
-        QSettings settings("POD2d", "EditorSettings");
-        settings.setValue("ui/theme", themeName);
-    }
-
-    loadIcons();
-
-    ui->framesListWidget->reloadTheme();
-    ui->layersListWidget->reloadTheme();
-    ui->widget_Palette->reloadTheme();
-}
-
-QIcon MainWindow::generate1bitIcon(const QString &text) {
-    QPixmap pixmap(24, 24);
-    pixmap.fill(Qt::transparent);
-
-    QPainter painter(&pixmap);
-    painter.setPen(Qt::white);
-
-    QFont font("Courier New", 14, QFont::Bold);
-    painter.setFont(font);
-
-    painter.drawText(pixmap.rect(), Qt::AlignCenter, text);
-
-    return QIcon(pixmap);
 }
 
 // Group C: Editor Controls & Tools
