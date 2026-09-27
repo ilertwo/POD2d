@@ -1853,16 +1853,32 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         QPushButton *btn = qobject_cast<QPushButton*>(watched);
 
         if (btn && btn->property("swatchColor").isValid()) {
-
             int colorIndex = btn->property("colorIndex").toInt();
 
             if (event->type() == QEvent::MouseButtonDblClick) {
                 openPaletteEditor(colorIndex);
                 return true;
             }
-
             else if (event->type() == QEvent::MouseButtonPress) {
                 QColor clickedColor = btn->property("swatchColor").value<QColor>();
+
+                static int mainSwapIndex = -1;
+
+                if (mouseEvent->button() == Qt::LeftButton && (mouseEvent->modifiers() & Qt::ShiftModifier)) {
+                    if (mainSwapIndex == -1) {
+                        mainSwapIndex = colorIndex;
+                        btn->setStyleSheet(btn->styleSheet() + " border: 2px dashed white;");
+                    } else {
+                        if (mainSwapIndex < customPalette.size() && colorIndex < customPalette.size()) {
+                            customPalette.swapItemsAt(mainSwapIndex, colorIndex);
+                        }
+                        mainSwapIndex = -1;
+                        rebuildPaletteGrid();
+                    }
+                    return true;
+                } else {
+                    mainSwapIndex = -1;
+                }
 
                 if (mouseEvent->button() == Qt::MiddleButton) {
                     customPalette.removeAt(colorIndex);

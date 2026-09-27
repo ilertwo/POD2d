@@ -267,11 +267,29 @@ bool PaletteDialog::eventFilter(QObject *watched, QEvent *event) {
             QMouseEvent *me = static_cast<QMouseEvent*>(event);
             int index = btn->property("colorIndex").toInt();
 
+            static int dialogSwapIndex = -1;
+
+            if (me->button() == Qt::LeftButton && (me->modifiers() & Qt::ShiftModifier)) {
+                if (dialogSwapIndex == -1) {
+                    dialogSwapIndex = index;
+                    btn->setStyleSheet(btn->styleSheet() + " border: 2px dashed white;");
+                } else {
+                    if (dialogSwapIndex < m_palette.size() && index < m_palette.size()) {
+                        m_palette.swapItemsAt(dialogSwapIndex, index);
+                        if (m_activeIndex == dialogSwapIndex) m_activeIndex = index;
+                        else if (m_activeIndex == index) m_activeIndex = dialogSwapIndex;
+                    }
+                    dialogSwapIndex = -1;
+                    rebuildGrid();
+                }
+                return true;
+            } else {
+                dialogSwapIndex = -1;
+            }
             if (me->button() == Qt::LeftButton) {
                 if (m_activeIndex == m_palette.size()) {
                     m_palette.append(m_currentColor);
                 }
-
                 m_activeIndex = index;
                 m_currentColor = m_palette[index];
                 syncColorToUI(true);
@@ -287,7 +305,6 @@ bool PaletteDialog::eventFilter(QObject *watched, QEvent *event) {
             return true;
         }
     }
-
     if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove) {
         QMouseEvent *me = static_cast<QMouseEvent*>(event);
         if (me->buttons() & Qt::LeftButton) {

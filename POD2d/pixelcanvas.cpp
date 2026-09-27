@@ -1,5 +1,7 @@
 #include "pixelcanvas.h"
 #include "painttools.h"
+#include "textdialog.h"
+
 #include <QMouseEvent>
 #include <QInputDialog>
 #include <QLineEdit>
@@ -430,24 +432,25 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
     }
 
     if (currentTool == DrawTool::Text) {
-        bool ok;
-        QString text = QInputDialog::getText(this, "Text input", "Enter text:", QLineEdit::Normal, "", &ok);
-        if (ok && !text.isEmpty()) {
-            QPainter p(&layerImg);
-            p.setRenderHint(QPainter::TextAntialiasing, false);
-            p.setRenderHint(QPainter::Antialiasing, false);
+        TextDialog dialog(this);
+        if (dialog.exec() == QDialog::Accepted) {
+            QString text = dialog.getText();
+            if (!text.isEmpty()) {
+                QPainter p(&layerImg);
+                p.setRenderHint(QPainter::TextAntialiasing, false);
+                p.setRenderHint(QPainter::Antialiasing, false);
 
-            QFont pixelFont("Arial", 6);
-            pixelFont.setStyleStrategy(QFont::NoAntialias);
-            pixelFont.setWeight(QFont::Light);
+                QFont pixelFont = dialog.getFont();
+                p.setPen(replacementColor);
+                p.setFont(pixelFont);
 
-            p.setPen(replacementColor);
-            p.setFont(pixelFont);
-            p.drawText(x, y + 6, text);
+                QFontMetrics fm(pixelFont);
+                p.drawText(x, y + fm.ascent(), text);
 
-            m_model->saveHistoryStep(tempState);
-            m_model->notifyImageChanged();
-            update();
+                m_model->saveHistoryStep(tempState);
+                m_model->notifyImageChanged();
+                update();
+            }
         }
         isDrawing = false;
         return;
