@@ -1644,7 +1644,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                    <number>0</number>
                   </property>
                   <item>
-                   <widget class="QListWidget" name="framesListWidget">
+                   <widget class="FrameListWidget" name="framesListWidget">
                     <property name="sizePolicy">
                      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                       <horstretch>0</horstretch>
@@ -2109,6 +2109,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
    <class>LayerListWidget</class>
    <extends>QListWidget</extends>
    <header>layerlistwidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>FrameListWidget</class>
+   <extends>QListWidget</extends>
+   <header>framelistwidget.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

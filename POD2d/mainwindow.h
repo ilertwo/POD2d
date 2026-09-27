@@ -66,7 +66,6 @@ private slots:
     void updateColorIndicators();
     void applyTheme(const QString &themeName);
     QIcon generate1bitIcon(const QString &text);
-    void showFrameContextMenu(const QPoint &pos);
 
     void markProjectAsModified();
     bool maybeSave();
@@ -105,19 +104,15 @@ private:
     // Initialization Stages (Startup)
     void initModels();
     void setupTheme();
-    void setupWidgets();
     void loadIcons();
     void setupConnections();
     void setupPalette();
-
-    void setupFramesListWidget();
 
     // Signal connection assignment
     void connectModelToLists();
     void connectMenuButtons();
     void connectEditorControls();
     void connectDrawingTools();
-    void connectFramesList();
     void connectMiniCanvas();
     void connectPlayerControls();
     void connectAutoSaveTimer();
@@ -129,9 +124,6 @@ private:
     void connectPreferencesActions();
     void connectHelpActions();
     void setupShortcuts();
-
-    // Interface update
-    void rebuildFramesList();
 };
 
 #endif // MAINWINDOW_H
