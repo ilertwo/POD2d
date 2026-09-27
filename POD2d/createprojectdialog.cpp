@@ -5,6 +5,7 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QDir>
+#include <QMessageBox>
 
 CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
     QDialog(parent),
@@ -83,7 +84,7 @@ void CreateProjectDialog::on_btn_Browse_clicked() {
     QString dir = QFileDialog::getExistingDirectory(this,
                                                     "Select a folder to save to.",
                                                     currentPath,
-                                                    QFileDialog::ShowDirsOnly | QFileDialog::DontUseNativeDialog);
+                                                    QFileDialog::ShowDirsOnly);
 
     if (!dir.isEmpty()) {
         ui->input_Location->setText(dir);
@@ -96,12 +97,39 @@ QString CreateProjectDialog::getFullFilePath() const {
         currentPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     }
 
-    QString name = getProjectName();
-    if (name.isEmpty()) {
-        name = "Untitled";
+    QString baseName = getProjectName();
+    bool isDefaultName = false;
+
+    if (baseName.isEmpty() || baseName == "Untitled") {
+        baseName = "Untitled";
+        isDefaultName = true;
     }
 
-    return QDir(currentPath).filePath(name + ".pod2d");
+    QDir dir(currentPath);
+    QString finalName = baseName;
+    QString fullPath = dir.filePath(finalName + ".pod2d");
+
+    if (isDefaultName) {
+        int counter = 1;
+        while (QFile::exists(fullPath)) {
+            finalName = QString("%1_%2").arg(baseName).arg(counter);
+            fullPath = dir.filePath(finalName + ".pod2d");
+            counter++;
+        }
+    }
+    else if (QFile::exists(fullPath)) {
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::warning((QWidget*)this->parent(), "File Exists",
+                                     QString("A project named '%1' already exists in this folder.\nDo you want to overwrite it?").arg(baseName),
+                                     QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::No) {
+            return QString();
+        }
+    }
+
+    ui->input_ProjectName->setText(finalName);
+
+    return fullPath;
 }
 
 bool CreateProjectDialog::isRGBMode() const {

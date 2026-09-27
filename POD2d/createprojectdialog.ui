@@ -280,7 +280,7 @@
      </font>
     </property>
     <property name="text">
-     <string>image</string>
+     <string>Untitled</string>
     </property>
     <property name="placeholderText">
      <string>Enter project title</string>

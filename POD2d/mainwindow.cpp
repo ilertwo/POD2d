@@ -382,20 +382,9 @@ void MainWindow::connectEditorControls() {
 
     connectPlayerControls();
 
-    connect(ui->btn_HideMiniMap, &QPushButton::clicked, this, [this]() {
-        bool isVisible = ui->miniCanvasWidget->isVisible();
-        setMiniMapVisible(!isVisible);
-    });
-
-    connect(ui->btn_HideFrames, &QPushButton::clicked, this, [this]() {
-        bool isVisible = ui->framesListWidget->isVisible();
-        setFrameListVisible(!isVisible);
-    });
-
-    connect(ui->btn_HideLayers, &QPushButton::clicked, this, [this]() {
-        bool isVisible = ui->layersListWidget->isVisible();
-        setLayerListVisible(!isVisible);
-    });
+    connect(ui->btn_HideMiniMap, &QPushButton::clicked, ui->act_ViewMiniMap, &QAction::trigger);
+    connect(ui->btn_HideFrames, &QPushButton::clicked, ui->act_ViewFrames, &QAction::trigger);
+    connect(ui->btn_HideLayers, &QPushButton::clicked, ui->act_ViewLayers, &QAction::trigger);
 
     //connect(ui->btn_MergeLayer, &QPushButton::clicked, projectModel, &ProjectModel::mergeLayerDown);
 }
@@ -560,28 +549,23 @@ void MainWindow::connectEditActions() {/*
 
 void MainWindow::connectViewActions() {
     connect(ui->act_ViewMiniMap, &QAction::triggered, this, [this]() {
-        bool isVisible = ui->miniCanvasWidget->isVisible();
-        setMiniMapVisible(!isVisible);
+        setMiniMapVisible(!ui->miniCanvasFrame->isVisible());
     });
 
     connect(ui->act_ViewFrames, &QAction::triggered, this, [this]() {
-        bool isVisible = ui->framesListWidget->isVisible();
-        setFrameListVisible(!isVisible);
+        setFrameListVisible(!ui->framesListWidget->isVisible());
     });
 
     connect(ui->act_ViewLayers, &QAction::triggered, this, [this]() {
-        bool isVisible = ui->layersListWidget->isVisible();
-        setLayerListVisible(!isVisible);
+        setLayerListVisible(!ui->layersListWidget->isVisible());
     });
 
     connect(ui->act_ViewTools, &QAction::triggered, this, [this]() {
-        bool isVisible = ui->frm_Tools->isVisible();
-        setToolsVisible(!isVisible);
+        setToolsVisible(!ui->frm_Tools->isVisible());
     });
 
     connect(ui->act_Palette, &QAction::triggered, this, [this]() {
-        bool isVisible = ui->frm_Palette->isVisible();
-        setPaletteVisible(!isVisible);
+        setPaletteVisible(!ui->frm_Palette->isVisible());
     });
 
     connect(ui->act_ThemeDark, &QAction::triggered, this, [this]() { applyTheme("dark"); });
@@ -726,8 +710,11 @@ void MainWindow::createProject() {
 
     if (dialog.exec() == QDialog::Accepted) {
 
+        QString newPath = dialog.getFullFilePath();
+        if (newPath.isEmpty()) return;
+
         currentFilePath.clear();
-        currentFilePath = dialog.getFullFilePath();
+        currentFilePath = newPath;
 
         currentProjectName = dialog.getProjectName();
 
@@ -735,10 +722,6 @@ void MainWindow::createProject() {
         projectHeight = dialog.getHeight();
 
         ui->lbl_WidthHeight->setText("[" + QString::number(projectWidth) + "x" + QString::number(projectHeight) + "]");
-
-        if (currentProjectName.isEmpty()) {
-            currentProjectName = "Untitled";
-        }
 
         this->setWindowTitle("POD2d - " + currentProjectName);
 
