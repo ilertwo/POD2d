@@ -1379,7 +1379,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                          </widget>
                         </item>
                         <item>
-                         <widget class="QListWidget" name="layersListWidget">
+                         <widget class="LayerListWidget" name="layersListWidget">
                           <property name="minimumSize">
                            <size>
                             <width>120</width>
@@ -2104,6 +2104,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
    <extends>QWidget</extends>
    <header>palettewidget.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>LayerListWidget</class>
+   <extends>QListWidget</extends>
+   <header>layerlistwidget.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

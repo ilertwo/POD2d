@@ -48,7 +48,6 @@ MainWindow::MainWindow(QWidget *parent)
     loadIcons();
     setupConnections();
 
-    rebuildLayersList();
     updateRecentProjectsUI();
 
     ui->stackedWidget->setCurrentIndex(0);
@@ -66,6 +65,8 @@ void MainWindow::initModels() {
     projectModel = new ProjectModel(this);
     ui->canvasWidget->setModel(projectModel);
 
+    ui->layersListWidget->setModel(projectModel);
+
     this->setWindowTitle("POD2d");
     this->showMaximized();
     setEditorUIEnabled(false);
@@ -81,7 +82,6 @@ void MainWindow::setupTheme() {
 
 void MainWindow::setupWidgets() {
     setupFramesListWidget();
-    setupLayersListWidget();
 }
 
 void MainWindow::setupFramesListWidget() {
@@ -92,14 +92,6 @@ void MainWindow::setupFramesListWidget() {
     framesList->setSpacing(5);
     framesList->setFixedHeight(100);
     framesList->setMovement(QListView::Static);
-}
-
-void MainWindow::setupLayersListWidget() {
-    QListWidget* layersList = ui->layersListWidget;
-
-    layersList->setViewMode(QListView::ListMode);
-    layersList->setIconSize(QSize(64, 32));
-    layersList->setSpacing(3);
 }
 
 void MainWindow::loadIcons() {
@@ -191,10 +183,12 @@ void MainWindow::setupConnections() {
 
 void MainWindow::connectModelToLists() {
     connectFramesList();
-    connectLayersList();
     connectMiniCanvas();
 
     connect(projectModel, &ProjectModel::imageChanged, this, [this]() {
+        ui->canvasWidget->update();
+    });
+    connect(projectModel, &ProjectModel::activeLayerChanged, this, [this]() {
         ui->canvasWidget->update();
     });
     connect(projectModel, &ProjectModel::projectModified, this, &MainWindow::markProjectAsModified);
@@ -212,7 +206,6 @@ void MainWindow::connectFramesList() {
         framesList->blockSignals(true);
         framesList->setCurrentRow(index);
         framesList->blockSignals(false);
-        rebuildLayersList();
     });
 
     connect(framesList, &QListWidget::currentRowChanged, this, [this](int row) {
@@ -248,70 +241,10 @@ void MainWindow::connectFramesList() {
 
                 if (start == toIndex) {
                     rebuildFramesList();
+                    ui->layersListWidget->rebuildList();
                 } else {
                     projectModel->moveFrame(start, toIndex);
                 }
-            });
-}
-
-void MainWindow::connectLayersList() {
-    QListWidget* layersList = ui->layersListWidget;
-
-    layersList->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(layersList, &QWidget::customContextMenuRequested, this, &MainWindow::showLayerContextMenu);
-
-    connect(projectModel, &ProjectModel::layersListChanged, this, &MainWindow::rebuildLayersList);
-
-    connect(projectModel, &ProjectModel::activeLayerChanged, this, [layersList](int index) {
-        layersList->blockSignals(true);
-        if (index >= 0 && index < layersList->count()) {
-            layersList->setCurrentRow(index);
-        }
-        layersList->blockSignals(false);
-    });
-
-    connect(projectModel, &ProjectModel::layerThumbnailUpdated, this, [this, layersList](int index) {
-        if (index >= 0 && index < layersList->count()) {
-            QImage thumb = projectModel->getLayerThumbnail(index);
-            QListWidgetItem *item = layersList->item(index);
-
-            if (QWidget *cellWidget = layersList->itemWidget(item)) {
-                if (QLabel *imgLabel = cellWidget->findChild<QLabel*>("layerImage")) {
-                    QPixmap newPix = QPixmap::fromImage(thumb).scaled(100, 32, Qt::KeepAspectRatio, Qt::FastTransformation);
-                    imgLabel->setPixmap(newPix);
-                }
-            }
-        }
-    });
-
-    connect(layersList, &QListWidget::currentRowChanged, this, [this](int row) {
-        if (row >= 0) {
-            projectModel->setCurrentLayer(row);
-            ui->canvasWidget->update();
-        }
-    });
-
-    connect(projectModel, &ProjectModel::forceUILayerSelection, this, [this](int index) {
-        ui->layersListWidget->blockSignals(true);
-        ui->layersListWidget->setCurrentRow(index);
-        ui->layersListWidget->blockSignals(false);
-    });
-
-    connect(projectModel, &ProjectModel::imageChanged, this, [this](const QImage &flatImg) {
-        if (QListWidgetItem *currentItem = ui->framesListWidget->currentItem()) {
-
-            QImage scaledImg = flatImg.scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
-
-            currentItem->setData(Qt::UserRole, QPixmap::fromImage(scaledImg));
-        }
-    });
-
-    ui->layersListWidget->viewport()->installEventFilter(this);
-
-    connect(ui->layersListWidget->model(), &QAbstractItemModel::rowsMoved, this,
-            [this](const QModelIndex &, int start, int, const QModelIndex &, int row) {
-                int toIndex = (row > start) ? row - 1 : row;
-                projectModel->moveLayer(start, toIndex);
             });
 }
 
@@ -749,7 +682,7 @@ void MainWindow::createProject() {
         updateColorIndicators();
 
         rebuildFramesList();
-        rebuildLayersList();
+        ui->layersListWidget->rebuildList();
 
         setEditorUIEnabled(true);
 
@@ -837,8 +770,8 @@ void MainWindow::loadProjectFromFile(const QString &path) {
     ui->canvasWidget->resetToolState();
     ui->canvasWidget->setTool(DrawTool::Brush);
 
-    rebuildLayersList();
     rebuildFramesList();
+    ui->layersListWidget->rebuildList();
 
     setEditorUIEnabled(true);
 
@@ -943,7 +876,6 @@ void MainWindow::closeProject() {
 
     if (projectModel) {// DELETE*********************************************************************************
         rebuildFramesList();
-        rebuildLayersList();
 
         ui->canvasWidget->resetToolState();
         ui->canvasWidget->update();
@@ -1189,7 +1121,7 @@ void MainWindow::openPngAsProject(const QString &path) {
     ui->canvasWidget->setTool(DrawTool::Brush);
 
     rebuildFramesList();
-    rebuildLayersList();
+    ui->layersListWidget->rebuildList();
 
     setEditorUIEnabled(true);
 
@@ -1379,86 +1311,6 @@ void MainWindow::dropEvent(QDropEvent *event) {
 
 // Group B: UI & State Updates
 // ====================================
-void MainWindow::rebuildLayersList() {
-    QListWidget* layersList = ui->layersListWidget;
-    const QSignalBlocker blocker(layersList);
-    layersList->clear();
-
-    const int count = projectModel->getLayerCount();
-
-    QSettings settings("POD2d", "EditorSettings");
-    QString theme = settings.value("ui/theme", "dark").toString();
-
-    QString normalItemBorder, selectedItemBorder, itemBg, textColor;
-    int borderRadius = (theme == "1bit") ? 0 : 6;
-
-    if (theme == "1bit") {
-        normalItemBorder = "border: 1px solid white;";
-        selectedItemBorder = "border: 2px solid white;";
-        itemBg = "black";
-        textColor = "white";
-    } else if (theme == "light") {
-        normalItemBorder = "border: 1px solid #d4d4d4;";
-        selectedItemBorder = "border: 2px solid #0078d7;";
-        itemBg = "#e0e0e0";
-        textColor = "#202020";
-    } else { // dark
-        normalItemBorder = "border: 1px solid #444444;";
-        selectedItemBorder = "border: 2px solid #888888;";
-        itemBg = "#333333";
-        textColor = "white";
-    }
-
-    layersList->setStyleSheet(
-        "QListWidget { outline: 0; background: transparent; border: none; }"
-        "QListWidget::item { background-color: " + itemBg + "; " + normalItemBorder + " border-radius: " + QString::number(borderRadius) + "px; margin: 2px; }"
-                                                                                                  "QListWidget::item:selected { " + selectedItemBorder + " }"
-        );
-
-    layersList->setDragDropMode(QAbstractItemView::InternalMove);
-
-    for (int i = 0; i < count; ++i) {
-        QListWidgetItem *item = new QListWidgetItem();
-        item->setSizeHint(QSize(120, 46));
-        layersList->addItem(item);
-
-        QWidget *rowWidget = new QWidget();
-        rowWidget->setStyleSheet("background: transparent; border: none;");
-
-        QHBoxLayout *layout = new QHBoxLayout(rowWidget);
-        layout->setContentsMargins(6, 6, 6, 6);
-        layout->setSpacing(5);
-
-        QLabel *imageLabel = new QLabel();
-        imageLabel->setObjectName("layerImage");
-        imageLabel->setFixedSize(90, 30);
-        imageLabel->setStyleSheet("background-color: rgba(0, 0, 0, 0.2); border-radius: 2px;");
-        imageLabel->setAlignment(Qt::AlignCenter);
-
-        QImage thumb = projectModel->getLayerThumbnail(i);
-        QPixmap pixmap = QPixmap::fromImage(thumb).scaled(90, 30, Qt::KeepAspectRatio, Qt::FastTransformation);
-        imageLabel->setPixmap(pixmap);
-
-        QLabel *textLabel = new QLabel(QString::number(i));
-        textLabel->setAlignment(Qt::AlignCenter);
-
-        bool isVis = projectModel->isLayerVisible(i);
-        if (isVis) {
-            textLabel->setStyleSheet("color: " + textColor + "; font-weight: bold; background: transparent;");
-        } else {
-            textLabel->setStyleSheet("color: #777777; font-weight: bold; text-decoration: line-through; background: transparent;");
-        }
-
-        layout->addWidget(imageLabel);
-        layout->addStretch();
-        layout->addWidget(textLabel);
-
-        layersList->setItemWidget(item, rowWidget);
-    }
-
-    layersList->setCurrentRow(projectModel->getCurrentLayerIndex());
-}
-
 void MainWindow::rebuildFramesList() {
     QListWidget* framesList = ui->framesListWidget;
     const QSignalBlocker blocker(framesList);
@@ -1651,7 +1503,7 @@ void MainWindow::updateUIProportions(int projWidth, int projHeight) {
     */
 
     rebuildFramesList();
-    rebuildLayersList();
+    ui->layersListWidget->rebuildList();
 
     QImage currentImg = projectModel->getFlattenedImage();
     if (!currentImg.isNull()) {
@@ -1724,13 +1576,6 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
                 return true;
             }
         }
-        else if (watched == ui->layersListWidget->viewport()) {
-            QMouseEvent *me = static_cast<QMouseEvent*>(event);
-            if (!ui->layersListWidget->itemAt(me->pos())) {
-                projectModel->addLayer();
-                return true;
-            }
-        }
     }
 
     if (event->type() == QEvent::MouseButtonPress) {
@@ -1769,7 +1614,7 @@ void MainWindow::applyTheme(const QString &themeName) {
     loadIcons();
 
     rebuildFramesList();
-    rebuildLayersList();
+    ui->layersListWidget->reloadTheme();
     ui->widget_Palette->reloadTheme();
 }
 
@@ -1786,54 +1631,6 @@ QIcon MainWindow::generate1bitIcon(const QString &text) {
     painter.drawText(pixmap.rect(), Qt::AlignCenter, text);
 
     return QIcon(pixmap);
-}
-
-void MainWindow::showLayerContextMenu(const QPoint &pos) {
-    QListWidgetItem *item = ui->layersListWidget->itemAt(pos);
-    if (!item) return;
-
-    int layerIndex = ui->layersListWidget->row(item);
-
-    QMenu contextMenu(this);
-
-    bool isVisible = projectModel->isLayerVisible(layerIndex);
-    QAction *actToggleVisibility = contextMenu.addAction(isVisible ? "Hide layer" : "Show layer");
-    actToggleVisibility->setShortcut(QKeySequence("Ctrl+H"));
-
-    QAction *actDuplicate = contextMenu.addAction("Duplicate layer");
-
-    QAction *actMergeDown = contextMenu.addAction("Merge from below");
-    actMergeDown->setEnabled(layerIndex > 0);
-
-    QAction *actMoveUp = contextMenu.addAction("Move up");
-    actMoveUp->setShortcut(QKeySequence("Ctrl+Shift+PgUp"));
-    actMoveUp->setEnabled(layerIndex < projectModel->getLayerCount() - 1);
-
-    QAction *actMoveDown = contextMenu.addAction("Move down");
-    actMoveDown->setShortcut(QKeySequence("Ctrl+Shift+PgDown"));
-    actMoveDown->setEnabled(layerIndex > 0);
-
-    QAction *actDelete = contextMenu.addAction("Delete layer");
-    actDelete->setShortcut(QKeySequence("Ctrl+Shift+Del"));
-    actDelete->setEnabled(projectModel->getLayerCount() > 1);
-
-    QAction *selectedAction = contextMenu.exec(ui->layersListWidget->mapToGlobal(pos));
-
-    if (selectedAction == actToggleVisibility) {
-        projectModel->toggleLayerVisibility(layerIndex);
-    } else if (selectedAction == actDuplicate) {
-        projectModel->duplicateLayer(layerIndex);
-    } else if (selectedAction == actMergeDown) {
-        projectModel->setCurrentLayer(layerIndex);
-        projectModel->mergeLayerDown();
-    } else if (selectedAction == actMoveUp) {
-        projectModel->moveLayer(layerIndex, layerIndex + 1);
-    } else if (selectedAction == actMoveDown) {
-        projectModel->moveLayer(layerIndex, layerIndex - 1);
-    } else if (selectedAction == actDelete) {
-        projectModel->setCurrentLayer(layerIndex);
-        projectModel->deleteCurrentLayer();
-    }
 }
 
 void MainWindow::showFrameContextMenu(const QPoint &pos) {

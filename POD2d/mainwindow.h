@@ -66,7 +66,6 @@ private slots:
     void updateColorIndicators();
     void applyTheme(const QString &themeName);
     QIcon generate1bitIcon(const QString &text);
-    void showLayerContextMenu(const QPoint &pos);
     void showFrameContextMenu(const QPoint &pos);
 
     void markProjectAsModified();
@@ -111,7 +110,6 @@ private:
     void setupConnections();
     void setupPalette();
 
-    void setupLayersListWidget();
     void setupFramesListWidget();
 
     // Signal connection assignment
@@ -120,7 +118,6 @@ private:
     void connectEditorControls();
     void connectDrawingTools();
     void connectFramesList();
-    void connectLayersList();
     void connectMiniCanvas();
     void connectPlayerControls();
     void connectAutoSaveTimer();
@@ -134,7 +131,6 @@ private:
     void setupShortcuts();
 
     // Interface update
-    void rebuildLayersList();
     void rebuildFramesList();
 };
 
