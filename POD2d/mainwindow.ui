@@ -1564,7 +1564,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
                           </property>
                           <layout class="QHBoxLayout" name="horizontalLayout_7">
                            <item>
-                            <widget class="QWidget" name="widget_Palette" native="true">
+                            <widget class="PaletteWidget" name="widget_Palette" native="true">
                              <property name="minimumSize">
                               <size>
                                <width>100</width>
@@ -1780,7 +1780,7 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
      <x>0</x>
      <y>0</y>
      <width>1301</width>
-     <height>21</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -2097,6 +2097,12 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
    <class>PixelCanvas</class>
    <extends>QWidget</extends>
    <header>pixelcanvas.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>PaletteWidget</class>
+   <extends>QWidget</extends>
+   <header>palettewidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

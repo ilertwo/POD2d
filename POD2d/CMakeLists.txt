@@ -35,6 +35,12 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         gif.h
         palettedialog.h palettedialog.cpp palettedialog.ui
         textdialog.h textdialog.cpp textdialog.ui
+        palettewidget.h palettewidget.cpp
+        layerlistwidget.h layerlistwidget.cpp
+        framelistwidget.h framelistwidget.cpp
+        filecontroller.h filecontroller.cpp
+        actionmanager.h actionmanager.cpp
+        thememanager.h thememanager.cpp
         #app_icon.rc
 
 

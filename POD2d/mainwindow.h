@@ -54,7 +54,6 @@ private slots:
     void chooseAndSetColor();
     void on_spin_brushSize_valueChanged(int value);
     void selectAll();
-    void onAddNewColorClicked();
 
     void openExportMenu();
     void openSettings(int tabIndex = 0);
@@ -102,7 +101,6 @@ private:
     QString currentFilePath;
     QString currentProjectName;
     bool isProjectModified = false;
-    QList<QColor> customPalette;
     QTimer *autoSaveTimer;
 
     // Initialization Stages (Startup)
@@ -138,7 +136,6 @@ private:
     // Interface update
     void rebuildLayersList();
     void rebuildFramesList();
-    void rebuildPaletteGrid();
 };
 
 #endif // MAINWINDOW_H

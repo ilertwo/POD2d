@@ -47,7 +47,6 @@ MainWindow::MainWindow(QWidget *parent)
     setupWidgets();
     loadIcons();
     setupConnections();
-    setupPalette();
 
     rebuildLayersList();
     updateRecentProjectsUI();
@@ -101,22 +100,6 @@ void MainWindow::setupLayersListWidget() {
     layersList->setViewMode(QListView::ListMode);
     layersList->setIconSize(QSize(64, 32));
     layersList->setSpacing(3);
-}
-
-void MainWindow::setupPalette() {
-    QSettings settings("POD2d", "EditorSettings");
-    QStringList savedColors = settings.value("customPalette").toStringList();
-
-    customPalette.clear();
-    if (savedColors.isEmpty()) {
-        customPalette = { QColor(0, 0, 0), QColor(255, 255, 255), QColor(255, 0, 0), QColor(0, 255, 0), QColor(0, 0, 255), QColor(255, 255, 0) };
-    } else {
-        for (const QString& hex : savedColors) {
-            customPalette.append(QColor(hex));
-        }
-    }
-    rebuildPaletteGrid();
-    ui->widget_Palette->installEventFilter(this);
 }
 
 void MainWindow::loadIcons() {
@@ -201,6 +184,7 @@ void MainWindow::setupConnections() {
     connectActions();
     connectAutoSaveTimer();
     connectRecentProjects();
+    setupPalette();
 
     setupShortcuts();
 }
@@ -442,6 +426,22 @@ void MainWindow::connectRecentProjects() {
 
         loadProjectFromFile(filePath);
     });
+}
+
+void MainWindow::setupPalette() {
+    connect(ui->widget_Palette, &PaletteWidget::primaryColorSelected, this, [this](const QColor &c){
+        currentPrimaryColor = c;
+        ui->canvasWidget->setPrimaryColor(c);
+        updateColorIndicators();
+    });
+
+    connect(ui->widget_Palette, &PaletteWidget::secondaryColorSelected, this, [this](const QColor &c){
+        currentSecondaryColor = c;
+        ui->canvasWidget->setSecondaryColor(c);
+        updateColorIndicators();
+    });
+
+    connect(ui->widget_Palette, &PaletteWidget::requestEditColor, this, &MainWindow::openPaletteEditor);
 }
 
 void MainWindow::connectDrawingTools() {
@@ -958,18 +958,11 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         settings.setValue("ui/showTools", ui->frm_Tools->isVisible());
         settings.setValue("ui/showMiniMap", ui->miniCanvasFrame->isVisible());
 
-        QStringList hexColors;
-        for (const QColor& c : customPalette) {
-            hexColors.append(c.name(QColor::HexArgb));
-        }
-        settings.setValue("customPalette", hexColors);
-
         event->accept();
     } else {
         event->ignore();
     }
 }
-
 bool MainWindow::maybeSave() {
     if (ui->stackedWidget->currentIndex() == 0 || !isProjectModified) {
         return true;
@@ -1013,11 +1006,10 @@ void MainWindow::openSettings(int tabIndex) {
 void MainWindow::openPaletteEditor(int colorIndexToEdit) {
     PaletteDialog dialog(this);
 
-    dialog.setPaletteData(customPalette, colorIndexToEdit);
+    dialog.setPaletteData(ui->widget_Palette->getPalette(), colorIndexToEdit);
 
     if (dialog.exec() == QDialog::Accepted) {
-        customPalette = dialog.getPalette();
-        rebuildPaletteGrid();
+        ui->widget_Palette->setPalette(dialog.getPalette());
     }
 }
 
@@ -1111,15 +1103,16 @@ void MainWindow::loadPalette() {
     }
 
     if (!newPalette.isEmpty()) {
-        customPalette = newPalette;
-        rebuildPaletteGrid();
+        ui->widget_Palette->setPalette(newPalette);
     } else {
         QMessageBox::warning(this, "Error", "No colors found in the palette file.");
     }
 }
 
 void MainWindow::savePalette() {
-    if (customPalette.isEmpty()) return;
+    QList<QColor> currentPalette = ui->widget_Palette->getPalette();
+
+    if (currentPalette.isEmpty()) return;
 
     QString path = QFileDialog::getSaveFileName(this, "Save Palette", "my_palette.gpl", "GIMP Palette (*.gpl)");
     if (path.isEmpty()) return;
@@ -1137,14 +1130,13 @@ void MainWindow::savePalette() {
     out << "Columns: 4\n";
     out << "# Exported from POD2d\n";
 
-    for (int i = 0; i < customPalette.size(); ++i) {
-        const QColor &c = customPalette[i];
+    for (int i = 0; i < currentPalette.size(); ++i) {
+        const QColor &c = currentPalette[i];
         out << c.red() << " " << c.green() << " " << c.blue() << " Color_" << i << "\n";
     }
 
     file.close();
 }
-
 void MainWindow::openPngAsProject(const QString &path) {
     QImage img;
     if (!img.load(path)) {
@@ -1568,85 +1560,6 @@ void MainWindow::rebuildFramesList() {
     framesList->setCurrentRow(projectModel->getCurrentFrameIndex());
 }
 
-void MainWindow::rebuildPaletteGrid() {
-    QGridLayout *gridLayout = qobject_cast<QGridLayout*>(ui->widget_Palette->layout());
-
-    if (!gridLayout) {
-        if (ui->widget_Palette->layout()) {
-            delete ui->widget_Palette->layout();
-        }
-        gridLayout = new QGridLayout(ui->widget_Palette);
-    }
-
-    gridLayout->setSpacing(0);
-
-    QSettings settings("POD2d", "EditorSettings");
-    QString theme = settings.value("ui/theme", "dark").toString();
-
-    if (theme == "1bit") {
-        gridLayout->setContentsMargins(5, 5, 5, 5);
-    } else {
-        gridLayout->setContentsMargins(0, 0, 0, 0);
-    }
-
-    gridLayout->setAlignment(Qt::AlignTop);
-
-    QLayoutItem *child;
-    while ((child = gridLayout->takeAt(0)) != nullptr) {
-        if (child->widget()) delete child->widget();
-        delete child;
-    }
-
-    int columns = 4;
-
-    for (int i = 0; i < columns; ++i) {
-        gridLayout->setColumnStretch(i, 1);
-    }
-
-    QString borderStyle = (theme == "1bit") ? "border: none;" : "border: 1px solid #555;";
-    QString borderRadius = (theme == "1bit") ? "border-radius: 0px;" : "border-radius: 2px;";
-
-    for (int i = 0; i < customPalette.size(); ++i) {
-        QPushButton *colorBtn = new QPushButton();
-
-        colorBtn->setFixedHeight(24);
-        colorBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        colorBtn->setCursor(Qt::PointingHandCursor);
-
-        colorBtn->setStyleSheet(QString("background-color: %1; %2 %3")
-                                    .arg(customPalette[i].name(), borderStyle, borderRadius));
-
-        colorBtn->setProperty("swatchColor", customPalette[i]);
-        colorBtn->setProperty("colorIndex", i);
-
-        colorBtn->installEventFilter(this);
-        gridLayout->addWidget(colorBtn, i / columns, i % columns);
-    }
-
-    QPushButton *btnAddColor = new QPushButton("+");
-    btnAddColor->setFixedHeight(24);
-    btnAddColor->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    btnAddColor->setCursor(Qt::PointingHandCursor);
-
-    if (theme == "1bit") {
-        btnAddColor->setStyleSheet("background-color: transparent; border: 1px dashed white; color: white; font-size: 16px; font-weight: bold;");
-    } else {
-        btnAddColor->setStyleSheet("background-color: transparent; border: 1px dashed #888888; color: #aaaaaa; font-size: 16px; font-weight: bold; border-radius: 2px;");
-    }
-
-    connect(btnAddColor, &QPushButton::clicked, this, &MainWindow::onAddNewColorClicked);
-
-    int nextIndex = customPalette.size();
-    gridLayout->addWidget(btnAddColor, nextIndex / columns, nextIndex % columns);
-
-    QStringList hexColors;
-    for (const QColor& c : customPalette) {
-        hexColors.append(c.name(QColor::HexArgb));
-    }
-    settings.setValue("customPalette", hexColors);
-
-    updateColorIndicators();
-}
 
 void MainWindow::setEditorUIEnabled(bool enabled) {
     ui->act_Save->setEnabled(enabled);
@@ -1831,58 +1744,6 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         }
     }
 
-    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick) {
-        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
-        QPushButton *btn = qobject_cast<QPushButton*>(watched);
-
-        if (btn && btn->property("swatchColor").isValid()) {
-            int colorIndex = btn->property("colorIndex").toInt();
-
-            if (event->type() == QEvent::MouseButtonDblClick) {
-                openPaletteEditor(colorIndex);
-                return true;
-            }
-            else if (event->type() == QEvent::MouseButtonPress) {
-                QColor clickedColor = btn->property("swatchColor").value<QColor>();
-
-                static int mainSwapIndex = -1;
-
-                if (mouseEvent->button() == Qt::LeftButton && (mouseEvent->modifiers() & Qt::ShiftModifier)) {
-                    if (mainSwapIndex == -1) {
-                        mainSwapIndex = colorIndex;
-                        btn->setStyleSheet(btn->styleSheet() + " border: 2px dashed white;");
-                    } else {
-                        if (mainSwapIndex < customPalette.size() && colorIndex < customPalette.size()) {
-                            customPalette.swapItemsAt(mainSwapIndex, colorIndex);
-                        }
-                        mainSwapIndex = -1;
-                        rebuildPaletteGrid();
-                    }
-                    return true;
-                } else {
-                    mainSwapIndex = -1;
-                }
-
-                if (mouseEvent->button() == Qt::MiddleButton) {
-                    customPalette.removeAt(colorIndex);
-                    rebuildPaletteGrid();
-                    return true;
-                }
-                else if (mouseEvent->button() == Qt::LeftButton) {
-                    currentPrimaryColor = clickedColor;
-                    ui->canvasWidget->setPrimaryColor(currentPrimaryColor);
-                }
-                else if (mouseEvent->button() == Qt::RightButton) {
-                    currentSecondaryColor = clickedColor;
-                    ui->canvasWidget->setSecondaryColor(currentSecondaryColor);
-                }
-
-                updateColorIndicators();
-                return true;
-            }
-        }
-    }
-
     return QMainWindow::eventFilter(watched, event);
 }
 
@@ -1909,6 +1770,7 @@ void MainWindow::applyTheme(const QString &themeName) {
 
     rebuildFramesList();
     rebuildLayersList();
+    ui->widget_Palette->reloadTheme();
 }
 
 QIcon MainWindow::generate1bitIcon(const QString &text) {
@@ -2062,10 +1924,6 @@ void MainWindow::chooseAndSetColor() {
         currentPrimaryColor = selectedColor;
         updateColorIndicators();
     }
-}
-
-void MainWindow::onAddNewColorClicked() {
-    openPaletteEditor(-1);
 }
 
 // Group D: Layer Management (Delegations to ProjectModel)
