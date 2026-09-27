@@ -5,6 +5,7 @@
 #include <QString>
 
 class ProjectModel;
+class FileController;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -16,15 +17,14 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+public:
+    MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    void loadProjectFromFile(const QString &path);
+    void openFile(const QString &filePath);
 
 private slots:
     // Start menu actions
-    void createProject();
-    void openProject();
     void buttonProjects();
     void buttonExamples();
     void recentProject();
@@ -33,14 +33,10 @@ private slots:
     void addRecentProject(const QString &path);
 
     // File actions
-    void saveProject();
-    void saveProjectAs();
+    void onProjectReady(int width, int height, bool isRgb);
+    void updateWindowTitle();
     void loadPalette();
     void savePalette();
-    void actionImportPng();
-    void actionImportCArray();
-    void importPngToCanvas(const QString &path);
-    void openPngAsProject(const QString &path);
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
 
@@ -67,7 +63,6 @@ private slots:
     void applyTheme(const QString &themeName);
     QIcon generate1bitIcon(const QString &text);
 
-    void markProjectAsModified();
     bool maybeSave();
     void closeProject();
     void closeEvent(QCloseEvent *event) override;
@@ -94,11 +89,7 @@ private:
     QColor currentSecondaryColor = Qt::black;
 
     // Current file
-    int projectWidth = 128;
-    int projectHeight = 64;
-    QString currentFilePath;
-    QString currentProjectName;
-    bool isProjectModified = false;
+    FileController *fileController = nullptr;
     QTimer *autoSaveTimer;
 
     // Initialization Stages (Startup)

@@ -7,6 +7,7 @@
 #include "exportdialog.h"
 #include "settingsdialog.h"
 #include "palettedialog.h"
+#include "filecontroller.h"
 
 #include <QFileDialog>
 #include <QStandardPaths>
@@ -66,6 +67,13 @@ void MainWindow::initModels() {
 
     ui->layersListWidget->setModel(projectModel);
     ui->framesListWidget->setModel(projectModel);
+
+    fileController = new FileController(projectModel, this, this);
+
+    connect(fileController, &FileController::projectReady, this, &MainWindow::onProjectReady);
+    connect(fileController, &FileController::stateChanged, this, &MainWindow::updateWindowTitle);
+    connect(fileController, &FileController::recentProjectAdded, this, &MainWindow::addRecentProject);
+    connect(fileController, &FileController::requestPasteToLayer, ui->canvasWidget, &PixelCanvas::pasteToLayer);
 
     this->setWindowTitle("POD2d");
     this->showMaximized();
@@ -168,18 +176,14 @@ void MainWindow::setupConnections() {
 
 void MainWindow::connectModelToLists() {
     connectMiniCanvas();
+    connect(projectModel, &ProjectModel::imageChanged, this, [this]() { ui->canvasWidget->update(); });
+    connect(projectModel, &ProjectModel::projectModified, fileController, &FileController::markModified);
 
-    connect(projectModel, &ProjectModel::imageChanged, this, [this]() {
-        ui->canvasWidget->update();
-    });
-    connect(projectModel, &ProjectModel::activeLayerChanged, this, [this]() {
-        ui->canvasWidget->update();
-    });
+    connect(projectModel, &ProjectModel::activeLayerChanged, this, [this]() { ui->canvasWidget->update(); });
     connect(projectModel, &ProjectModel::frameChanged, this, [this]() {
         ui->canvasWidget->update();
         ui->layersListWidget->rebuildList();
     });
-    connect(projectModel, &ProjectModel::projectModified, this, &MainWindow::markProjectAsModified);
 }
 
 void MainWindow::connectMiniCanvas() {
@@ -207,8 +211,8 @@ void MainWindow::connectMiniCanvas() {
 }
 
 void MainWindow::connectMenuButtons() {
-    connect(ui->btn_CreateProject, &QPushButton::clicked, this, &MainWindow::createProject);
-    connect(ui->btn_OpenProject,   &QPushButton::clicked, this, &MainWindow::openProject);
+    connect(ui->btn_CreateProject, &QPushButton::clicked, fileController, &FileController::createProject);
+    connect(ui->btn_OpenProject,   &QPushButton::clicked, fileController, &FileController::openProject);
     connect(ui->btn_ProjectsTab,   &QPushButton::clicked, this, &MainWindow::buttonProjects);
     connect(ui->btn_ExamplesTab,   &QPushButton::clicked, this, &MainWindow::buttonExamples);
 }
@@ -279,19 +283,16 @@ void MainWindow::connectPlayerControls() {
 void MainWindow::connectAutoSaveTimer() {
     autoSaveTimer = new QTimer(this);
     connect(autoSaveTimer, &QTimer::timeout, this, [this]() {
-        if (isProjectModified && !currentFilePath.isEmpty()) {
-            saveProject();
+        if (fileController && fileController->getIsModified() && !fileController->getCurrentFilePath().isEmpty()) {
+            fileController->saveProject();
         }
     });
-
     applySettings();
 }
 
 void MainWindow::connectRecentProjects() {
     connect(ui->list_RecentProjects, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
-        QString filePath = item->data(Qt::UserRole).toString();
-
-        loadProjectFromFile(filePath);
+        fileController->loadProjectFromFile(item->data(Qt::UserRole).toString());
     });
 }
 
@@ -348,7 +349,10 @@ void MainWindow::connectDrawingTools() {
     });
 
     connect(ui->canvasWidget, &PixelCanvas::cursorPositionChanged, this, [this](int x, int y) {
-        if (x < 0 || y < 0 || x >= projectWidth || y >= projectHeight) {
+        int w = fileController ? fileController->getProjectWidth() : 0;
+        int h = fileController ? fileController->getProjectHeight() : 0;
+
+        if (x < 0 || y < 0 || x >= w || y >= h) {
             ui->lbl_Position->setText("Pos - -");
         } else {
             ui->lbl_Position->setText(QString("Pos %1 %2").arg(x).arg(y));
@@ -372,22 +376,14 @@ void MainWindow::connectActions() {
     connectHelpActions();
 }
 
-void MainWindow::connectFileActions() {/*
-    ui->act_NewFile->setShortcut(QKeySequence::New);
-    ui->act_Save->setShortcut(QKeySequence::Save);
-    ui->act_SaveAs->setShortcut(QKeySequence("Ctrl+Shift+S"));
-    ui->act_ExportCode->setShortcut(QKeySequence("Ctrl+E"));
-    ui->act_OpenFile->setShortcut(QKeySequence::Open);
-    ui->act_Close->setShortcut(QKeySequence("Ctrl+W"));
-    ui->act_Exit->setShortcut(QKeySequence("Alt+F4"));*/
-
-    connect(ui->act_NewFile, &QAction::triggered, this, &MainWindow::createProject);
-    connect(ui->act_Save, &QAction::triggered, this, &MainWindow::saveProject);
-    connect(ui->act_SaveAs, &QAction::triggered, this, &MainWindow::saveProjectAs);
+void MainWindow::connectFileActions() {
+    connect(ui->act_NewFile, &QAction::triggered, fileController, &FileController::createProject);
+    connect(ui->act_Save, &QAction::triggered, fileController, &FileController::saveProject);
+    connect(ui->act_SaveAs, &QAction::triggered, fileController, &FileController::saveProjectAs);
     connect(ui->act_ExportCode, &QAction::triggered, this, &MainWindow::openExportMenu);
-    connect(ui->act_OpenFile, &QAction::triggered, this, &MainWindow::openProject);
-    connect(ui->act_ImportCArray, &QAction::triggered, this, &MainWindow::actionImportCArray);
-    connect(ui->act_ImportPNG, &QAction::triggered, this, &MainWindow::actionImportPng);
+    connect(ui->act_OpenFile, &QAction::triggered, fileController, &FileController::openProject);
+    connect(ui->act_ImportCArray, &QAction::triggered, fileController, &FileController::actionImportCArray);
+    connect(ui->act_ImportPNG, &QAction::triggered, fileController, &FileController::actionImportPng);
     connect(ui->act_Close, &QAction::triggered, this, &MainWindow::closeProject);
     connect(ui->act_Exit, &QAction::triggered, this, &QWidget::close);
 }
@@ -572,140 +568,24 @@ void MainWindow::setupShortcuts() {
 
 // Group A: File & Project Management
 // ====================================
-void MainWindow::createProject() {
-    CreateProjectDialog dialog(this);
+void MainWindow::onProjectReady(int width, int height, bool isRgb) {
+    ui->lbl_WidthHeight->setText("[" + QString::number(width) + "x" + QString::number(height) + "]");
 
-    if (dialog.exec() == QDialog::Accepted) {
-
-        QString newPath = dialog.getFullFilePath();
-        if (newPath.isEmpty()) return;
-
-        currentFilePath.clear();
-        currentFilePath = newPath;
-
-        currentProjectName = dialog.getProjectName();
-
-        projectWidth = dialog.getWidth();
-        projectHeight = dialog.getHeight();
-
-        ui->lbl_WidthHeight->setText("[" + QString::number(projectWidth) + "x" + QString::number(projectHeight) + "]");
-
-        this->setWindowTitle("POD2d - " + currentProjectName);
-
-        bool isRGB = dialog.isRGBMode();
-
-        if (projectModel) {
-            projectModel->initDefaultProject(projectWidth, projectHeight, isRGB);
-            projectModel->setCanvasSize(projectWidth, projectHeight);
-            ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
-            updateUIProportions(projectWidth, projectHeight);
-            projectModel->notifyImageChanged();
-        }
-
-        ui->canvasWidget->resetToolState();
-        ui->canvasWidget->setTool(DrawTool::Brush);
-
-        ui->slider_BrushSize->setValue(1);
-        ui->canvasWidget->setBrushSize(1);
-
-        currentPrimaryColor = Qt::white;
-        currentSecondaryColor = Qt::black;
-        ui->canvasWidget->setPrimaryColor(currentPrimaryColor);
-        ui->canvasWidget->setSecondaryColor(currentSecondaryColor);
-
-        updateColorIndicators();
-
-        ui->framesListWidget->reloadTheme();
-        ui->layersListWidget->rebuildList();
-
-        setEditorUIEnabled(true);
-
-        QSettings settings("POD2d", "EditorSettings");
-        setLayerListVisible(settings.value("ui/showLayers", true).toBool());
-        setFrameListVisible(settings.value("ui/showFrames", true).toBool());
-        setToolsVisible(settings.value("ui/showTools", true).toBool());
-        setMiniMapVisible(settings.value("ui/showMiniMap", true).toBool());
-
-        if(!isRGB) {
-            ui->act_Palette->setEnabled(false);
-            ui->frm_Palette->setVisible(false);
-            ui->btn_Pipette->setVisible(false);
-        }
-        else {
-            ui->act_Palette->setEnabled(true);
-            ui->frm_Palette->setVisible(true);
-            ui->btn_Pipette->setVisible(true);
-        }
-
-        ui->stackedWidget->setCurrentIndex(1);
-
-        QTimer::singleShot(50, this, [this]() {
-            ui->canvasWidget->fitToScreen();
-            ui->canvasWidget->update();
-        });
-
-        isProjectModified = false;
-        saveProject();
-    }
-}
-
-void MainWindow::openProject() {
-    QSettings settings("POD2d", "EditorSettings");
-    QString lastDir = settings.value("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
-
-    const QString path = QFileDialog::getOpenFileName(
-        this, "Open project",
-        lastDir,
-        "All Supported Files (*.pod2d *.png);;Pod2D Project (*.pod2d);;PNG Image (*.png)"
-        );
-
-    if (path.isEmpty()) return;
-
-    settings.setValue("lastDirectory", QFileInfo(path).absolutePath());
-
-    if (path.endsWith(".png", Qt::CaseInsensitive)) {
-        openPngAsProject(path);
-    } else {
-        loadProjectFromFile(path);
-    }
-}
-
-void MainWindow::loadProjectFromFile(const QString &path) {
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, "Error", "Failed to open the file!");
-        return;
-    }
-
-    const QByteArray data = file.readAll();
-    file.close();
-
-    if (!projectModel->loadProjectData(data)) {
-        QMessageBox::warning(this, "Error", "The project file is corrupted or has an invalid format!");
-        return;
-    }
-
-    currentFilePath = path;
-    currentProjectName = QFileInfo(path).baseName();
-    this->setWindowTitle("POD2d - " + currentProjectName);
-
-    QImage loadedImg = projectModel->getActiveLayerImage();
-    projectWidth = loadedImg.width();
-    projectHeight = loadedImg.height();
-
-    ui->lbl_WidthHeight->setText("[" + QString::number(projectWidth) + "x" + QString::number(projectHeight) + "]");
-
-    projectModel->setCanvasSize(projectWidth, projectHeight);
-    ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
-    updateUIProportions(projectWidth, projectHeight);
-
-    projectModel->notifyImageChanged();
-
+    ui->canvasWidget->setCanvasSize(width, height);
     ui->canvasWidget->resetToolState();
     ui->canvasWidget->setTool(DrawTool::Brush);
+    ui->slider_BrushSize->setValue(1);
+    ui->canvasWidget->setBrushSize(1);
 
-    ui->framesListWidget->reloadTheme();
+    currentPrimaryColor = Qt::white;
+    currentSecondaryColor = Qt::black;
+    ui->canvasWidget->setPrimaryColor(currentPrimaryColor);
+    ui->canvasWidget->setSecondaryColor(currentSecondaryColor);
+    updateColorIndicators();
+
     ui->layersListWidget->rebuildList();
+    ui->framesListWidget->rebuildList();
+    updateUIProportions(width, height);
 
     setEditorUIEnabled(true);
 
@@ -715,15 +595,9 @@ void MainWindow::loadProjectFromFile(const QString &path) {
     setToolsVisible(settings.value("ui/showTools", true).toBool());
     setMiniMapVisible(settings.value("ui/showMiniMap", true).toBool());
 
-    bool isRGB = projectModel->getIsRGB();
-    if (!isRGB) {
-        ui->act_Palette->setEnabled(false);
-        ui->frm_Palette->setVisible(false);
-    }
-    else {
-        ui->act_Palette->setEnabled(true);
-        ui->frm_Palette->setVisible(true);
-    }
+    ui->act_Palette->setEnabled(isRgb);
+    ui->frm_Palette->setVisible(isRgb);
+    ui->btn_Pipette->setVisible(isRgb);
 
     ui->stackedWidget->setCurrentIndex(1);
 
@@ -731,86 +605,35 @@ void MainWindow::loadProjectFromFile(const QString &path) {
         ui->canvasWidget->fitToScreen();
         ui->canvasWidget->update();
     });
-
-    isProjectModified = false;
-
-    addRecentProject(path);
 }
 
-void MainWindow::saveProjectAs() {
-    QSettings settings("POD2d", "EditorSettings");
-    QString lastDir = settings.value("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
-
-    QString defaultFileName = currentProjectName;
-    if (defaultFileName.isEmpty()) {
-        defaultFileName = "Untitled";
+void MainWindow::updateWindowTitle() {
+    QString titleName = fileController->getCurrentProjectName().isEmpty() ? "Untitled" : fileController->getCurrentProjectName();
+    if (fileController->getIsModified()) {
+        titleName += "*";
     }
-    defaultFileName += ".pod2d";
-
-    QString fullPath = lastDir + "/" + defaultFileName;
-
-    QString filePath = QFileDialog::getSaveFileName(
-        this,
-        "Save project as...",
-        fullPath,
-        "POD2d Project (*.pod2d);;All Files (*)"
-        );
-
-    if (filePath.isEmpty()) {
-        return;
-    }
-
-    settings.setValue("lastDirectory", QFileInfo(filePath).absolutePath());
-
-    currentFilePath = filePath;
-    QFileInfo fileInfo(filePath);
-    currentProjectName = fileInfo.baseName();
-
-    saveProject();
+    this->setWindowTitle("POD2d - " + titleName);
 }
 
-void MainWindow::saveProject() {
-    if (currentFilePath.isEmpty()) {
-        saveProjectAs();
-        return;
+void MainWindow::openFile(const QString &filePath) {
+    if (!fileController) return;
+
+    if (filePath.endsWith(".png", Qt::CaseInsensitive)) {
+        fileController->openPngAsProject(filePath);
+    } else {
+        fileController->loadProjectFromFile(filePath);
     }
-
-    QByteArray projectData = projectModel->saveProjectData();
-
-    QFile file(currentFilePath);
-    if (!file.open(QIODevice::WriteOnly)) {
-        QMessageBox::critical(this, "Error", "Failed to save the file. Check access permissions.");
-        return;
-    }
-
-    file.write(projectData);
-    file.close();
-
-    QFileInfo fileInfo(currentFilePath);
-    this->setWindowTitle("POD2d - " + fileInfo.fileName());
-    isProjectModified = false;
-
-
-    addRecentProject(currentFilePath);
 }
 
 void MainWindow::closeProject() {
-    if (!maybeSave()) {
-        return;
-    }
-
+    if (!maybeSave()) return;
     ui->stackedWidget->setCurrentIndex(0);
-
     setEditorUIEnabled(false);
 
-    currentFilePath.clear();
-    currentProjectName.clear();
-    isProjectModified = false;
+    if (fileController) fileController->resetState();
+
     this->setWindowTitle("POD2d");
-
-    if (projectModel) {// DELETE*********************************************************************************
-        ui->framesListWidget->reloadTheme();
-
+    if (projectModel) {
         ui->canvasWidget->resetToolState();
         ui->canvasWidget->update();
     }
@@ -829,32 +652,20 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         event->ignore();
     }
 }
+
 bool MainWindow::maybeSave() {
-    if (ui->stackedWidget->currentIndex() == 0 || !isProjectModified) {
-        return true;
-    }
+    if (ui->stackedWidget->currentIndex() == 0 || !fileController->getIsModified()) return true;
 
-    QMessageBox::StandardButton ret;
-    ret = QMessageBox::warning(this, "POD2d",
-                               "You have unsaved changes. Do you want to save them before exiting?",
-                               QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
-
+    QMessageBox::StandardButton ret = QMessageBox::warning(this, "POD2d",
+                                                           "You have unsaved changes. Do you want to save them before exiting?",
+                                                           QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
     if (ret == QMessageBox::Save) {
-        saveProject();
+        fileController->saveProject();
         return true;
     } else if (ret == QMessageBox::Cancel) {
         return false;
     }
-
     return true;
-}
-
-void MainWindow::markProjectAsModified() {
-    if (!isProjectModified) {
-        isProjectModified = true;
-        QString titleName = currentProjectName.isEmpty() ? "Untitled" : currentProjectName;
-        this->setWindowTitle("POD2d - " + titleName + "*");
-    }
 }
 
 void MainWindow::openSettings(int tabIndex) {
@@ -1003,212 +814,6 @@ void MainWindow::savePalette() {
 
     file.close();
 }
-void MainWindow::openPngAsProject(const QString &path) {
-    QImage img;
-    if (!img.load(path)) {
-        QMessageBox::warning(this, "Error", "Failed to load the image!");
-        return;
-    }
-
-    img = img.convertToFormat(QImage::Format_ARGB32);
-
-    bool isRgbMode = true;
-    QSet<QRgb> uniqueColors;
-
-    for (int y = 0; y < img.height(); ++y) {
-        const QRgb *line = reinterpret_cast<const QRgb*>(img.constScanLine(y));
-        for (int x = 0; x < img.width(); ++x) {
-            uniqueColors.insert(line[x]);
-            if (uniqueColors.size() > 2) break;
-        }
-        if (uniqueColors.size() > 2) break;
-    }
-
-    if (uniqueColors.size() <= 2) {
-        isRgbMode = false;
-    }
-
-    currentFilePath = path;
-    currentProjectName = QFileInfo(path).baseName();
-    this->setWindowTitle("POD2d - " + currentProjectName);
-
-    projectWidth = img.width();
-    projectHeight = img.height();
-    ui->lbl_WidthHeight->setText("[" + QString::number(projectWidth) + "x" + QString::number(projectHeight) + "]");
-
-    if (projectModel) {
-        projectModel->initDefaultProject(projectWidth, projectHeight, isRgbMode);
-
-        QImage &firstLayer = projectModel->getActiveLayerImage();
-        QPainter p(&firstLayer);
-        p.setCompositionMode(QPainter::CompositionMode_Source);
-        p.drawImage(0, 0, img);
-        p.end();
-
-        projectModel->setCanvasSize(projectWidth, projectHeight);
-        ui->canvasWidget->setCanvasSize(projectWidth, projectHeight);
-        updateUIProportions(projectWidth, projectHeight);
-        projectModel->notifyImageChanged();
-    }
-
-    ui->canvasWidget->resetToolState();
-    ui->canvasWidget->setTool(DrawTool::Brush);
-
-    ui->framesListWidget->reloadTheme();
-    ui->layersListWidget->rebuildList();
-
-    setEditorUIEnabled(true);
-
-    QSettings settings("POD2d", "EditorSettings");
-    setLayerListVisible(settings.value("ui/showLayers", true).toBool());
-    setFrameListVisible(settings.value("ui/showFrames", true).toBool());
-    setToolsVisible(settings.value("ui/showTools", true).toBool());
-    setMiniMapVisible(settings.value("ui/showMiniMap", true).toBool());
-
-    ui->act_Palette->setEnabled(isRgbMode);
-    ui->frm_Palette->setVisible(isRgbMode);
-
-    ui->stackedWidget->setCurrentIndex(1);
-
-    QTimer::singleShot(50, this, [this]() {
-        ui->canvasWidget->fitToScreen();
-        ui->canvasWidget->update();
-    });
-
-    isProjectModified = false;
-    addRecentProject(path);
-}
-
-void MainWindow::actionImportPng() {
-    QSettings settings("POD2d", "EditorSettings");
-    QString lastDir = settings.value("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
-    QString path = QFileDialog::getOpenFileName(
-        this, "Import PNG",
-        lastDir,
-        "Images (*.png *.jpg *.bmp)"
-        );
-
-    settings.setValue("lastDirectory", QFileInfo(path).absolutePath());
-
-    importPngToCanvas(path);
-}
-
-void MainWindow::actionImportCArray() {
-    bool ok;
-    QString codeText = QInputDialog::getMultiLineText(this, "Import C-Array",
-                                                      "Insert your array (e.g., 0xFF, 0x00...):", "", &ok);
-    if (!ok || codeText.isEmpty()) return;
-
-    QSettings settings("POD2d", "EditorSettings");
-    bool isU8g2 = (settings.value("export/byteFormat", 0).toInt() == 1);
-
-    QImage img(projectWidth, projectHeight, QImage::Format_ARGB32);
-    img.fill(Qt::transparent);
-
-    QRegularExpression hexRegex("0x[0-9A-Fa-f]{1,2}");
-    QRegularExpressionMatchIterator i = hexRegex.globalMatch(codeText);
-
-    QVector<uint8_t> bytes;
-    while (i.hasNext()) {
-        QRegularExpressionMatch match = i.next();
-        bytes.append(match.captured(0).toUShort(nullptr, 16));
-    }
-
-    if (bytes.isEmpty()) {
-        QMessageBox::warning(this, "Error", "No valid data in 0xFF format found.");
-        return;
-    }
-
-    int byteIdx = 0;
-
-    if (isU8g2) {
-        for (int page = 0; page < projectHeight / 8; ++page) {
-            for (int x = 0; x < projectWidth; ++x) {
-                if (byteIdx >= bytes.size()) break;
-                uint8_t b = bytes[byteIdx++];
-                for (int bit = 0; bit < 8; ++bit) {
-                    if (b & (1 << bit)) { // LSB
-                        img.setPixelColor(x, page * 8 + bit, Qt::white);
-                    }
-                }
-            }
-        }
-    } else {
-        for (int y = 0; y < projectHeight; ++y) {
-            for (int x = 0; x < projectWidth; x += 8) {
-                if (byteIdx >= bytes.size()) break;
-                uint8_t b = bytes[byteIdx++];
-                for (int bit = 0; bit < 8; ++bit) {
-                    if (b & (1 << (7 - bit))) { // MSB
-                        img.setPixelColor(x + bit, y, Qt::white);
-                    }
-                }
-            }
-        }
-    }
-
-    if (projectModel) {
-        projectModel->setClipboardImage(img);
-        ui->canvasWidget->pasteToLayer();
-    }
-}
-
-void MainWindow::importPngToCanvas(const QString &path) {
-    if (path.isEmpty()) return;
-
-    QImage img;
-    if (!img.load(path)) {
-        QMessageBox::warning(this, "Error", "Failed to load the image!");
-        return;
-    }
-
-    img = img.convertToFormat(QImage::Format_ARGB32);
-
-    if (projectModel && !projectModel->getIsRGB()) {
-        QMap<QRgb, int> colorCounts;
-        for (int y = 0; y < img.height(); ++y) {
-            for (int x = 0; x < img.width(); ++x) {
-                QRgb rgb = img.pixel(x, y);
-                if (qAlpha(rgb) > 128) {
-                    colorCounts[rgb]++;
-                }
-            }
-        }
-
-        if (colorCounts.size() > 2) {
-            QList<QRgb> keys = colorCounts.keys();
-            std::sort(keys.begin(), keys.end(), [&colorCounts](QRgb a, QRgb b) {
-                return colorCounts[a] > colorCounts[b];
-            });
-
-            QRgb dominantColor = keys.value(0, qRgb(0,0,0));
-            QRgb secondaryColor = keys.value(1, qRgb(255,255,255));
-
-            for (int y = 0; y < img.height(); ++y) {
-                for (int x = 0; x < img.width(); ++x) {
-                    QRgb rgb = img.pixel(x, y);
-                    if (qAlpha(rgb) <= 128) {
-                        img.setPixel(x, y, qRgba(0, 0, 0, 0));
-                    } else {
-                        int distDom = qAbs(qRed(rgb)-qRed(dominantColor)) + qAbs(qGreen(rgb)-qGreen(dominantColor)) + qAbs(qBlue(rgb)-qBlue(dominantColor));
-                        int distSec = qAbs(qRed(rgb)-qRed(secondaryColor)) + qAbs(qGreen(rgb)-qGreen(secondaryColor)) + qAbs(qBlue(rgb)-qBlue(secondaryColor));
-
-                        if (distDom < distSec) {
-                            img.setPixel(x, y, qRgb(0, 0, 0));
-                        } else {
-                            img.setPixel(x, y, qRgb(255, 255, 255));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (projectModel) {
-        projectModel->setClipboardImage(img);
-        ui->canvasWidget->pasteToLayer();
-    }
-}
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
     if (event->mimeData()->hasUrls()) {
@@ -1231,15 +836,12 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
 void MainWindow::dropEvent(QDropEvent *event) {
     QList<QUrl> urls = event->mimeData()->urls();
     if (urls.isEmpty()) return;
-
     QString filePath = urls.first().toLocalFile();
-
     if (filePath.endsWith(".pod2d", Qt::CaseInsensitive)) {
-        loadProjectFromFile(filePath);
+        fileController->loadProjectFromFile(filePath);
     } else {
-        importPngToCanvas(filePath);
+        fileController->importPngToCanvas(filePath);
     }
-
     event->acceptProposedAction();
 }
 
@@ -1537,7 +1139,6 @@ void MainWindow::recentProject() {
 }
 
 void MainWindow::openExportMenu() {
-    ExportDialog dialog(projectModel, currentProjectName, this);
-
+    ExportDialog dialog(projectModel, fileController->getCurrentProjectName(), this);
     dialog.exec();
 }

@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
         QString filePath = QString::fromUtf8(argv[1]);
         if (!filePath.isEmpty()) {
             QTimer::singleShot(100, &w, [&w, filePath]() {
-                w.loadProjectFromFile(filePath);
+                w.openFile(filePath);
             });
         }
     }
