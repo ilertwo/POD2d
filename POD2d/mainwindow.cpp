@@ -117,6 +117,10 @@ void MainWindow::connectModelToLists() {
         ui->canvasWidget->update();
         ui->layersListWidget->rebuildList();
     });
+
+    connect(projectModel, &ProjectModel::activeLayerChanged, this, &MainWindow::updateUiStates);
+    connect(projectModel, &ProjectModel::framesListChanged, this, &MainWindow::updateUiStates);
+    connect(projectModel, &ProjectModel::isPlayingChanged, this, [this](bool) { updateUiStates(); });
 }
 
 void MainWindow::connectMiniCanvas() {
@@ -146,24 +150,26 @@ void MainWindow::connectMiniCanvas() {
 void MainWindow::connectMenuButtons() {
     connect(ui->btn_CreateProject, &QPushButton::clicked, fileController, &FileController::createProject);
     connect(ui->btn_OpenProject,   &QPushButton::clicked, fileController, &FileController::openProject);
-    connect(ui->btn_ProjectsTab,   &QPushButton::clicked, this, &MainWindow::buttonProjects);
-    connect(ui->btn_ExamplesTab,   &QPushButton::clicked, this, &MainWindow::buttonExamples);
 }
 
 void MainWindow::connectEditorControls() {
-
     connect(ui->btn_Undo,  &QPushButton::clicked, this, &MainWindow::undo);
     connect(ui->btn_Redo,  &QPushButton::clicked, this, &MainWindow::redo);
-    //connect(ui->btn_Clear, &QPushButton::clicked, this, &MainWindow::clear);
 
-    connect(ui->btn_AddLayer,    &QPushButton::clicked, this, &MainWindow::addLayer);
+    connect(projectModel, &ProjectModel::canUndoChanged, this, [this](bool can) {
+        ui->btn_Undo->setEnabled(can);
+        ui->act_Undo->setEnabled(can);
+    });
+    connect(projectModel, &ProjectModel::canRedoChanged, this, [this](bool can) {
+        ui->btn_Redo->setEnabled(can);
+        ui->act_Redo->setEnabled(can);
+    });
+
+    connect(ui->btn_AddLayer,    &QPushButton::clicked, projectModel, &ProjectModel::addLayer);
     connect(ui->btn_AddFrame,    &QPushButton::clicked, projectModel, &ProjectModel::addFrame);
     connect(ui->btn_DeleteFrame, &QPushButton::clicked, projectModel, &ProjectModel::deleteCurrentFrame);
     connect(ui->btn_DeleteLayer, &QPushButton::clicked, projectModel, &ProjectModel::deleteCurrentLayer);
 
-    //connect(ui->btn_Paste,  &QPushButton::clicked, ui->canvasWidget, &PixelCanvas::pasteToLayer);
-    //connect(ui->btn_Copy,   &QPushButton::clicked, ui->canvasWidget, &PixelCanvas::copyLayer);
-    //connect(ui->btn_Cut,    &QPushButton::clicked, ui->canvasWidget, &PixelCanvas::cutLayer);
     connect(ui->btn_Rotate, &QPushButton::clicked, ui->canvasWidget, &PixelCanvas::rotateFloatingImage);
 
     connect(ui->btn_Save, &QPushButton::clicked, this, &MainWindow::openExportMenu);
@@ -173,8 +179,6 @@ void MainWindow::connectEditorControls() {
     connect(ui->btn_HideMiniMap, &QPushButton::clicked, ui->act_ViewMiniMap, &QAction::trigger);
     connect(ui->btn_HideFrames, &QPushButton::clicked, ui->act_ViewFrames, &QAction::trigger);
     connect(ui->btn_HideLayers, &QPushButton::clicked, ui->act_ViewLayers, &QAction::trigger);
-
-    //connect(ui->btn_MergeLayer, &QPushButton::clicked, projectModel, &ProjectModel::mergeLayerDown);
 }
 
 void MainWindow::connectPlayerControls() {
@@ -311,17 +315,7 @@ void MainWindow::connectFileActions() {
     connect(ui->act_Exit, &QAction::triggered, this, &QWidget::close);
 }
 
-void MainWindow::connectEditActions() {/*
-    ui->act_Undo->setShortcut(QKeySequence::Undo);
-    ui->act_Redo->setShortcut(QKeySequence::Redo);
-
-    ui->act_Select->setShortcut(QKeySequence::SelectAll);
-    ui->act_Cut->setShortcut(QKeySequence::Cut);
-    ui->act_Copy->setShortcut(QKeySequence::Copy);
-    ui->act_Paste->setShortcut(QKeySequence::Paste);
-
-    ui->act_Clear->setShortcut(QKeySequence("Delete"));*/
-
+void MainWindow::connectEditActions() {
     connect(ui->act_Undo, &QAction::triggered, projectModel, &ProjectModel::undo);
     connect(ui->act_Redo, &QAction::triggered, projectModel, &ProjectModel::redo);
 
@@ -401,16 +395,15 @@ void MainWindow::connectHelpActions() {
     });
 
     connect(ui->act_HelpUpdates, &QAction::triggered, this, [this]() {
-        QMessageBox::information(this, "Check for Updates",
-                                 "You are using the latest version of POD2d.");// TODO:********************************************************
+        QMessageBox::information(this, tr("Check for Updates"), tr("You are using the latest version of POD2d."));
     });
 
     connect(ui->act_HelpAbout, &QAction::triggered, this, [this]() {
-        QMessageBox::about(this, "About POD2d",
-                           "<b>POD2d</b> - Pixel OLED Designer<br><br>"
-                           "Версія: 1.0.0<br>"//TODO:******************************************************************************************
-                           "Автор: Ilertwo<br><br>"
-                           "Created using C++ and Qt.");
+        QMessageBox::about(this, tr("About POD2d"),
+                           tr("<b>POD2d</b> - Pixel OLED Designer<br><br>"
+                              "Version: 1.0.0<br>"
+                              "Author: Ilertwo<br><br>"
+                              "Created using C++ and Qt."));
     });
 
     connect(ui->act_HelpUkraine, &QAction::triggered, this, []() {
@@ -444,6 +437,7 @@ void MainWindow::onProjectReady(int width, int height, bool isRgb) {
     updateUIProportions(width, height);
 
     setEditorUIEnabled(true);
+    updateUiStates();
 
     QSettings settings("POD2d", "EditorSettings");
     setLayerListVisible(settings.value("ui/showLayers", true).toBool());
@@ -512,8 +506,8 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 bool MainWindow::maybeSave() {
     if (ui->stackedWidget->currentIndex() == 0 || !fileController->getIsModified()) return true;
 
-    QMessageBox::StandardButton ret = QMessageBox::warning(this, "POD2d",
-                                                           "You have unsaved changes. Do you want to save them before exiting?",
+    QMessageBox::StandardButton ret = QMessageBox::warning(this, tr("POD2d"),
+                                                           tr("You have unsaved changes. Do you want to save them before exiting?"),
                                                            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
     if (ret == QMessageBox::Save) {
         fileController->saveProject();
@@ -598,12 +592,12 @@ void MainWindow::addRecentProject(const QString &path) {
 }
 
 void MainWindow::loadPalette() {
-    QString path = QFileDialog::getOpenFileName(this, "Load Palette", "", "GIMP Palette (*.gpl);;All Files (*)");
+    QString path = QFileDialog::getOpenFileName(this, tr("Load Palette"), "", tr("GIMP Palette (*.gpl);;All Files (*)"));
     if (path.isEmpty()) return;
 
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Error", "Cannot open palette file.");
+        QMessageBox::warning(this, tr("Error"), tr("Cannot open palette file."));
         return;
     }
 
@@ -611,7 +605,7 @@ void MainWindow::loadPalette() {
     QString header = in.readLine();
 
     if (!header.startsWith("GIMP Palette")) {
-        QMessageBox::warning(this, "Error", "Invalid palette file format. Only .gpl is supported.");
+        QMessageBox::warning(this, tr("Error"), tr("Invalid palette file format. Only .gpl is supported."));
         return;
     }
 
@@ -637,21 +631,20 @@ void MainWindow::loadPalette() {
     if (!newPalette.isEmpty()) {
         ui->widget_Palette->setPalette(newPalette);
     } else {
-        QMessageBox::warning(this, "Error", "No colors found in the palette file.");
+        QMessageBox::warning(this, tr("Error"), tr("No colors found in the palette file."));
     }
 }
 
 void MainWindow::savePalette() {
     QList<QColor> currentPalette = ui->widget_Palette->getPalette();
-
     if (currentPalette.isEmpty()) return;
 
-    QString path = QFileDialog::getSaveFileName(this, "Save Palette", "my_palette.gpl", "GIMP Palette (*.gpl)");
+    QString path = QFileDialog::getSaveFileName(this, tr("Save Palette"), "my_palette.gpl", tr("GIMP Palette (*.gpl)"));
     if (path.isEmpty()) return;
 
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Error", "Cannot save palette file.");
+        QMessageBox::warning(this, tr("Error"), tr("Cannot save palette file."));
         return;
     }
 
@@ -782,14 +775,6 @@ void MainWindow::setPaletteVisible(bool visible) {
 
 void MainWindow::updateUIProportions(int projWidth, int projHeight) {
     if (projHeight == 0) return;
-    /*
-    int baseIconHeight = 32;
-    int proportionalIconWidth = (projWidth * baseIconHeight) / projHeight;
-    QSize newIconSize(proportionalIconWidth, baseIconHeight);
-
-    //ui->framesListWidget->setIconSize(newIconSize);
-    ui->layersListWidget->setIconSize(newIconSize);
-    */
 
     ui->framesListWidget->reloadTheme();
     ui->layersListWidget->rebuildList();
@@ -851,12 +836,23 @@ void MainWindow::updateColorIndicators() {
     ui->btn_SecondaryColor->setStyleSheet(secondaryStyle);
 }
 
-bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
-    if (watched == ui->widget_Palette && event->type() == QEvent::MouseButtonDblClick) {
-        openPaletteEditor(-1);
-        return true;
-    }
+void MainWindow::updateUiStates() {
+    if (!projectModel || ui->stackedWidget->currentIndex() == 0) return;
 
+    bool hasLayers = (projectModel->getLayerCount() > 0);
+    bool isPlaying = projectModel->isPlaying();
+    bool canDraw = hasLayers && !isPlaying;
+
+    ui->frm_Tools->setEnabled(canDraw);
+    ui->act_Cut->setEnabled(canDraw);
+    ui->act_Copy->setEnabled(canDraw);
+    ui->act_Paste->setEnabled(canDraw);
+    ui->act_Clear->setEnabled(canDraw);
+    ui->btn_DeleteLayer->setEnabled(hasLayers);
+    ui->btn_DeleteFrame->setEnabled(projectModel->getFrameCount() > 1);
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
     if (event->type() == QEvent::MouseButtonPress) {
         QWidget *clickedWidget = qobject_cast<QWidget*>(watched);
 
@@ -899,12 +895,6 @@ void MainWindow::selectAll() {
     clipboard->setImage(currentLayerImage);
 }
 
-void MainWindow::setScale(int newScale) {
-    if (newScale < 1) return;
-
-    ui->canvasWidget->update();
-}
-
 void MainWindow::on_spin_brushSize_valueChanged(int value) {
     ui->canvasWidget->setBrushSize(value);
     ui->slider_BrushSize->setToolTip(QString("Brush Size: %1").arg(value));
@@ -922,36 +912,8 @@ void MainWindow::chooseAndSetColor() {
     }
 }
 
-// Group D: Layer Management (Delegations to ProjectModel)
+// Group D: Navigation & Dialogs
 // ====================================
-void MainWindow::addLayer() {
-    projectModel->addLayer();
-}
-
-void MainWindow::deleteCurrentLayer() { projectModel->deleteCurrentLayer(); }
-
-// Group E: Navigation & Dialogs
-// ====================================
-void MainWindow::buttonCreate() {
-    ui->stackedWidget->setCurrentIndex(1);
-
-}
-
-void MainWindow::buttonCancel() {
-}
-
-void MainWindow::buttonProjects() {
-    // TODO
-}
-
-void MainWindow::buttonExamples() {
-    // TODO
-}
-
-void MainWindow::recentProject() {
-    // TODO
-}
-
 void MainWindow::openExportMenu() {
     ExportDialog dialog(projectModel, fileController->getCurrentProjectName(), this);
     dialog.exec();

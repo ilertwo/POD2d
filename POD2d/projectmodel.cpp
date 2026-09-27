@@ -37,6 +37,9 @@ void ProjectModel::initDefaultProject(int width, int height, bool isRGBMode) {
     frames[currentFrameIndex].activeLayerIndex = 0;
 
     loadSettings();
+
+    emit canUndoChanged(historyIndex >= 0);
+    emit canRedoChanged(historyIndex + 1 < history.size());
 }
 
 void ProjectModel::loadSettings() {
@@ -516,6 +519,9 @@ void ProjectModel::saveHistoryStep(const QImage &previousState) {
         historyIndex--;
     }
 
+    emit canUndoChanged(historyIndex >= 0);
+    emit canRedoChanged(historyIndex + 1 < history.size());
+
     emit projectModified();
 }
 
@@ -539,6 +545,9 @@ void ProjectModel::saveStructuralHistoryStep(const QList<Frame>& oldFrames, int 
         historyIndex--;
     }
 
+    emit canUndoChanged(historyIndex >= 0);
+    emit canRedoChanged(historyIndex + 1 < history.size());
+
     emit projectModified();
 }
 
@@ -559,6 +568,9 @@ void ProjectModel::undo() {
     historyIndex--;
 
     syncUIAfterHistoryStep();
+
+    emit canUndoChanged(historyIndex >= 0);
+    emit canRedoChanged(historyIndex + 1 < history.size());
 }
 
 void ProjectModel::redo() {
@@ -577,6 +589,9 @@ void ProjectModel::redo() {
     }
 
     syncUIAfterHistoryStep();
+
+    emit canUndoChanged(historyIndex >= 0);
+    emit canRedoChanged(historyIndex + 1 < history.size());
 }
 
 bool ProjectModel::loadProjectData(const QByteArray &data) {
@@ -626,6 +641,8 @@ bool ProjectModel::loadProjectData(const QByteArray &data) {
     emit layersListChanged();
     emit activeLayerChanged(getCurrentLayerIndex());
     emit framesListChanged();
+    emit canUndoChanged(historyIndex >= 0);
+    emit canRedoChanged(historyIndex + 1 < history.size());
 
     return true;
 }

@@ -118,6 +118,9 @@ signals:
     void forceUILayerSelection(int layerIndex);
     void framesListChanged();
 
+    void canUndoChanged(bool canUndo);
+    void canRedoChanged(bool canRedo);
+
 private:
     Frame createDefaultFrame() const;
 
