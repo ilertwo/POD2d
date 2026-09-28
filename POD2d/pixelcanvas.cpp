@@ -21,6 +21,11 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     currentMousePos = event->pos();
     isMouseOnCanvas = true;
 
+    int x = (event->pos().x() - offset.x()) / scaleFactor;
+    int y = (event->pos().y() - offset.y()) / scaleFactor;
+    QPoint currentPoint(x, y);
+    emit cursorPositionChanged(x, y);
+
     if (!isDrawing) {
         if (currentTool == DrawTool::Brush ||
             currentTool == DrawTool::Eraser ||
@@ -37,11 +42,6 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
         update();
         return;
     }
-
-    int x = (event->pos().x() - offset.x()) / scaleFactor;
-    int y = (event->pos().y() - offset.y()) / scaleFactor;
-    QPoint currentPoint(x, y);
-    emit cursorPositionChanged(x, y);
 
     if (isRotating) {
         QPoint center = selectionRect.center();

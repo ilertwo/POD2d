@@ -49,7 +49,7 @@ void FileController::createProject() {
         }
 
         m_isModified = false;
-        saveProject(); // Зберігає та додає в Recent
+        saveProject();
 
         emit projectReady(m_projectWidth, m_projectHeight, isRGB);
         emit stateChanged();
@@ -257,7 +257,7 @@ void FileController::importPngToCanvas(const QString &path) {
 void FileController::actionImportCArray() {
     bool ok;
     QString codeText = QInputDialog::getMultiLineText(m_parentWindow, "Import C-Array",
-                                                      "Insert your array (e.g., 0xFF, 0x00...):", "", &ok);
+                                                      "Insert your array (e.g., 0xFF, 0x9914...):", "", &ok);
     if (!ok || codeText.isEmpty()) return;
 
     QSettings settings("POD2d", "EditorSettings");
@@ -266,38 +266,62 @@ void FileController::actionImportCArray() {
     QImage img(m_projectWidth, m_projectHeight, QImage::Format_ARGB32);
     img.fill(Qt::transparent);
 
-    QRegularExpression hexRegex("0x[0-9A-Fa-f]{1,2}");
+    QRegularExpression hexRegex("0[xX][0-9A-Fa-f]+");
     QRegularExpressionMatchIterator i = hexRegex.globalMatch(codeText);
 
-    QVector<uint8_t> bytes;
+    QVector<uint16_t> parsedData;
     while (i.hasNext()) {
         QRegularExpressionMatch match = i.next();
-        bytes.append(match.captured(0).toUShort(nullptr, 16));
+        parsedData.append(match.captured(0).toUShort(nullptr, 16));
     }
 
-    if (bytes.isEmpty()) {
-        QMessageBox::warning(m_parentWindow, "Error", "No valid data in 0xFF format found.");
+    if (parsedData.isEmpty()) {
+        QMessageBox::warning(m_parentWindow, "Error", "No valid data found.");
         return;
     }
 
     int byteIdx = 0;
-    if (isU8g2) {
-        for (int page = 0; page < m_projectHeight / 8; ++page) {
+
+    if (m_model && m_model->getIsRGB()) {
+        for (int y = 0; y < m_projectHeight; ++y) {
             for (int x = 0; x < m_projectWidth; ++x) {
-                if (byteIdx >= bytes.size()) break;
-                uint8_t b = bytes[byteIdx++];
-                for (int bit = 0; bit < 8; ++bit) {
-                    if (b & (1 << bit)) img.setPixelColor(x, page * 8 + bit, Qt::white);
-                }
+                if (byteIdx >= parsedData.size()) break;
+
+                uint16_t color565 = parsedData[byteIdx++];
+
+                int r5 = (color565 >> 11) & 0x1F;
+                int g6 = (color565 >> 5) & 0x3F;
+                int b5 = color565 & 0x1F;
+
+                int r8 = (r5 * 255) / 31;
+                int g8 = (g6 * 255) / 63;
+                int b8 = (b5 * 255) / 31;
+
+                img.setPixelColor(x, y, QColor(r8, g8, b8));
             }
         }
-    } else {
-        for (int y = 0; y < m_projectHeight; ++y) {
-            for (int x = 0; x < m_projectWidth; x += 8) {
-                if (byteIdx >= bytes.size()) break;
-                uint8_t b = bytes[byteIdx++];
-                for (int bit = 0; bit < 8; ++bit) {
-                    if (b & (1 << (7 - bit))) img.setPixelColor(x + bit, y, Qt::white);
+    }
+    else {
+        if (isU8g2) {
+            for (int page = 0; page < m_projectHeight / 8; ++page) {
+                for (int x = 0; x < m_projectWidth; ++x) {
+                    if (byteIdx >= parsedData.size()) break;
+                    uint8_t b = static_cast<uint8_t>(parsedData[byteIdx++]);
+                    for (int bit = 0; bit < 8; ++bit) {
+                        if (b & (1 << bit)) img.setPixelColor(x, page * 8 + bit, Qt::white);
+                    }
+                }
+            }
+        } else {
+            for (int y = 0; y < m_projectHeight; ++y) {
+                for (int x = 0; x < m_projectWidth; x += 8) {
+                    if (byteIdx >= parsedData.size()) break;
+                    uint8_t b = static_cast<uint8_t>(parsedData[byteIdx++]);
+                    for (int bit = 0; bit < 8; ++bit) {
+                        if (x + bit < m_projectWidth) {
+                            if (b & (1 << (7 - bit))) img.setPixelColor(x + bit, y, Qt::white);
+                        }
+                    }
                 }
             }
         }

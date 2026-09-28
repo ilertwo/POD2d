@@ -592,8 +592,14 @@ QString CodeGenerator::formatArrayCodeRGB(const QVector<uint16_t> &data, const Q
 QString CodeGenerator::generateDrawImageCodeRGB(bool isCpp) {
     if (isCpp) {
         return QString(R"(void drawImage(const uint16_t* frame_data, int data_size) {
-  // Using the standard Adafruit GFX method for color arrays
-  display.drawRGBBitmap(0, 0, (uint16_t*)frame_data, %1, %2);
+  int x = 0, y = 0;
+  for (int i = 0; i < data_size; i++) {
+    // Safe reading of 16-bit color from PROGMEM for any microcontroller
+    uint16_t color = pgm_read_word(&frame_data[i]);
+    display.drawPixel(x, y, color);
+    x++;
+    if (x >= %1) { x = 0; y++; }
+  }
 }
 )").arg(CANVAS_WIDTH).arg(CANVAS_HEIGHT);
     } else {
