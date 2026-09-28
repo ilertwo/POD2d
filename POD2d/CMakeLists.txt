@@ -41,6 +41,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         filecontroller.h filecontroller.cpp
         actionmanager.h actionmanager.cpp
         thememanager.h thememanager.cpp
+        settingsmanager.h settingsmanager.cpp
 
         #app_icon.rc
 

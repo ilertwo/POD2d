@@ -1,21 +1,18 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "pixelcanvas.h"
-#include "codegenerator.h"
 #include "projectmodel.h"
-#include "createprojectdialog.h"
 #include "exportdialog.h"
 #include "settingsdialog.h"
 #include "palettedialog.h"
 #include "filecontroller.h"
 #include "thememanager.h"
 #include "actionmanager.h"
+#include "settingsmanager.h"
 
 #include <QFileDialog>
-#include <QStandardPaths>
 #include <QColorDialog>
 #include <QFileInfo>
-#include <QDir>
 #include <QVBoxLayout>
 #include <QMessageBox>
 #include <QTimer>
@@ -24,19 +21,14 @@
 #include <QCloseEvent>
 #include <QDesktopServices>
 #include <QUrl>
-#include <QSettings>
 #include <QTextStream>
 #include <QRegularExpression>
 #include <QFile>
 #include <QApplication>
-#include <QPainter>
-#include <QSet>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
 #include <QEvent>
-#include <QMenu>
-#include <QInputDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -84,8 +76,7 @@ void MainWindow::initModels() {
 }
 
 void MainWindow::setupTheme() {
-    QSettings settings("POD2d", "EditorSettings");
-    QString currentTheme = settings.value("ui/theme", "dark").toString();
+    QString currentTheme = SettingsManager::getTheme();
 
     ThemeManager::applyTheme(currentTheme, this);
     ThemeManager::loadIcons(ui, currentTheme, projectModel, this);
@@ -112,13 +103,16 @@ void MainWindow::connectModelToLists() {
     connect(projectModel, &ProjectModel::imageChanged, this, [this]() { ui->canvasWidget->update(); });
     connect(projectModel, &ProjectModel::projectModified, fileController, &FileController::markModified);
 
-    connect(projectModel, &ProjectModel::activeLayerChanged, this, [this]() { ui->canvasWidget->update(); });
+    connect(projectModel, &ProjectModel::activeLayerChanged, this, [this]() {
+        ui->canvasWidget->update();
+        updateUiStates();
+    });
+
     connect(projectModel, &ProjectModel::frameChanged, this, [this]() {
         ui->canvasWidget->update();
         ui->layersListWidget->rebuildList();
     });
 
-    connect(projectModel, &ProjectModel::activeLayerChanged, this, &MainWindow::updateUiStates);
     connect(projectModel, &ProjectModel::framesListChanged, this, &MainWindow::updateUiStates);
     connect(projectModel, &ProjectModel::isPlayingChanged, this, [this](bool) { updateUiStates(); });
 }
@@ -187,8 +181,7 @@ void MainWindow::connectPlayerControls() {
     connect(playBtn, &QPushButton::clicked, projectModel, &ProjectModel::togglePlay);
 
     connect(projectModel, &ProjectModel::isPlayingChanged, this, [this](bool playing) {
-        QSettings settings("POD2d", "EditorSettings");
-        QString theme = settings.value("ui/theme", "dark").toString();
+        QString theme = SettingsManager::getTheme();
         ThemeManager::loadIcons(ui, theme, projectModel, this);
     });
 
@@ -292,7 +285,7 @@ void MainWindow::connectDrawingTools() {
         ui->canvasWidget->toggleCenterView();
     });
 
-    ui->slider_BrushSize->setToolTip(QString("Brush Size: %1").arg(ui->slider_BrushSize->value()));
+    ui->slider_BrushSize->setToolTip(tr("Brush Size: %1").arg(ui->slider_BrushSize->value()));
 }
 
 void MainWindow::connectActions() {
@@ -369,7 +362,6 @@ void MainWindow::connectViewActions() {
 }
 
 void MainWindow::connectPreferencesActions(){
-
     connect(ui->act_Settings, &QAction::triggered, this, [this]() {
         openSettings(0);
     });
@@ -439,11 +431,10 @@ void MainWindow::onProjectReady(int width, int height, bool isRgb) {
     setEditorUIEnabled(true);
     updateUiStates();
 
-    QSettings settings("POD2d", "EditorSettings");
-    setLayerListVisible(settings.value("ui/showLayers", true).toBool());
-    setFrameListVisible(settings.value("ui/showFrames", true).toBool());
-    setToolsVisible(settings.value("ui/showTools", true).toBool());
-    setMiniMapVisible(settings.value("ui/showMiniMap", true).toBool());
+    setLayerListVisible(SettingsManager::getShowLayers());
+    setFrameListVisible(SettingsManager::getShowFrames());
+    setToolsVisible(SettingsManager::getShowTools());
+    setMiniMapVisible(SettingsManager::getShowMiniMap());
 
     ui->act_Palette->setEnabled(isRgb);
     ui->frm_Palette->setVisible(isRgb);
@@ -491,12 +482,10 @@ void MainWindow::closeProject() {
 
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (maybeSave()) {
-        QSettings settings("POD2d", "EditorSettings");
-        settings.setValue("ui/showLayers", ui->layersListWidget->isVisible());
-        settings.setValue("ui/showFrames", ui->framesListWidget->isVisible());
-        settings.setValue("ui/showTools", ui->frm_Tools->isVisible());
-        settings.setValue("ui/showMiniMap", ui->miniCanvasFrame->isVisible());
-
+        SettingsManager::setShowLayers(ui->layersListWidget->isVisible());
+        SettingsManager::setShowFrames(ui->framesListWidget->isVisible());
+        SettingsManager::setShowTools(ui->frm_Tools->isVisible());
+        SettingsManager::setShowMiniMap(ui->miniCanvasFrame->isVisible());
         event->accept();
     } else {
         event->ignore();
@@ -541,53 +530,33 @@ void MainWindow::openPaletteEditor(int colorIndexToEdit) {
 }
 
 void MainWindow::applySettings() {
-    QSettings settings("POD2d", "EditorSettings");
-
-    bool autoSaveEnabled = settings.value("editor/autoSave", false).toBool();
-    int intervalMinutes = settings.value("editor/autoSaveInterval", 5).toInt();
-    if (autoSaveEnabled) {
-        autoSaveTimer->start(intervalMinutes * 60 * 1000);
+    if (SettingsManager::getAutoSave()) {
+        autoSaveTimer->start(SettingsManager::getAutoSaveInterval() * 60 * 1000);
     } else {
         autoSaveTimer->stop();
     }
 
-    bool rightEraser = settings.value("editor/rightClickEraser", false).toBool();
-    ui->canvasWidget->setEraserOnRightClick(rightEraser);
+    ui->canvasWidget->setEraserOnRightClick(SettingsManager::getRightClickEraser());
 
     projectModel->loadSettings();
     ActionManager::setupShortcuts(ui);
 
-    int scale = settings.value("ui/scale", 100).toInt();
     QFont f = qApp->font();
-    f.setPointSize(9 * scale / 100);
+    f.setPointSize(9 * SettingsManager::getScale() / 100);
     qApp->setFont(f);
 
-    QString theme = settings.value("ui/theme", "dark").toString();
+    QString theme = SettingsManager::getTheme();
     ThemeManager::applyTheme(theme, this);
     ThemeManager::loadIcons(ui, theme, projectModel, this);
 
-    bool showGrid = settings.value("canvas/showGrid", true).toBool();
-    QString gridColor = settings.value("canvas/gridColor", "#333333").toString();
-    QString bgStyle = settings.value("canvas/bgStyle", "Checkerboard").toString();
-
-    ui->canvasWidget->setShowGrid(showGrid);
-    ui->canvasWidget->setGridColor(QColor(gridColor));
-    ui->canvasWidget->setBackgroundStyle(bgStyle);
+    ui->canvasWidget->setShowGrid(SettingsManager::getShowGrid());
+    ui->canvasWidget->setGridColor(SettingsManager::getGridColor());
+    ui->canvasWidget->setBackgroundStyle(SettingsManager::getBgStyle());
     ui->canvasWidget->update();
 }
 
 void MainWindow::addRecentProject(const QString &path) {
-    QSettings settings("POD2d", "EditorSettings");
-    QStringList recentFiles = settings.value("recentProjects").toStringList();
-
-    recentFiles.removeAll(path);
-    recentFiles.prepend(path);
-
-    if (recentFiles.size() > 10) {
-        recentFiles.removeLast();
-    }
-
-    settings.setValue("recentProjects", recentFiles);
+    SettingsManager::addRecentProject(path);
     updateRecentProjectsUI();
 }
 
@@ -770,7 +739,6 @@ void MainWindow::setPaletteVisible(bool visible) {
     if(!isVisible) {
         ui->rightPanelFrame->setVisible(visible);
     }
-
 }
 
 void MainWindow::updateUIProportions(int projWidth, int projHeight) {
@@ -793,8 +761,7 @@ void MainWindow::updateUIProportions(int projWidth, int projHeight) {
 void MainWindow::updateRecentProjectsUI() {
     ui->list_RecentProjects->clear();
 
-    QSettings settings("POD2d", "EditorSettings");
-    QStringList recentFiles = settings.value("recentProjects").toStringList();
+    QStringList recentFiles = SettingsManager::getRecentProjects();
 
     for (const QString &filePath : recentFiles) {
         QFileInfo fileInfo(filePath);
@@ -825,8 +792,8 @@ void MainWindow::updateRecentProjectsUI() {
 
 void MainWindow::updateColorIndicators() {
     QString primaryStyle = QString("background-color: rgba(%1, %2, %3, %4); border: 2px solid white;")
-                               .arg(currentPrimaryColor.red()).arg(currentPrimaryColor.green())
-                               .arg(currentPrimaryColor.blue()).arg(currentPrimaryColor.alpha());
+    .arg(currentPrimaryColor.red()).arg(currentPrimaryColor.green())
+        .arg(currentPrimaryColor.blue()).arg(currentPrimaryColor.alpha());
 
     QString secondaryStyle = QString("background-color: rgba(%1, %2, %3, %4); border: 2px solid gray;")
                                  .arg(currentSecondaryColor.red()).arg(currentSecondaryColor.green())
@@ -897,11 +864,11 @@ void MainWindow::selectAll() {
 
 void MainWindow::on_spin_brushSize_valueChanged(int value) {
     ui->canvasWidget->setBrushSize(value);
-    ui->slider_BrushSize->setToolTip(QString("Brush Size: %1").arg(value));
+    ui->slider_BrushSize->setToolTip(tr("Brush Size: %1").arg(value));
 }
 
 void MainWindow::chooseAndSetColor() {
-    const QColor selectedColor = QColorDialog::getColor(ui->canvasWidget->getMonoDisplayColor(), this, "Choose OLED Color");
+    const QColor selectedColor = QColorDialog::getColor(ui->canvasWidget->getMonoDisplayColor(), this, tr("Choose OLED Color"));
 
     if (selectedColor.isValid()) {
         ui->canvasWidget->setMonoDisplayColor(selectedColor);

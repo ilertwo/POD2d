@@ -1,5 +1,6 @@
 #include "settingsdialog.h"
 #include "ui_settingsdialog.h"
+#include "settingsmanager.h"
 
 #include <QSettings>
 #include <QKeySequenceEdit>
@@ -58,7 +59,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    this->setWindowTitle("Settings");
+    this->setWindowTitle(tr("Settings"));
 
     connect(ui->btn_OK, &QPushButton::clicked, this, [this]() {
         saveSettings();
@@ -76,12 +77,12 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
 
     connect(ui->btn_ResetDefaults, &QPushButton::clicked, this, [this]() {
         QMessageBox::StandardButton reply;
-        reply = QMessageBox::question(this, "Reset Settings", "Are you sure you want to reset ALL settings to default?", QMessageBox::Yes | QMessageBox::No);
+        reply = QMessageBox::question(this, tr("Reset Settings"),
+                                      tr("Are you sure you want to reset ALL settings to default?"),
+                                      QMessageBox::Yes | QMessageBox::No);
 
         if (reply == QMessageBox::Yes) {
-            QSettings settings("POD2d", "EditorSettings");
-            settings.clear();
-
+            QSettings("POD2d", "EditorSettings").clear();
             loadSettings();
         }
     });
@@ -99,56 +100,45 @@ void SettingsDialog::setActiveTab(int index) {
 }
 
 void SettingsDialog::loadSettings() {
-    QSettings settings("POD2d", "EditorSettings");
 
-    bool autoSaveEnabled = settings.value("editor/autoSave", false).toBool();
-    bool useProgmemEnabled = settings.value("export/useProgmem", true).toBool();
-    bool autoCopyEnabled = settings.value("export/autoCopy", false).toBool();
-    bool showGridEnabled = settings.value("canvas/showGrid", false).toBool();
-    bool rightClickEraser = settings.value("export/rightClickEraser", false).toBool();
+    ui->spin_DefaultWidth->setValue(SettingsManager::getValue("editor/defaultWidth", 128).toInt());
+    ui->spin_DefaultHeight->setValue(SettingsManager::getValue("editor/defaultHeight", 64).toInt());
+    ui->spin_UndoLimit->setValue(SettingsManager::getUndoLimit());
+    ui->spin_MaxFrames->setValue(SettingsManager::getMaxFrames());
+    ui->spin_MaxLayers->setValue(SettingsManager::getMaxLayers());
+    ui->chk_AutoSave->setChecked(SettingsManager::getAutoSave());
+    ui->spin_AutoSaveInterval->setValue(SettingsManager::getAutoSaveInterval());
 
-    ui->spin_DefaultWidth->setValue(settings.value("editor/defaultWidth", 128).toInt());
-    ui->spin_DefaultHeight->setValue(settings.value("editor/defaultHeight", 64).toInt());
-    ui->spin_UndoLimit->setValue(settings.value("editor/undoLimit", 50).toInt());
-    ui->spin_MaxFrames->setValue(settings.value("editor/maxFrames", 64).toInt());
-    ui->spin_MaxLayers->setValue(settings.value("editor/maxLayers", 16).toInt());
-    ui->chk_AutoSave->setChecked(autoSaveEnabled);
-    ui->spin_AutoSaveInterval->setValue(settings.value("editor/autoSaveInterval", 5).toInt());
+    ui->cmb_Language->setCurrentIndex(SettingsManager::getValue("export/defaultFormat", 0).toInt());
+    ui->input_VariablePrefix->setText(SettingsManager::getValue("export/variablePrefix", "bitmap_").toString());
+    ui->cmb_ByteFormat->setCurrentIndex(SettingsManager::getExportByteFormat());
+    ui->chk_Progmem->setChecked(SettingsManager::getValue("export/useProgmem", true).toBool());
+    ui->chk_AutoCopy->setChecked(SettingsManager::getValue("export/autoCopy", false).toBool());
+    ui->chk_RightClickEraser->setChecked(SettingsManager::getRightClickEraser());
 
-    ui->cmb_Language->setCurrentIndex(settings.value("export/defaultFormat", 0).toInt());
-    ui->input_VariablePrefix->setText(settings.value("export/variablePrefix", "bitmap_").toString());
-    ui->cmb_ByteFormat->setCurrentIndex(settings.value("export/byteFormat", 0).toInt());
-    ui->chk_Progmem->setChecked(useProgmemEnabled);
-    ui->chk_AutoCopy->setChecked(autoCopyEnabled);
-    ui->chk_RightClickEraser->setChecked(rightClickEraser);
+    ui->cmb_Theme->setCurrentText(SettingsManager::getTheme());
+    ui->slider_Scale->setValue(SettingsManager::getScale());
+    ui->chk_ShowGrid->setChecked(SettingsManager::getShowGrid());
+    ui->cmb_BgStyle->setCurrentText(SettingsManager::getBgStyle());
+
+    currentGridColor = SettingsManager::getGridColor().name();
+    setButtonColor(currentGridColor);
 
     ui->table_Controls->setRowCount(HOTKEYS.size());
     ui->table_Controls->setColumnCount(2);
-
-    ui->cmb_Theme->setCurrentText(settings.value("ui/theme", "dark").toString());
-
-    ui->slider_Scale->setValue(settings.value("ui/scale", 100).toInt());
-    ui->chk_ShowGrid->setChecked(showGridEnabled);
-    ui->cmb_BgStyle->setCurrentText(settings.value("canvas/bgStyle", "Solid Black").toString());
-
-    currentGridColor = settings.value("canvas/gridColor", "#333333").toString();
-    setButtonColor(currentGridColor);
-
     ui->table_Controls->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     ui->table_Controls->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
 
     for (int i = 0; i < HOTKEYS.size(); ++i) {
         const auto& itemData = HOTKEYS[i];
 
-        QTableWidgetItem *nameItem = new QTableWidgetItem(itemData.displayName);
+        QTableWidgetItem *nameItem = new QTableWidgetItem(tr(itemData.displayName.toUtf8().constData()));
         nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
         ui->table_Controls->setItem(i, 0, nameItem);
 
         QKeySequenceEdit *keyEdit = new QKeySequenceEdit(this);
-
-        QString currentKey = settings.value(itemData.settingsKey, itemData.defaultShortcut).toString();
+        QString currentKey = SettingsManager::getValue(itemData.settingsKey, itemData.defaultShortcut).toString();
         keyEdit->setKeySequence(QKeySequence(currentKey));
-
         keyEdit->setObjectName(itemData.settingsKey);
 
         ui->table_Controls->setCellWidget(i, 1, keyEdit);
@@ -156,28 +146,27 @@ void SettingsDialog::loadSettings() {
 }
 
 void SettingsDialog::saveSettings() {
-    QSettings settings("POD2d", "EditorSettings");
 
-    settings.setValue("editor/defaultWidth", ui->spin_DefaultWidth->value());
-    settings.setValue("editor/defaultHeight", ui->spin_DefaultHeight->value());
-    settings.setValue("editor/undoLimit", ui->spin_UndoLimit->value());
-    settings.setValue("editor/maxFrames", ui->spin_MaxFrames->value());
-    settings.setValue("editor/maxLayers", ui->spin_MaxLayers->value());
-    settings.setValue("editor/autoSave", ui->chk_AutoSave->isChecked());
-    settings.setValue("editor/autoSaveInterval", ui->spin_AutoSaveInterval->value());
-    settings.setValue("editor/rightClickEraser", ui->chk_RightClickEraser->isChecked());
+    SettingsManager::setValue("editor/defaultWidth", ui->spin_DefaultWidth->value());
+    SettingsManager::setValue("editor/defaultHeight", ui->spin_DefaultHeight->value());
+    SettingsManager::setValue("editor/undoLimit", ui->spin_UndoLimit->value());
+    SettingsManager::setValue("editor/maxFrames", ui->spin_MaxFrames->value());
+    SettingsManager::setValue("editor/maxLayers", ui->spin_MaxLayers->value());
+    SettingsManager::setValue("editor/autoSave", ui->chk_AutoSave->isChecked());
+    SettingsManager::setValue("editor/autoSaveInterval", ui->spin_AutoSaveInterval->value());
+    SettingsManager::setValue("editor/rightClickEraser", ui->chk_RightClickEraser->isChecked());
 
-    settings.setValue("export/defaultFormat", ui->cmb_Language->currentIndex());
-    settings.setValue("export/variablePrefix", ui->input_VariablePrefix->text().trimmed());
-    settings.setValue("export/byteFormat", ui->cmb_ByteFormat->currentIndex());
-    settings.setValue("export/useProgmem", ui->chk_Progmem->isChecked());
-    settings.setValue("export/autoCopy", ui->chk_AutoCopy->isChecked());
+    SettingsManager::setValue("export/defaultFormat", ui->cmb_Language->currentIndex());
+    SettingsManager::setValue("export/variablePrefix", ui->input_VariablePrefix->text().trimmed());
+    SettingsManager::setValue("export/byteFormat", ui->cmb_ByteFormat->currentIndex());
+    SettingsManager::setValue("export/useProgmem", ui->chk_Progmem->isChecked());
+    SettingsManager::setValue("export/autoCopy", ui->chk_AutoCopy->isChecked());
 
-    settings.setValue("ui/theme", ui->cmb_Theme->currentText()); // "dark", "light", "1bit"
-    settings.setValue("ui/scale", ui->slider_Scale->value());
-    settings.setValue("canvas/showGrid", ui->chk_ShowGrid->isChecked());
-    settings.setValue("canvas/gridColor", currentGridColor);
-    settings.setValue("canvas/bgStyle", ui->cmb_BgStyle->currentText());
+    SettingsManager::setTheme(ui->cmb_Theme->currentText());
+    SettingsManager::setValue("ui/scale", ui->slider_Scale->value());
+    SettingsManager::setValue("canvas/showGrid", ui->chk_ShowGrid->isChecked());
+    SettingsManager::setValue("canvas/gridColor", currentGridColor);
+    SettingsManager::setValue("canvas/bgStyle", ui->cmb_BgStyle->currentText());
 
     for (int i = 0; i < ui->table_Controls->rowCount(); ++i) {
         QWidget *widget = ui->table_Controls->cellWidget(i, 1);
@@ -186,8 +175,7 @@ void SettingsDialog::saveSettings() {
         if (keyEdit) {
             QString key = keyEdit->objectName();
             QString sequence = keyEdit->keySequence().toString();
-
-            settings.setValue(key, sequence);
+            SettingsManager::setValue(key, sequence);
         }
     }
 }
@@ -198,7 +186,7 @@ void SettingsDialog::updateScaleLabel(int value) {
 
 void SettingsDialog::chooseGridColor() {
     QColor initialColor(currentGridColor.isEmpty() ? "#333333" : currentGridColor);
-    QColor newColor = QColorDialog::getColor(initialColor, this, "Select Grid Color");
+    QColor newColor = QColorDialog::getColor(initialColor, this, tr("Select Grid Color"));
 
     if (newColor.isValid()) {
         currentGridColor = newColor.name();

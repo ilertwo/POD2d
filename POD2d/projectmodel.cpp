@@ -1,10 +1,11 @@
 #include "projectmodel.h"
+#include "settingsmanager.h"
+
 #include <QPainter>
 #include <QImage>
 #include <QTimer>
 #include <QtGlobal>
 #include <QIODevice>
-#include <QSettings>
 
 ProjectModel::ProjectModel(QObject *parent)
     : QObject(parent),
@@ -43,12 +44,9 @@ void ProjectModel::initDefaultProject(int width, int height, bool isRGBMode) {
 }
 
 void ProjectModel::loadSettings() {
-    QSettings settings("POD2d", "EditorSettings");
-    int settingsHistorySteps = settings.value("editor/undoLimit", 50).toInt();
-    setMaxHistorySteps(settingsHistorySteps);
-
-    maxFrames = settings.value("editor/maxFrames", 64).toInt();
-    maxLayers = settings.value("editor/maxLayers", 16).toInt();
+    setMaxHistorySteps(SettingsManager::getUndoLimit());
+    maxFrames = SettingsManager::getMaxFrames();
+    maxLayers = SettingsManager::getMaxLayers();
 }
 
 // ==========================================
