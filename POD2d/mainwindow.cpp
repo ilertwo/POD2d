@@ -122,7 +122,7 @@ void MainWindow::connectMiniCanvas() {
 
     miniCanvas->setAlignment(Qt::AlignCenter);
 
-    QImage initialImg = projectModel->getFlattenedImage();
+    QImage initialImg = projectModel->applyBackground(projectModel->getFlattenedImage());
     QPixmap initialPixmap = QPixmap::fromImage(initialImg).scaled(
         miniCanvas->size(),
         Qt::KeepAspectRatio,
@@ -130,8 +130,9 @@ void MainWindow::connectMiniCanvas() {
         );
     miniCanvas->setPixmap(initialPixmap);
 
-    connect(projectModel, &ProjectModel::imageChanged, this, [miniCanvas](const QImage &img) {
-        QPixmap pixmap = QPixmap::fromImage(img).scaled(
+    connect(projectModel, &ProjectModel::imageChanged, this, [miniCanvas, this](const QImage &img) {
+        QImage bgImg = projectModel->applyBackground(img);
+        QPixmap pixmap = QPixmap::fromImage(bgImg).scaled(
             miniCanvas->size(),
             Qt::KeepAspectRatio,
             Qt::FastTransformation
@@ -221,12 +222,28 @@ void MainWindow::setupPalette() {
         currentPrimaryColor = c;
         ui->canvasWidget->setPrimaryColor(c);
         updateColorIndicators();
+
+        DrawTool tool = ui->canvasWidget->getCurrentTool();
+        if (tool == DrawTool::Eraser || tool == DrawTool::Pan ||
+            tool == DrawTool::Pipette || tool == DrawTool::Select ||
+            tool == DrawTool::LassoSelect || tool == DrawTool::ShapeSelect ||
+            tool == DrawTool::Lighten) {
+            ui->btn_Pen->click();
+        }
     });
 
     connect(ui->widget_Palette, &PaletteWidget::secondaryColorSelected, this, [this](const QColor &c){
         currentSecondaryColor = c;
         ui->canvasWidget->setSecondaryColor(c);
         updateColorIndicators();
+
+        DrawTool tool = ui->canvasWidget->getCurrentTool();
+        if (tool == DrawTool::Eraser || tool == DrawTool::Pan ||
+            tool == DrawTool::Pipette || tool == DrawTool::Select ||
+            tool == DrawTool::LassoSelect || tool == DrawTool::ShapeSelect ||
+            tool == DrawTool::Lighten) {
+            ui->btn_Pen->click();
+        }
     });
 
     connect(ui->widget_Palette, &PaletteWidget::requestEditColor, this, &MainWindow::openPaletteEditor);
@@ -260,6 +277,8 @@ void MainWindow::connectDrawingTools() {
             ui->canvasWidget->setSecondaryColor(color);
         }
         updateColorIndicators();
+
+        ui->btn_Pen->click();
     });
 
     ui->btn_VerticalMiror->setCheckable(true);
@@ -301,6 +320,7 @@ void MainWindow::connectFileActions() {
     connect(ui->act_Save, &QAction::triggered, fileController, &FileController::saveProject);
     connect(ui->act_SaveAs, &QAction::triggered, fileController, &FileController::saveProjectAs);
     connect(ui->act_ExportCode, &QAction::triggered, this, &MainWindow::openExportMenu);
+    connect(ui->act_RenameFile, &QAction::triggered, fileController, &FileController::renameProject);
     connect(ui->act_OpenFile, &QAction::triggered, fileController, &FileController::openProject);
     connect(ui->act_ImportCArray, &QAction::triggered, fileController, &FileController::actionImportCArray);
     connect(ui->act_ImportPNG, &QAction::triggered, fileController, &FileController::actionImportPng);
@@ -309,8 +329,8 @@ void MainWindow::connectFileActions() {
 }
 
 void MainWindow::connectEditActions() {
-    connect(ui->act_Undo, &QAction::triggered, projectModel, &ProjectModel::undo);
-    connect(ui->act_Redo, &QAction::triggered, projectModel, &ProjectModel::redo);
+    connect(ui->act_Undo, &QAction::triggered, this, &MainWindow::undo);
+    connect(ui->act_Redo, &QAction::triggered, this, &MainWindow::undo);
 
     connect(ui->act_Select, &QAction::triggered, this, &MainWindow::selectAll);
     connect(ui->act_Cut, &QAction::triggered, ui->canvasWidget, &PixelCanvas::cutLayer);
@@ -482,10 +502,13 @@ void MainWindow::closeProject() {
 
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (maybeSave()) {
-        SettingsManager::setShowLayers(ui->layersListWidget->isVisible());
-        SettingsManager::setShowFrames(ui->framesListWidget->isVisible());
-        SettingsManager::setShowTools(ui->frm_Tools->isVisible());
-        SettingsManager::setShowMiniMap(ui->miniCanvasFrame->isVisible());
+        if (ui->stackedWidget->currentIndex() == 1) {
+            SettingsManager::setShowLayers(ui->layersListWidget->isVisible());
+            SettingsManager::setShowFrames(ui->framesListWidget->isVisible());
+            SettingsManager::setShowTools(ui->frm_Tools->isVisible());
+            SettingsManager::setShowMiniMap(ui->miniCanvasFrame->isVisible());
+        }
+
         event->accept();
     } else {
         event->ignore();
@@ -553,6 +576,12 @@ void MainWindow::applySettings() {
     ui->canvasWidget->setGridColor(SettingsManager::getGridColor());
     ui->canvasWidget->setBackgroundStyle(SettingsManager::getBgStyle());
     ui->canvasWidget->update();
+
+    if (projectModel && ui->stackedWidget->currentIndex() != 0) {
+        projectModel->notifyImageChanged();
+        ui->layersListWidget->rebuildList();
+        ui->framesListWidget->rebuildList();
+    }
 }
 
 void MainWindow::addRecentProject(const QString &path) {
@@ -749,7 +778,8 @@ void MainWindow::updateUIProportions(int projWidth, int projHeight) {
 
     QImage currentImg = projectModel->getFlattenedImage();
     if (!currentImg.isNull()) {
-        QPixmap pixmap = QPixmap::fromImage(currentImg).scaled(
+        QImage bgImg = projectModel->applyBackground(currentImg);
+        QPixmap pixmap = QPixmap::fromImage(bgImg).scaled(
             ui->miniCanvasWidget->size(),
             Qt::KeepAspectRatio,
             Qt::FastTransformation
@@ -838,6 +868,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
 // ====================================
 void MainWindow::undo() {
     projectModel->undo();
+    ui->canvasWidget->resetLastPoint();
     ui->canvasWidget->update();
 }
 
@@ -847,8 +878,12 @@ void MainWindow::redo() {
 }
 
 void MainWindow::clear() {
-    projectModel->clearCanvas();
-    ui->canvasWidget->resetToolState();
+    if (ui->canvasWidget->hasActiveSelection()) {
+        ui->canvasWidget->clearSelectionContent();
+    } else {
+        projectModel->clearCanvas();
+        ui->canvasWidget->resetToolState();
+    }
 }
 
 void MainWindow::selectAll() {

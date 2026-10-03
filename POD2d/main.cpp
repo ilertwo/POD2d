@@ -1,9 +1,12 @@
 #include "mainwindow.h"
+#include "logger.h"
 
 #include <QApplication>
 #include <QTimer>
 
 int main(int argc, char *argv[]) {
+    Logger::init();
+
     QApplication a(argc, argv);
     MainWindow w;
     w.show();

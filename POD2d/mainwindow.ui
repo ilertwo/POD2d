@@ -1798,6 +1798,8 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
     <addaction name="act_Save"/>
     <addaction name="act_SaveAs"/>
     <addaction name="separator"/>
+    <addaction name="act_RenameFile"/>
+    <addaction name="separator"/>
     <addaction name="act_ExportCode"/>
     <addaction name="separator"/>
     <addaction name="act_ImportCArray"/>
@@ -2089,6 +2091,11 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
   <action name="act_ImportCArray">
    <property name="text">
     <string>Import C-array</string>
+   </property>
+  </action>
+  <action name="act_RenameFile">
+   <property name="text">
+    <string>Rename File</string>
    </property>
   </action>
  </widget>

@@ -75,6 +75,7 @@ public:
     QImage getFrameThumbnail(int index) const;
     QImage getLayerThumbnail(int index) const;
     QImage getCurrentLayerImage() const;
+    QImage applyBackground(const QImage &source) const;
 
     // 4. CLIPBOARD AND EDITING
     void setCanvasSize(int width, int height);

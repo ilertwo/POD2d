@@ -33,6 +33,8 @@ public:
     void markModified();
     void resetState();
 
+    void renameProject();
+
 signals:
     void projectReady(int width, int height, bool isRgb);
     void projectSaved();

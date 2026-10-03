@@ -19,6 +19,7 @@ const QList<ShortcutItem> HOTKEYS = {
     {"Pen Tool", "shortcuts/pen", "P"},
     {"Eraser Tool", "shortcuts/eraser", "E"},
     {"Fill Tool", "shortcuts/fill", "F"},
+    {"Pipette Tool", "shortcuts/pipette", "I"},
     {"Line Tool", "shortcuts/line", "L"},
     {"Rectangle", "shortcuts/rectangle", "R"},
     {"Circle", "shortcuts/circle", "C"},

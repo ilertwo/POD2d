@@ -1,4 +1,6 @@
 #include "palettewidget.h"
+#include "settingsmanager.h"
+
 #include <QGridLayout>
 #include <QPushButton>
 #include <QSettings>
@@ -59,26 +61,28 @@ void PaletteWidget::rebuildGrid() {
         delete child;
     }
 
-    QSettings settings("POD2d", "EditorSettings");
-    QString theme = settings.value("ui/theme", "dark").toString();
+    QString theme = SettingsManager::getTheme();
 
     if (theme == "1bit") {
         m_gridLayout->setContentsMargins(5, 5, 5, 5);
     } else {
-        m_gridLayout->setContentsMargins(0, 0, 0, 0);
+        m_gridLayout->setContentsMargins(4, 4, 4, 4);
     }
-    m_gridLayout->setAlignment(Qt::AlignTop);
+
+    m_gridLayout->setSpacing(4);
 
     int columns = 4;
-    for (int i = 0; i < columns; ++i) m_gridLayout->setColumnStretch(i, 1);
+
+    for (int i = 0; i <= columns; ++i) {
+        m_gridLayout->setColumnStretch(i, 0);
+    }
 
     QString borderStyle = (theme == "1bit") ? "border: none;" : "border: 1px solid #555;";
     QString borderRadius = (theme == "1bit") ? "border-radius: 0px;" : "border-radius: 2px;";
 
     for (int i = 0; i < m_palette.size(); ++i) {
         QPushButton *colorBtn = new QPushButton();
-        colorBtn->setFixedHeight(24);
-        colorBtn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        colorBtn->setFixedSize(24, 24);
         colorBtn->setCursor(Qt::PointingHandCursor);
 
         colorBtn->setStyleSheet(QString("background-color: %1; %2 %3").arg(m_palette[i].name(), borderStyle, borderRadius));
@@ -90,8 +94,7 @@ void PaletteWidget::rebuildGrid() {
     }
 
     QPushButton *btnAddColor = new QPushButton("+");
-    btnAddColor->setFixedHeight(24);
-    btnAddColor->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    btnAddColor->setFixedSize(24, 24);
     btnAddColor->setCursor(Qt::PointingHandCursor);
 
     if (theme == "1bit") {
@@ -104,6 +107,9 @@ void PaletteWidget::rebuildGrid() {
 
     int nextIndex = m_palette.size();
     m_gridLayout->addWidget(btnAddColor, nextIndex / columns, nextIndex % columns);
+
+    m_gridLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Minimum), 0, columns);
+    m_gridLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding), m_gridLayout->rowCount(), 0);
 
     savePaletteToSettings();
 }

@@ -362,7 +362,7 @@ const QList<QImage>& ProjectModel::getCurrentLayers() const {
 
 QImage ProjectModel::getFlattenedImage() const {
     QImage result(CANVAS_WIDTH, CANVAS_HEIGHT, QImage::Format_ARGB32);
-    result.fill(Qt::black);
+    result.fill(Qt::transparent);
 
     if (!frames.isEmpty()) {
         QPainter painter(&result);
@@ -377,7 +377,7 @@ QImage ProjectModel::getFlattenedImage() const {
 
 QImage ProjectModel::getFlattenedFrame(int index) const {
     QImage result(CANVAS_WIDTH, CANVAS_HEIGHT, QImage::Format_ARGB32);
-    result.fill(Qt::black);
+    result.fill(Qt::transparent);
 
     if (index >= 0 && index < frames.size()) {
         QPainter painter(&result);
@@ -391,21 +391,21 @@ QImage ProjectModel::getFlattenedFrame(int index) const {
 }
 
 QImage ProjectModel::getFrameThumbnail(int index) const {
-    return getFlattenedFrame(index);
+    return applyBackground(getFlattenedFrame(index));
 }
 
 QImage ProjectModel::getLayerThumbnail(int index) const {
     QImage result(CANVAS_WIDTH, CANVAS_HEIGHT, QImage::Format_ARGB32);
-    result.fill(Qt::black);
+    result.fill(Qt::transparent);
 
     if (frames.isEmpty() || index < 0 || index >= frames[currentFrameIndex].layers.size()) {
-        return result;
+        return applyBackground(result);
     }
 
     QPainter painter(&result);
     painter.drawImage(0, 0, frames[currentFrameIndex].layers[index]);
 
-    return result;
+    return applyBackground(result);
 }
 
 QImage ProjectModel::getCurrentLayerImage() const {
@@ -419,6 +419,33 @@ QImage ProjectModel::getCurrentLayerImage() const {
     }
 
     return QImage();
+}
+
+QImage ProjectModel::applyBackground(const QImage &source) const {
+    if (source.isNull()) return source;
+
+    QImage result(source.size(), QImage::Format_ARGB32);
+    QString bgStyle = SettingsManager::getBgStyle();
+
+    QPainter p(&result);
+    if (bgStyle == "Solid Black") {
+        p.fillRect(result.rect(), Qt::black);
+    } else if (bgStyle == "Solid White") {
+        p.fillRect(result.rect(), Qt::white);
+    } else {
+        const int checkerSize = 4;
+        for (int y = 0; y < result.height(); y += checkerSize) {
+            for (int x = 0; x < result.width(); x += checkerSize) {
+                QColor color = ((x / checkerSize + y / checkerSize) % 2 == 0)
+                ? QColor(150, 150, 150) : QColor(100, 100, 100);
+                int w = qMin(checkerSize, result.width() - x);
+                int h = qMin(checkerSize, result.height() - y);
+                p.fillRect(x, y, w, h, color);
+            }
+        }
+    }
+    p.drawImage(0, 0, source);
+    return result;
 }
 
 // ==========================================

@@ -1,6 +1,7 @@
 #include "filecontroller.h"
 #include "projectmodel.h"
 #include "createprojectdialog.h"
+#include "settingsmanager.h"
 
 #include <QFileDialog>
 #include <QStandardPaths>
@@ -108,19 +109,22 @@ void FileController::loadProjectFromFile(const QString &path) {
 }
 
 void FileController::saveProjectAs() {
-    QSettings settings("POD2d", "EditorSettings");
-    QString lastDir = settings.value("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
+    QString lastDir = SettingsManager::getLastDirectory();
 
-    QString defaultFileName = m_currentProjectName.isEmpty() ? "Untitled.pod2d" : m_currentProjectName + ".pod2d";
+    QString defaultFileName = m_currentProjectName.isEmpty() ? "Untitled.pod2d" : m_currentProjectName;
+    if (!defaultFileName.endsWith(".pod2d") && !defaultFileName.endsWith(".png")) {
+        defaultFileName += ".pod2d";
+    }
     QString fullPath = lastDir + "/" + defaultFileName;
 
     QString filePath = QFileDialog::getSaveFileName(
-        m_parentWindow, "Save project as...", fullPath,
-        "POD2d Project (*.pod2d);;All Files (*)"
+        m_parentWindow, tr("Save project as..."), fullPath,
+        tr("POD2d Project (*.pod2d);;PNG Image (*.png);;All Files (*)")
         );
 
     if (filePath.isEmpty()) return;
-    settings.setValue("lastDirectory", QFileInfo(filePath).absolutePath());
+
+    SettingsManager::setLastDirectory(QFileInfo(filePath).absolutePath());
 
     m_currentFilePath = filePath;
     m_currentProjectName = QFileInfo(filePath).baseName();
@@ -134,15 +138,22 @@ void FileController::saveProject() {
         return;
     }
 
-    QByteArray projectData = m_model->saveProjectData();
-    QFile file(m_currentFilePath);
-    if (!file.open(QIODevice::WriteOnly)) {
-        QMessageBox::critical(m_parentWindow, "Error", "Failed to save the file. Check access permissions.");
-        return;
+    if (m_currentFilePath.endsWith(".png", Qt::CaseInsensitive)) {
+        QImage img = m_model->getFlattenedImage();
+        if (!img.save(m_currentFilePath, "PNG")) {
+            QMessageBox::critical(m_parentWindow, tr("Error"), tr("Failed to save PNG file."));
+            return;
+        }
+    } else {
+        QByteArray projectData = m_model->saveProjectData();
+        QFile file(m_currentFilePath);
+        if (!file.open(QIODevice::WriteOnly)) {
+            QMessageBox::critical(m_parentWindow, tr("Error"), tr("Failed to save the file. Check access permissions."));
+            return;
+        }
+        file.write(projectData);
+        file.close();
     }
-
-    file.write(projectData);
-    file.close();
 
     m_isModified = false;
     emit recentProjectAdded(m_currentFilePath);
@@ -330,5 +341,35 @@ void FileController::actionImportCArray() {
     if (m_model) {
         m_model->setClipboardImage(img);
         emit requestPasteToLayer();
+    }
+}
+
+void FileController::renameProject() {
+    if (m_currentFilePath.isEmpty()) return;
+
+    bool ok;
+    QString newName = QInputDialog::getText(m_parentWindow, tr("Rename Project"),
+                                            tr("New name (without extension):"),
+                                            QLineEdit::Normal,
+                                            m_currentProjectName, &ok);
+
+    if (ok && !newName.isEmpty() && newName != m_currentProjectName) {
+        QFileInfo fileInfo(m_currentFilePath);
+        QString newPath = fileInfo.absolutePath() + "/" + newName + "." + fileInfo.completeSuffix();
+
+        if (QFile::exists(newPath)) {
+            QMessageBox::warning(m_parentWindow, tr("Error"), tr("A file with this name already exists!"));
+            return;
+        }
+
+        if (QFile::rename(m_currentFilePath, newPath)) {
+            m_currentFilePath = newPath;
+            m_currentProjectName = newName;
+
+            emit recentProjectAdded(newPath);
+            emit stateChanged();
+        } else {
+            QMessageBox::critical(m_parentWindow, tr("Error"), tr("Failed to rename the file. Check if it is open in another program."));
+        }
     }
 }

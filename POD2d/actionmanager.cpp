@@ -51,6 +51,7 @@ void ActionManager::setupShortcuts(Ui::MainWindow *ui) {
     setShortcutAndToolTip(ui->btn_Text, "Text Tool", "shortcuts/text", "T");
     setShortcutAndToolTip(ui->btn_Dithering, "Dithering Tool", "shortcuts/dithering", "D");
     setShortcutAndToolTip(ui->btn_BrokenLine, "Broken Line Tool", "shortcuts/brokenLine", "B");
+    setShortcutAndToolTip(ui->btn_Pipette, "Pipette Tool", "shortcuts/pipette", "I");
 
     // Navigation and selection
     setShortcutAndToolTip(ui->btn_Pan, "Pan Tool", "shortcuts/pan", "Space");

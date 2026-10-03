@@ -949,16 +949,6 @@ void PixelCanvas::copyLayer() {
     painter.drawImage(0, 0, layer, selectionRect.x(), selectionRect.y(), selectionRect.width(), selectionRect.height());
     painter.end();
 
-    const QRgb transparentRgb = qRgba(0, 0, 0, 0);
-    for (int y = 0; y < clip.height(); ++y) {
-        QRgb *line = reinterpret_cast<QRgb*>(clip.scanLine(y));
-        for (int x = 0; x < clip.width(); ++x) {
-            if (qRed(line[x]) == 0 && qGreen(line[x]) == 0 && qBlue(line[x]) == 0) {
-                line[x] = transparentRgb;
-            }
-        }
-    }
-
     m_model->setClipboardImage(clip);
 }
 
@@ -967,7 +957,7 @@ void PixelCanvas::cutLayer() {
 
     copyLayer();
 
-    m_model->saveHistoryStep(m_model->getActiveLayerImage());
+    QImage previousState = m_model->getActiveLayerImage();
 
     QImage &layer = m_model->getActiveLayerImage();
     QPainter p(&layer);
@@ -983,6 +973,8 @@ void PixelCanvas::cutLayer() {
     hasSelection = false;
     selectionRect = QRect();
     selectionPath = QPainterPath();
+
+    m_model->saveHistoryStep(previousState);
 
     m_model->notifyImageChanged();
     update();
@@ -1011,6 +1003,43 @@ QRect PixelCanvas::getRotationHandleRect() const {
 
 void PixelCanvas::setEraserOnRightClick(bool rightEraser) {
     m_eraserOnRightClick = rightEraser;
+}
+
+void PixelCanvas::resetLastPoint() {
+    lastPoint = QPoint(-1, -1);
+}
+
+void PixelCanvas::clearSelectionContent() {
+    if (!m_model || !hasSelection) return;
+
+    if (isFloating) {
+        isFloating = false;
+        hasSelection = false;
+        originalFloatingImage = QImage();
+        floatingImage = QImage();
+        selectionRect = QRect();
+        selectionPath = QPainterPath();
+        update();
+        return;
+    }
+
+    if (selectionRect.isEmpty()) return;
+
+    QImage previousState = m_model->getActiveLayerImage();
+    QImage &layer = m_model->getActiveLayerImage();
+    QPainter p(&layer);
+    p.setCompositionMode(QPainter::CompositionMode_Clear);
+
+    if (!selectionPath.isEmpty()) {
+        p.fillPath(selectionPath, Qt::transparent);
+    } else {
+        p.fillRect(selectionRect, Qt::transparent);
+    }
+    p.end();
+
+    m_model->saveHistoryStep(previousState);
+    m_model->notifyImageChanged();
+    update();
 }
 
 void PixelCanvas::fitToScreen() {
