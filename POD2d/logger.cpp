@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QMutex>
 #include <QDebug>
+#include <QCoreApplication>
 
 namespace {
 QFile* logFile = nullptr;
@@ -43,7 +44,9 @@ void customMessageHandler(QtMsgType type, const QMessageLogContext &context, con
 }
 
 void Logger::init() {
-    QString logDirPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
+    QString baseDir = QCoreApplication::applicationDirPath();
+    QString logDirPath = baseDir + "/logs";
+
     QDir dir(logDirPath);
     if (!dir.exists()) {
         dir.mkpath(".");
@@ -54,6 +57,7 @@ void Logger::init() {
     QString log2 = logDirPath + "/pod2d_2.log";
     QString log3 = logDirPath + "/pod2d_3.log";
 
+    // Ротація
     if (QFile::exists(log3)) QFile::remove(log3);
     if (QFile::exists(log2)) QFile::rename(log2, log3);
     if (QFile::exists(log1)) QFile::rename(log1, log2);

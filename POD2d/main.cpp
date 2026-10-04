@@ -5,9 +5,13 @@
 #include <QTimer>
 
 int main(int argc, char *argv[]) {
+    QApplication a(argc, argv);
+
+    QCoreApplication::setApplicationName("POD2d");
+    QCoreApplication::setOrganizationName("Ilertwo");
+
     Logger::init();
 
-    QApplication a(argc, argv);
     MainWindow w;
     w.show();
 

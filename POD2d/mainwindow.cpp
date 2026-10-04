@@ -143,8 +143,12 @@ void MainWindow::connectMiniCanvas() {
 }
 
 void MainWindow::connectMenuButtons() {
-    connect(ui->btn_CreateProject, &QPushButton::clicked, fileController, &FileController::createProject);
-    connect(ui->btn_OpenProject,   &QPushButton::clicked, fileController, &FileController::openProject);
+    connect(ui->btn_CreateProject, &QPushButton::clicked, this, [this]() {
+        if (maybeSave()) fileController->createProject();
+    });
+    connect(ui->btn_OpenProject, &QPushButton::clicked, this, [this]() {
+        if (maybeSave()) fileController->openProject();
+    });
 }
 
 void MainWindow::connectEditorControls() {
@@ -152,12 +156,16 @@ void MainWindow::connectEditorControls() {
     connect(ui->btn_Redo,  &QPushButton::clicked, this, &MainWindow::redo);
 
     connect(projectModel, &ProjectModel::canUndoChanged, this, [this](bool can) {
-        ui->btn_Undo->setEnabled(can);
-        ui->act_Undo->setEnabled(can);
+        QTimer::singleShot(0, this, [this, can]() {
+            ui->btn_Undo->setEnabled(can);
+            ui->act_Undo->setEnabled(can);
+        });
     });
     connect(projectModel, &ProjectModel::canRedoChanged, this, [this](bool can) {
-        ui->btn_Redo->setEnabled(can);
-        ui->act_Redo->setEnabled(can);
+        QTimer::singleShot(0, this, [this, can]() {
+            ui->btn_Redo->setEnabled(can);
+            ui->act_Redo->setEnabled(can);
+        });
     });
 
     connect(ui->btn_AddLayer,    &QPushButton::clicked, projectModel, &ProjectModel::addLayer);
@@ -316,21 +324,30 @@ void MainWindow::connectActions() {
 }
 
 void MainWindow::connectFileActions() {
-    connect(ui->act_NewFile, &QAction::triggered, fileController, &FileController::createProject);
+    connect(ui->act_NewFile, &QAction::triggered, this, [this]() {
+        if (maybeSave()) fileController->createProject();
+    });
+    connect(ui->act_OpenFile, &QAction::triggered, this, [this]() {
+        if (maybeSave()) fileController->openProject();
+    });
+    connect(ui->act_ImportCArray, &QAction::triggered, this, [this]() {
+        if (maybeSave()) fileController->actionImportCArray();
+    });
+    connect(ui->act_ImportPNG, &QAction::triggered, this, [this]() {
+        if (maybeSave()) fileController->actionImportPng();
+    });
+
     connect(ui->act_Save, &QAction::triggered, fileController, &FileController::saveProject);
     connect(ui->act_SaveAs, &QAction::triggered, fileController, &FileController::saveProjectAs);
     connect(ui->act_ExportCode, &QAction::triggered, this, &MainWindow::openExportMenu);
     connect(ui->act_RenameFile, &QAction::triggered, fileController, &FileController::renameProject);
-    connect(ui->act_OpenFile, &QAction::triggered, fileController, &FileController::openProject);
-    connect(ui->act_ImportCArray, &QAction::triggered, fileController, &FileController::actionImportCArray);
-    connect(ui->act_ImportPNG, &QAction::triggered, fileController, &FileController::actionImportPng);
     connect(ui->act_Close, &QAction::triggered, this, &MainWindow::closeProject);
     connect(ui->act_Exit, &QAction::triggered, this, &QWidget::close);
 }
 
 void MainWindow::connectEditActions() {
     connect(ui->act_Undo, &QAction::triggered, this, &MainWindow::undo);
-    connect(ui->act_Redo, &QAction::triggered, this, &MainWindow::undo);
+    connect(ui->act_Redo, &QAction::triggered, this, &MainWindow::redo);
 
     connect(ui->act_Select, &QAction::triggered, this, &MainWindow::selectAll);
     connect(ui->act_Cut, &QAction::triggered, ui->canvasWidget, &PixelCanvas::cutLayer);
@@ -867,11 +884,15 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
 // Group C: Editor Controls & Tools
 // ====================================
 void MainWindow::undo() {
+    if (ui->canvasWidget->hasFloatingImage()) {
+        ui->canvasWidget->clearSelectionContent();
+        return;
+    }
+
     projectModel->undo();
     ui->canvasWidget->resetLastPoint();
     ui->canvasWidget->update();
 }
-
 void MainWindow::redo() {
     projectModel->redo();
     ui->canvasWidget->update();

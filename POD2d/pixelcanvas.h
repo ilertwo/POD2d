@@ -32,10 +32,11 @@ public:
     int getBrushSize() const;
     QRect getRotationHandleRect() const;
     void setEraserOnRightClick(bool rightEraser);
-    DrawTool getCurrentTool() const { return currentTool; }
-    bool hasActiveSelection() const { return hasSelection; }
+    DrawTool getCurrentTool() const;
+    bool hasActiveSelection() const;
     void clearSelectionContent();
     void resetLastPoint();
+    bool hasFloatingImage() const;
 
     // Methods for setting colors
     void setPrimaryColor(const QColor &color);

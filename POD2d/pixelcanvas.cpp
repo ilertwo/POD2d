@@ -156,18 +156,15 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
 
     QColor drawColor;
 
+    // 1. Спочатку визначаємо базовий колір
     if (currentTool == DrawTool::Eraser) {
-        if (!m_model->getIsRGB() && m_model->getCurrentLayerIndex() == 0) {
-            drawColor = Qt::black;
-        } else {
-            drawColor = Qt::transparent;
-        }
+        drawColor = Qt::transparent;
     } else {
         if (event->buttons() & Qt::LeftButton) {
             drawColor = primaryColor;
         } else if (event->buttons() & Qt::RightButton) {
             if (m_eraserOnRightClick) {
-                drawColor = (!m_model->getIsRGB() && m_model->getCurrentLayerIndex() == 0) ? Qt::black : Qt::transparent;
+                drawColor = Qt::transparent;
             } else {
                 drawColor = secondaryColor;
             }
@@ -178,8 +175,12 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
 
     QImage &layerImg = m_model->getActiveLayerImage();
 
-    if (!m_model->getIsRGB() && drawColor == m_monoColor) {
-        drawColor = Qt::white;
+    if (!m_model->getIsRGB()) {
+        if (drawColor == m_monoColor) {
+            drawColor = Qt::white;
+        } else if (drawColor == Qt::black) {
+            drawColor = Qt::transparent;
+        }
     }
 
     if (event->modifiers() & Qt::ShiftModifier) {
@@ -365,29 +366,27 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
     QColor replacementColor;
 
     if (currentTool == DrawTool::Eraser) {
-        if (!m_model->getIsRGB() && m_model->getCurrentLayerIndex() == 0) {
-            replacementColor = Qt::black;
-        } else {
-            replacementColor = Qt::transparent;
-        }
+        replacementColor = Qt::transparent;
     } else {
         if (event->buttons() & Qt::LeftButton) {
             replacementColor = primaryColor;
         } else if (event->buttons() & Qt::RightButton) {
-
             if (m_eraserOnRightClick) {
-                replacementColor = (!m_model->getIsRGB() && m_model->getCurrentLayerIndex() == 0) ? Qt::black : Qt::transparent;
+                replacementColor = Qt::transparent;
             } else {
                 replacementColor = secondaryColor;
             }
-
         } else {
             return;
         }
     }
 
-    if (!m_model->getIsRGB() && replacementColor == m_monoColor) {
-        replacementColor = Qt::white;
+    if (!m_model->getIsRGB()) {
+        if (replacementColor == m_monoColor) {
+            replacementColor = Qt::white;
+        } else if (replacementColor == Qt::black) {
+            replacementColor = Qt::transparent;
+        }
     }
 
     if (currentTool == DrawTool::Fill || currentTool == DrawTool::Dithering) {
@@ -1001,12 +1000,24 @@ QRect PixelCanvas::getRotationHandleRect() const {
     return QRect(cx - hs, cy - hs, hs * 2 + 1, hs * 2 + 1);
 }
 
+DrawTool PixelCanvas::getCurrentTool() const {
+    return currentTool;
+}
+
+bool PixelCanvas::hasActiveSelection() const {
+    return hasSelection;
+}
+
 void PixelCanvas::setEraserOnRightClick(bool rightEraser) {
     m_eraserOnRightClick = rightEraser;
 }
 
 void PixelCanvas::resetLastPoint() {
     lastPoint = QPoint(-1, -1);
+}
+
+bool PixelCanvas::hasFloatingImage() const {
+    return isFloating;
 }
 
 void PixelCanvas::clearSelectionContent() {
