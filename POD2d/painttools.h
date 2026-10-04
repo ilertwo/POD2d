@@ -13,13 +13,13 @@ public:
 
     static void drawBrush(QImage &image, int centerX, int centerY, int brushSize, const QColor &color);
     static void floodFill(QImage &image, int x, int y, const QColor &targetColor, const QColor &replacementColor);
-    static void floodFillDithering(QImage &image, int startX, int startY, const QColor &targetColor, const QColor &replacementColor);
+    static void floodFillDithering(QImage &image, int startX, int startY, const QColor &targetColor, const QColor &replacementColor, int brushSize);
 
-    static void drawLine(QImage &image, const QPoint &start, const QPoint &end, const QColor &color);
-    static void drawRect(QImage &image, const QPoint &start, const QPoint &end, const QColor &color);
-    static void drawCircle(QImage &image, const QPoint &start, const QPoint &end, const QColor &color);
+    static void drawLine(QImage &image, const QPoint &start, const QPoint &end, const QColor &color, int brushSize);
+    static void drawRect(QImage &image, const QPoint &start, const QPoint &end, const QColor &color, int brushSize);
+    static void drawCircle(QImage &image, const QPoint &start, const QPoint &end, const QColor &color, int brushSize);
 
-    static void lightenBrush(QImage &image, int centerX, int centerY, int brushSize, bool darken = false);
+    static void lightenBrush(QImage &image, int centerX, int centerY, int brushSize, bool darken);
 };
 
 #endif // PAINTTOOLS_H

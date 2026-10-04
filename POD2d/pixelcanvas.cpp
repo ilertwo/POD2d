@@ -251,25 +251,25 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
     }
     case DrawTool::Line:
         layerImg = tempState;
-        PaintTools::drawLine(layerImg, startPoint, currentPoint, drawColor);
+        PaintTools::drawLine(layerImg, startPoint, currentPoint, drawColor, brushSize);
         if (m_verticalMirror) {
-            PaintTools::drawLine(layerImg, getMirroredPoint(startPoint), getMirroredPoint(currentPoint), drawColor);
+            PaintTools::drawLine(layerImg, getMirroredPoint(startPoint), getMirroredPoint(currentPoint), drawColor, brushSize);
         }
         break;
 
     case DrawTool::Rectangle:
         layerImg = tempState;
-        PaintTools::drawRect(layerImg, startPoint, currentPoint, drawColor);
+        PaintTools::drawRect(layerImg, startPoint, currentPoint, drawColor, brushSize);
         if (m_verticalMirror) {
-            PaintTools::drawRect(layerImg, getMirroredPoint(startPoint), getMirroredPoint(currentPoint), drawColor);
+            PaintTools::drawRect(layerImg, getMirroredPoint(startPoint), getMirroredPoint(currentPoint), drawColor, brushSize);
         }
         break;
 
     case DrawTool::Circle:
         layerImg = tempState;
-        PaintTools::drawCircle(layerImg, startPoint, currentPoint, drawColor);
+        PaintTools::drawCircle(layerImg, startPoint, currentPoint, drawColor, brushSize);
         if (m_verticalMirror) {
-            PaintTools::drawCircle(layerImg, getMirroredPoint(startPoint), getMirroredPoint(currentPoint), drawColor);
+            PaintTools::drawCircle(layerImg, getMirroredPoint(startPoint), getMirroredPoint(currentPoint), drawColor, brushSize);
         }
         break;
 
@@ -397,7 +397,7 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
                 if (currentTool == DrawTool::Fill) {
                     PaintTools::floodFill(layerImg, x, y, targetColor, replacementColor);
                 } else {
-                    PaintTools::floodFillDithering(layerImg, x, y, targetColor, replacementColor);
+                    PaintTools::floodFillDithering(layerImg, x, y, targetColor, replacementColor, brushSize);
                 }
 
                 if (m_verticalMirror) {
@@ -406,11 +406,10 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
                         QColor mirrorTarget = layerImg.pixelColor(mx, y);
                         if (mirrorTarget != replacementColor) {
                             if (currentTool == DrawTool::Fill) PaintTools::floodFill(layerImg, mx, y, mirrorTarget, replacementColor);
-                            else PaintTools::floodFillDithering(layerImg, mx, y, mirrorTarget, replacementColor);
+                            else PaintTools::floodFillDithering(layerImg, mx, y, mirrorTarget, replacementColor, brushSize); // Додали brushSize!
                         }
                     }
                 }
-
                 m_model->saveHistoryStep(tempState);
                 m_model->notifyImageChanged();
                 update();
@@ -421,7 +420,7 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
 
     if (currentTool == DrawTool::BrokenLine) {
         if (lastPoint.x() != -1) {
-            PaintTools::drawLine(layerImg, lastPoint, startPoint, replacementColor);
+            PaintTools::drawLine(layerImg, lastPoint, startPoint, replacementColor, brushSize);
             m_model->saveHistoryStep(tempState);
         }
         lastPoint = startPoint;

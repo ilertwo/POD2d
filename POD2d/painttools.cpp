@@ -42,16 +42,16 @@ void PaintTools::floodFill(QImage &image, int x, int y, const QColor &targetColo
     }
 }
 
-void PaintTools::floodFillDithering(QImage &image, int startX, int startY, const QColor &targetColor, const QColor &replacementColor) {
+void PaintTools::floodFillDithering(QImage &image, int startX, int startY, const QColor &targetColor, const QColor &replacementColor, int brushSize) {
     const int width = image.width();
     const int height = image.height();
+    int bSize = qMax(1, brushSize);
 
     if (startX < 0 || startX >= width || startY < 0 || startY >= height) return;
     if (targetColor == replacementColor) return;
     if (image.pixelColor(startX, startY) != targetColor) return;
 
     QVector<bool> visited(width * height, false);
-
     QQueue<QPoint> queue;
     queue.enqueue(QPoint(startX, startY));
     visited[startY * width + startX] = true;
@@ -64,7 +64,7 @@ void PaintTools::floodFillDithering(QImage &image, int startX, int startY, const
         int x = p.x();
         int y = p.y();
 
-        if ((x + y) % 2 == 0) {
+        if (((x / bSize) + (y / bSize)) % 2 == 0) {
             image.setPixelColor(x, y, replacementColor);
         }
 
@@ -74,7 +74,6 @@ void PaintTools::floodFillDithering(QImage &image, int startX, int startY, const
 
             if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                 int index = ny * width + nx;
-
                 if (!visited[index] && image.pixelColor(nx, ny) == targetColor) {
                     visited[index] = true;
                     queue.enqueue(QPoint(nx, ny));
@@ -84,23 +83,44 @@ void PaintTools::floodFillDithering(QImage &image, int startX, int startY, const
     }
 }
 
-void PaintTools::drawLine(QImage &image, const QPoint &start, const QPoint &end, const QColor &color) {
+void PaintTools::drawLine(QImage &image, const QPoint &start, const QPoint &end, const QColor &color, int brushSize) {
     QPainter p(&image);
-    p.setPen(QPen(color, 1));
+    p.setCompositionMode(QPainter::CompositionMode_Source);
+    p.setPen(QPen(color, brushSize, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.setRenderHint(QPainter::Antialiasing, false);
-    p.drawLine(start, end);
+
+    int x0 = start.x();
+    int y0 = start.y();
+    int x1 = end.x();
+    int y1 = end.y();
+
+    int dx = std::abs(x1 - x0);
+    int dy = std::abs(y1 - y0);
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+    int err = dx - dy;
+
+    while (true) {
+        p.drawPoint(x0, y0);
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x0 += sx; }
+        if (e2 < dx) { err += dx; y0 += sy; }
+    }
 }
 
-void PaintTools::drawRect(QImage &image, const QPoint &start, const QPoint &end, const QColor &color) {
+void PaintTools::drawRect(QImage &image, const QPoint &start, const QPoint &end, const QColor &color, int brushSize) {
     QPainter p(&image);
-    p.setPen(QPen(color, 1));
+    p.setCompositionMode(QPainter::CompositionMode_Source);
+    p.setPen(QPen(color, brushSize, Qt::SolidLine, Qt::SquareCap, Qt::MiterJoin));
     p.setRenderHint(QPainter::Antialiasing, false);
     p.drawRect(QRect(start, end).normalized());
 }
 
-void PaintTools::drawCircle(QImage &image, const QPoint &start, const QPoint &end, const QColor &color) {
+void PaintTools::drawCircle(QImage &image, const QPoint &start, const QPoint &end, const QColor &color, int brushSize) {
     QPainter p(&image);
-    p.setPen(QPen(color, 1));
+    p.setCompositionMode(QPainter::CompositionMode_Source);
+    p.setPen(QPen(color, brushSize, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     p.setRenderHint(QPainter::Antialiasing, false);
 
     int dx = start.x() - end.x();

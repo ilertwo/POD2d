@@ -221,7 +221,7 @@ void MainWindow::connectAutoSaveTimer() {
 
 void MainWindow::connectRecentProjects() {
     connect(ui->list_RecentProjects, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
-        fileController->loadProjectFromFile(item->data(Qt::UserRole).toString());
+        openFile(item->data(Qt::UserRole).toString());
     });
 }
 
