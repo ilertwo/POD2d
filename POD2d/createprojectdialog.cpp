@@ -1,5 +1,6 @@
 #include "createprojectdialog.h"
 #include "ui_createprojectdialog.h"
+#include "settingsmanager.h"
 
 #include <QSettings>
 #include <QFileDialog>
@@ -18,16 +19,21 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
     QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     ui->input_Location->setPlaceholderText(defaultPath);
 
-    QSettings settings("POD2d", "EditorSettings");
-    int defaultWidth = settings.value("editor/defaultWidth", 128).toInt();
-    int defaultHeight = settings.value("editor/defaultHeight", 64).toInt();
+    int defaultWidth = SettingsManager::getValue("editor/defaultWidth", 128).toInt();
+    int defaultHeight = SettingsManager::getValue("editor/defaultHeight", 64).toInt();
+    int defaultColorMode = SettingsManager::getValue("editor/defaultColorMode", 0).toInt();
 
     ui->spin_Width->setValue(defaultWidth);
     ui->spin_Height->setValue(defaultHeight);
+    ui->cmb_ColorMode->setCurrentIndex(defaultColorMode);
 
     QString basePath = QFileInfo(__FILE__).dir().absolutePath();
 
-    connect(ui->btn_ConfirmCreate, &QPushButton::clicked, this, &QDialog::accept);
+    connect(ui->btn_ConfirmCreate, &QPushButton::clicked, this, [this]() {
+        SettingsManager::setValue("editor/defaultColorMode", ui->cmb_ColorMode->currentIndex());
+        this->accept();
+    });
+
     connect(ui->btn_Cancel, &QPushButton::clicked, this, &QDialog::reject);
 
     connect(ui->btn_Browse,  &QPushButton::clicked, this, &CreateProjectDialog::on_btn_Browse_clicked);
@@ -37,8 +43,7 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
 
 void CreateProjectDialog::setTheme() {
     QString basePath = QFileInfo(__FILE__).dir().absolutePath();
-    QSettings settings("POD2d", "EditorSettings");
-    QString theme = settings.value("ui/theme", "dark").toString();
+    QString theme = SettingsManager::getTheme();
 
     QFont pixelFont("Courier New", 14, QFont::Bold);
 

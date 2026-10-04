@@ -76,6 +76,7 @@ public:
     QImage getLayerThumbnail(int index) const;
     QImage getCurrentLayerImage() const;
     QImage applyBackground(const QImage &source) const;
+    void setMonoColor(const QColor &color);
 
     // 4. CLIPBOARD AND EDITING
     void setCanvasSize(int width, int height);
@@ -124,6 +125,7 @@ signals:
 
 private:
     Frame createDefaultFrame() const;
+    QImage applyTint(const QImage &source) const;
 
     // Configuration constants
     int maxFrames = 64;
@@ -146,6 +148,8 @@ private:
 
     // Animation
     class QTimer *playTimer;
+
+    QColor m_monoColor = Qt::white;
 };
 
 #endif // PROJECTMODEL_H

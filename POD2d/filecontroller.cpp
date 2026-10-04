@@ -1,4 +1,5 @@
 #include "filecontroller.h"
+#include "pixelcanvas.h"
 #include "projectmodel.h"
 #include "createprojectdialog.h"
 #include "settingsmanager.h"
@@ -140,6 +141,24 @@ void FileController::saveProject() {
 
     if (m_currentFilePath.endsWith(".png", Qt::CaseInsensitive)) {
         QImage img = m_model->getFlattenedImage();
+
+        if (!m_model->getIsRGB()) {
+            QColor monoColor = m_parentWindow->findChild<PixelCanvas*>("canvasWidget")->getMonoDisplayColor();
+            if (monoColor != Qt::white) {
+                img = img.convertToFormat(QImage::Format_ARGB32);
+                const QRgb whiteRgb = qRgba(255, 255, 255, 255);
+                const QRgb targetRgb = monoColor.rgba();
+                for (int y = 0; y < img.height(); ++y) {
+                    QRgb *line = reinterpret_cast<QRgb*>(img.scanLine(y));
+                    for (int x = 0; x < img.width(); ++x) {
+                        if (line[x] == whiteRgb) {
+                            line[x] = targetRgb;
+                        }
+                    }
+                }
+            }
+        }
+
         if (!img.save(m_currentFilePath, "PNG")) {
             QMessageBox::critical(m_parentWindow, tr("Error"), tr("Failed to save PNG file."));
             return;

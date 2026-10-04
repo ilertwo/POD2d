@@ -40,6 +40,8 @@ void SettingsManager::setShowMiniMap(bool show) { setValue("ui/showMiniMap", sho
 bool SettingsManager::getShowGrid() { return getValue("canvas/showGrid", true).toBool(); }
 QColor SettingsManager::getGridColor() { return QColor(getValue("canvas/gridColor", "#333333").toString()); }
 QString SettingsManager::getBgStyle() { return getValue("canvas/bgStyle", "Checkerboard").toString(); }
+QColor SettingsManager::getMonoColor() { return QColor(getValue("editor/monoColor", "#FFFFFF").toString()); }
+void SettingsManager::setMonoColor(const QColor &color) { setValue("editor/monoColor", color.name()); }
 
 // Editor
 bool SettingsManager::getAutoSave() { return getValue("editor/autoSave", false).toBool(); }

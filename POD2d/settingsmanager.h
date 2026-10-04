@@ -33,6 +33,8 @@ public:
     static bool getShowGrid();
     static QColor getGridColor();
     static QString getBgStyle();
+    static QColor getMonoColor();
+    static void setMonoColor(const QColor &color);
 
     // ==========================================
     // Editor Tools

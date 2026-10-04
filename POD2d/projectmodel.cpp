@@ -83,6 +83,26 @@ Frame ProjectModel::createDefaultFrame() const {
     return frame;
 }
 
+QImage ProjectModel::applyTint(const QImage &source) const {
+    if (isRGB || m_monoColor == Qt::white || source.isNull()) {
+        return source;
+    }
+
+    QImage result = source.convertToFormat(QImage::Format_ARGB32);
+    const QRgb whiteRgb = qRgba(255, 255, 255, 255);
+    const QRgb targetRgb = m_monoColor.rgba();
+
+    for (int y = 0; y < result.height(); ++y) {
+        QRgb *line = reinterpret_cast<QRgb*>(result.scanLine(y));
+        for (int x = 0; x < result.width(); ++x) {
+            if (line[x] == whiteRgb) {
+                line[x] = targetRgb;
+            }
+        }
+    }
+    return result;
+}
+
 void ProjectModel::deleteCurrentFrame() {
     if (frames.size() <= 1) return;
 
@@ -372,7 +392,7 @@ QImage ProjectModel::getFlattenedImage() const {
             }
         }
     }
-    return result;
+    return applyTint(result);
 }
 
 QImage ProjectModel::getFlattenedFrame(int index) const {
@@ -387,7 +407,7 @@ QImage ProjectModel::getFlattenedFrame(int index) const {
             }
         }
     }
-    return result;
+    return applyTint(result);
 }
 
 QImage ProjectModel::getFrameThumbnail(int index) const {
@@ -405,7 +425,7 @@ QImage ProjectModel::getLayerThumbnail(int index) const {
     QPainter painter(&result);
     painter.drawImage(0, 0, frames[currentFrameIndex].layers[index]);
 
-    return applyBackground(result);
+    return applyBackground(applyTint(result));
 }
 
 QImage ProjectModel::getCurrentLayerImage() const {
@@ -446,6 +466,16 @@ QImage ProjectModel::applyBackground(const QImage &source) const {
     }
     p.drawImage(0, 0, source);
     return result;
+}
+
+void ProjectModel::setMonoColor(const QColor &color) {
+    if (m_monoColor == color) return;
+
+    m_monoColor = color;
+    notifyImageChanged();
+
+    emit framesListChanged();
+    emit layersListChanged();
 }
 
 // ==========================================

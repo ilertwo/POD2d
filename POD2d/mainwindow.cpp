@@ -461,6 +461,10 @@ void MainWindow::onProjectReady(int width, int height, bool isRgb) {
     ui->canvasWidget->setSecondaryColor(currentSecondaryColor);
     updateColorIndicators();
 
+    QColor savedMono = SettingsManager::getMonoColor();
+    ui->canvasWidget->setMonoDisplayColor(savedMono);
+    projectModel->setMonoColor(savedMono);
+
     ui->layersListWidget->rebuildList();
     ui->framesListWidget->rebuildList();
     updateUIProportions(width, height);
@@ -818,12 +822,14 @@ void MainWindow::updateRecentProjectsUI() {
         item->setSizeHint(QSize(400, 55));
 
         QWidget *rowWidget = new QWidget();
+        rowWidget->setCursor(Qt::PointingHandCursor);
+
         QVBoxLayout *layout = new QVBoxLayout(rowWidget);
         layout->setContentsMargins(10, 5, 10, 5);
         layout->setSpacing(2);
 
         QLabel *nameLabel = new QLabel(fileInfo.fileName());
-        nameLabel->setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 14px; background: transparent;");
+        nameLabel->setStyleSheet("color: #64B5F6; font-weight: bold; font-size: 14px; background: transparent;");
 
         QLabel *pathLabel = new QLabel(fileInfo.absoluteFilePath());
         pathLabel->setStyleSheet("color: #888888; font-size: 11px; background: transparent;");
@@ -928,7 +934,8 @@ void MainWindow::chooseAndSetColor() {
 
     if (selectedColor.isValid()) {
         ui->canvasWidget->setMonoDisplayColor(selectedColor);
-
+        projectModel->setMonoColor(selectedColor);
+        SettingsManager::setMonoColor(selectedColor);
         ui->canvasWidget->setPrimaryColor(selectedColor);
         currentPrimaryColor = selectedColor;
         updateColorIndicators();

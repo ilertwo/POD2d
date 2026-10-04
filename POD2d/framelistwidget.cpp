@@ -46,7 +46,8 @@ void FrameListWidget::setModel(ProjectModel *model) {
         if (item) {
             if (QWidget *cellWidget = this->itemWidget(item)) {
                 if (QLabel *imgLabel = cellWidget->findChild<QLabel*>("frameImage")) {
-                    QPixmap newPix = QPixmap::fromImage(flatImg).scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
+                    QImage bgImg = m_model->applyBackground(flatImg);
+                    QPixmap newPix = QPixmap::fromImage(bgImg).scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
                     imgLabel->setPixmap(newPix);
                 }
             }
