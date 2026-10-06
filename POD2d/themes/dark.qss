@@ -20,13 +20,21 @@ QListWidget {
 QMenu {
     background-color: #2b2b2b;
     color: #ffffff;
-    border: 1px solid #555555;
-    border-radius: 8px;
+    border: 1px solid #444444; 
+    border-radius: 6px; 
+    padding: 4px 0px; 
+}
+
+QMenu::item {
+    padding: 6px 24px 6px 16px;
+    background-color: transparent;
 }
 
 QMenu::item:selected {
-    background-color: #0078d7;
+    background-color: #3c3c3c; 
     color: #ffffff;
+    border-radius: 4px;
+    margin: 0px 4px; 
 }
 
 QMenu::item:disabled {
@@ -35,16 +43,21 @@ QMenu::item:disabled {
 }
 
 /* =======================================
-   PANELS, FRAMES & LABELS
+   PANELS, FRAMES, LABELS & LINES
    ======================================= */
-/* Fully rounded panels */
+QFrame[frameShape="4"], QFrame[frameShape="5"] {
+    border: none;
+    background-color: #444444;
+    max-height: 1px;
+    max-width: 1px;
+}
+
 #layersPanelWidget, #frm_Palette {
     background-color: #2b2b2b;
     border: 1px solid #444444;
     border-radius: 8px;
 }
 
-/* Top rounded labels */
 #layersLabel, #toolsLabel, #paletteLabel {
     border: 1px solid #444444;
     border-top-left-radius: 8px;
@@ -53,7 +66,6 @@ QMenu::item:disabled {
     border-bottom-right-radius: 0px;
 }
 
-/* Bottom rounded panels */
 #frm_Tools, #widget, #frm_AddDeleteLayer {
     background-color: #2b2b2b;
     border-left: 1px solid #444444;
@@ -65,13 +77,16 @@ QMenu::item:disabled {
     border-bottom-right-radius: 8px;
 }
 
-/* Specific asymmetrical overrides */
 #frm_AddDeleteFrame {
     border: 1px solid #444444;
     border-top-left-radius: 0px;
-    border-top-right-radius: 8px;
+    border-top-right-radius: 0px;
     border-bottom-left-radius: 0px;
-    border-bottom-right-radius: 8px;
+    border-bottom-right-radius: 0px;
+    border-top: 1px solid #444444;
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
 }
 
 #frm_Menu {
@@ -98,6 +113,11 @@ QMenu::item:disabled {
     border-radius: 0px;
 }
 
+#frm_Figures, #frame_8, #frame_9 {
+    border-radius: 0px;
+    border: none;
+}
+
 /* =======================================
    MODERN SCROLLBAR (Combined V & H)
    ======================================= */
@@ -110,7 +130,6 @@ QScrollBar:vertical, QScrollBar:horizontal {
 QScrollBar:vertical { width: 14px; }
 QScrollBar:horizontal { height: 14px; }
 
-/* Scrollbar Handles */
 QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
     background-color: #555555;
     border-radius: 5px;
@@ -122,7 +141,6 @@ QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
     background-color: #777777; 
 }
 
-/* Remove checkered background and default arrows */
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,
 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal,
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
@@ -140,16 +158,36 @@ QComboBox {
     background-color: #2b2b2b;
     color: #ffffff;
     border: 1px solid #555555;
-    border-radius: 8px;
-    padding: 2px 20px 2px 10px; 
+    border-radius: 6px;
+    padding: 4px 10px; 
+}
+
+QComboBox:hover {
+    border: 1px solid #888888;
+    background-color: #333333;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: 1px solid #444444; 
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+QComboBox::down-arrow {
+    image: url("{BASE_PATH}/image/dark/arrow_down.png");
+    width: 12px;
+    height: 12px;
 }
 
 QComboBox QAbstractItemView {
     background-color: #2b2b2b;
     color: #ffffff;
-    border: 1px solid #777777;
-    border-radius: 8px;
-    selection-background-color: #0078d7;
+    border: 1px solid #555555;
+    border-radius: 6px;
+    selection-background-color: #3c3c3c;
     selection-color: #ffffff;
     outline: none;
 }
@@ -157,6 +195,68 @@ QComboBox QAbstractItemView {
 QComboBox QAbstractItemView::item {
     min-height: 26px; 
     padding-left: 8px; 
+}
+
+/* =======================================
+   SPINBOXES & TIMEEDIT
+   ======================================= */
+QSpinBox, QTimeEdit {
+    background-color: #2b2b2b;
+    color: #ffffff;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    padding: 4px 25px 4px 8px;
+}
+
+QSpinBox:hover, QTimeEdit:hover {
+    border: 1px solid #888888;
+}
+
+QSpinBox::up-button, QTimeEdit::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 20px;
+    margin-top: 1px;
+    margin-right: 1px;
+    background-color: transparent;
+    border: none;
+    border-left: 1px solid #444444;
+    border-bottom: 1px solid #444444;
+    border-top-right-radius: 3px;
+}
+
+QSpinBox::down-button, QTimeEdit::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 20px;
+    margin-bottom: 1px;
+    margin-right: 1px;
+    background-color: transparent;
+    border: none;
+    border-left: 1px solid #444444;
+    border-bottom-right-radius: 3px;
+}
+
+QSpinBox::up-button:hover, QTimeEdit::up-button:hover,
+QSpinBox::down-button:hover, QTimeEdit::down-button:hover {
+    background-color: #353535;
+}
+
+QSpinBox::up-button:pressed, QTimeEdit::up-button:pressed,
+QSpinBox::down-button:pressed, QTimeEdit::down-button:pressed {
+    background-color: #404040; 
+}
+
+QSpinBox::up-arrow, QTimeEdit::up-arrow {
+    image: url("{BASE_PATH}/image/dark/arrow_up.png");
+    width: 10px;
+    height: 10px;
+}
+
+QSpinBox::down-arrow, QTimeEdit::down-arrow {
+    image: url("{BASE_PATH}/image/dark/arrow_down.png");
+    width: 10px;
+    height: 10px;
 }
 
 /* =======================================
@@ -226,4 +326,49 @@ QMenuBar::item:selected {
 
 QMenuBar::item:disabled {
     color: #777777;
+}
+
+/* =======================================
+   SLIDER (QSlider)
+   ======================================= */
+QSlider::groove:horizontal {
+    border: 1px solid #444444;
+    height: 6px;
+    background: #1e1e1e;
+    margin: 2px 0;
+    border-radius: 3px;
+}
+
+QSlider::handle:horizontal {
+    background: #888888;
+    border: 2px solid #2b2b2b;
+    width: 14px;
+    height: 14px;
+    margin: -6px 0;
+    border-radius: 8px;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #ffffff;
+}
+
+QSlider::add-page:horizontal {
+    background: #1e1e1e;
+    border-radius: 3px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #555555;
+    border-radius: 3px;
+}
+
+#line, #line_2, #line_3 {
+    border: none;
+    background-color: #444444;
+    min-height: 1px;
+    max-height: 1px;
+    min-width: 130px;
+    max-width: 130px;
+    margin-left: 10px;
+    margin-top: 2px;
 }
