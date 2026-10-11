@@ -1,8 +1,8 @@
-#include "filecontroller.h"
-#include "pixelcanvas.h"
-#include "projectmodel.h"
-#include "createprojectdialog.h"
-#include "settingsmanager.h"
+#include "core/filecontroller.h"
+#include "widgets/pixelcanvas.h"
+#include "models/projectmodel.h"
+#include "dialogs/createprojectdialog.h"
+#include "core/settingsmanager.h"
 
 #include <QFileDialog>
 #include <QStandardPaths>

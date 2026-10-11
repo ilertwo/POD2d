@@ -1,4 +1,4 @@
-#include "settingsmanager.h"
+#include "core/settingsmanager.h"
 #include <QSettings>
 #include <QStandardPaths>
 

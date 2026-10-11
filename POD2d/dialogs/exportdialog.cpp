@@ -1,9 +1,9 @@
-#include "exportdialog.h"
+#include "dialogs/exportdialog.h"
 #include "ui_exportdialog.h"
-#include "projectmodel.h"
-#include "codegenerator.h"
+#include "models/projectmodel.h"
+#include "models/codegenerator.h"
 
-#include "gif.h"
+#include "models/gif.h"
 
 #include <QPainter>
 #include <QDebug>

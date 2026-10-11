@@ -1,6 +1,6 @@
-#include "createprojectdialog.h"
+#include "dialogs/createprojectdialog.h"
 #include "ui_createprojectdialog.h"
-#include "settingsmanager.h"
+#include "core/settingsmanager.h"
 
 #include <QSettings>
 #include <QFileDialog>
@@ -27,7 +27,7 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
     ui->spin_Height->setValue(defaultHeight);
     ui->cmb_ColorMode->setCurrentIndex(defaultColorMode);
 
-    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
 
     connect(ui->btn_ConfirmCreate, &QPushButton::clicked, this, [this]() {
         SettingsManager::setValue("editor/defaultColorMode", ui->cmb_ColorMode->currentIndex());
@@ -42,7 +42,7 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
 }
 
 void CreateProjectDialog::setTheme() {
-    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
     QString theme = SettingsManager::getTheme();
 
     QFont pixelFont("Courier New", 14, QFont::Bold);

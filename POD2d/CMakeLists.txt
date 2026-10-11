@@ -12,58 +12,85 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
+set(CORE_FILES
+    core/actionmanager.h
+    core/actionmanager.cpp
+    core/filecontroller.h
+    core/filecontroller.cpp
+    core/settingsmanager.h
+    core/settingsmanager.cpp
+    core/thememanager.h
+    core/thememanager.cpp
+    core/logger.h
+    core/logger.cpp
+)
+
+set(MODELS_FILES
+    models/projectmodel.h
+    models/projectmodel.cpp
+    models/codegenerator.h
+    models/codegenerator.cpp
+    models/painttools.h
+    models/painttools.cpp
+    models/gif.h
+)
+
+set(WIDGETS_FILES
+    widgets/pixelcanvas.h
+    widgets/pixelcanvas.cpp
+    widgets/palettewidget.h
+    widgets/palettewidget.cpp
+    widgets/layerlistwidget.h
+    widgets/layerlistwidget.cpp
+    widgets/framelistwidget.h
+    widgets/framelistwidget.cpp
+    widgets/flowlayout.h
+    widgets/flowlayout.cpp
+)
+
+set(DIALOGS_FILES
+    dialogs/createprojectdialog.h
+    dialogs/createprojectdialog.cpp
+    dialogs/createprojectdialog.ui
+    dialogs/exportdialog.h
+    dialogs/exportdialog.cpp
+    dialogs/exportdialog.ui
+    dialogs/settingsdialog.h
+    dialogs/settingsdialog.cpp
+    dialogs/settingsdialog.ui
+    dialogs/palettedialog.h
+    dialogs/palettedialog.cpp
+    dialogs/palettedialog.ui
+    dialogs/textdialog.h
+    dialogs/textdialog.cpp
+    dialogs/textdialog.ui
+)
+
+set(MAIN_FILES
+    main.cpp
+    mainwindow.h
+    mainwindow.cpp
+    mainwindow.ui
+)
+
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+    ${MAIN_FILES}
+    ${CORE_FILES}
+    ${MODELS_FILES}
+    ${WIDGETS_FILES}
+    ${DIALOGS_FILES}
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(POD2d
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        pixelcanvas.h pixelcanvas.cpp
-        projectmodel.h projectmodel.cpp
-        codegenerator.h codegenerator.cpp
-        painttools.h painttools.cpp
-        createprojectdialog.ui
-        createprojectdialog.h
-        createprojectdialog.cpp
-        exportdialog.h exportdialog.cpp exportdialog.ui
-        settingsdialog.h settingsdialog.cpp settingsdialog.ui
-        gif.h
-        palettedialog.h palettedialog.cpp palettedialog.ui
-        textdialog.h textdialog.cpp textdialog.ui
-        palettewidget.h palettewidget.cpp
-        layerlistwidget.h layerlistwidget.cpp
-        framelistwidget.h framelistwidget.cpp
-        filecontroller.h filecontroller.cpp
-        actionmanager.h actionmanager.cpp
-        thememanager.h thememanager.cpp
-        settingsmanager.h settingsmanager.cpp
-        logger.h logger.cpp
-        flowlayout.h
-        flowlayot.cpp
-
-        #app_icon.rc
-
-
-
-
     )
-target_include_directories(POD2d PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET POD2d APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
 else()
     if(ANDROID)
         add_library(POD2d SHARED
             ${PROJECT_SOURCES}
         )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
     else()
         add_executable(POD2d
             ${PROJECT_SOURCES}
@@ -71,20 +98,27 @@ else()
     endif()
 endif()
 
+target_include_directories(POD2d PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/dialogs
+    ${CMAKE_CURRENT_SOURCE_DIR}/models
+    ${CMAKE_CURRENT_SOURCE_DIR}/widgets
+)
+
 target_link_libraries(POD2d PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
 if(${QT_VERSION} VERSION_LESS 6.1.0)
   set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.POD2d)
 endif()
+
 set_target_properties(POD2d PROPERTIES
     ${BUNDLE_ID_OPTION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
+    AUTOUIC_SEARCH_PATHS ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 include(GNUInstallDirs)

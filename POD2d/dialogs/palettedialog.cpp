@@ -1,4 +1,4 @@
-#include "palettedialog.h"
+#include "dialogs/palettedialog.h"
 #include "ui_palettedialog.h"
 
 #include <QMouseEvent>
@@ -58,7 +58,7 @@ PaletteDialog::PaletteDialog(QWidget *parent) :
 }
 
 void PaletteDialog::setTheme() {
-    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
     QSettings settings("POD2d", "EditorSettings");
     QString theme = settings.value("ui/theme", "dark").toString();
 

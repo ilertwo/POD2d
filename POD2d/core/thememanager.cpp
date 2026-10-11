@@ -1,6 +1,6 @@
-#include "thememanager.h"
+#include "core/thememanager.h"
 #include "ui_mainwindow.h"
-#include "projectmodel.h"
+#include "models/projectmodel.h"
 #include <QFile>
 #include <QTextStream>
 #include <QApplication>
@@ -102,7 +102,7 @@ void updateDockTitleBars(Ui::MainWindow *ui, const QString &theme) {
 }
 
 void ThemeManager::applyTheme(const QString &themeName, QWidget *mainWindow) {
-    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
     QString filePath = QString(basePath + "/themes/%1.qss").arg(themeName);
 
     QFile file(filePath);
@@ -132,7 +132,7 @@ QIcon ThemeManager::generate1bitIcon(const QString &text) {
 }
 
 void ThemeManager::loadIcons(Ui::MainWindow *ui, const QString &theme, ProjectModel *model, QWidget *mainWindow) {
-    QString basePath = QFileInfo(__FILE__).dir().absolutePath();
+    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
     QFont pixelFont("Courier New", 14, QFont::Bold);
 
     auto setBtnIcon = [&](QPushButton* btn, const QString& text, const QString& iconName) {
