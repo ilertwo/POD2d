@@ -43,6 +43,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         thememanager.h thememanager.cpp
         settingsmanager.h settingsmanager.cpp
         logger.h logger.cpp
+        flowlayout.h
+        flowlayot.cpp
 
         #app_icon.rc
 

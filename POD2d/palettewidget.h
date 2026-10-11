@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QColor>
 #include <QList>
+#include <QResizeEvent>
 
 class QGridLayout;
 
@@ -24,6 +25,7 @@ signals:
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
     void onAddNewColorClicked();
@@ -36,6 +38,7 @@ private:
     QList<QColor> m_palette;
     QGridLayout *m_gridLayout;
     int m_mainSwapIndex = -1;
+    int m_columns = 4;
 };
 
 #endif // PALETTEWIDGET_H

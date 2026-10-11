@@ -8,6 +8,7 @@
 
 class ProjectModel;
 class FileController;
+class QToolBar;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -60,9 +61,18 @@ private slots:
     void updateRecentProjectsUI();
     void updateColorIndicators();
     void updateUiStates();
+    void updateFramesOrientation();
+    void updateLayersOrientation();
+    void refreshMiniMap();
+    void snapToolsWidth();
 
     bool maybeSave();
     void closeProject();
+
+    void saveDockVisibility();
+    void saveDockState();
+    void restoreDockState();
+    void resetDockLayout();
 
     // View toggles
     void setMiniMapVisible(bool visible);
@@ -76,6 +86,13 @@ private:
 
     // Main data model (Controller -> Model)
     ProjectModel *projectModel = nullptr;
+    QToolBar *toolBarMain = nullptr;
+
+    QAction *actResetLayout = nullptr;
+    QByteArray m_defaultDockState;
+    QList<QDockWidget *> m_docks;
+    QByteArray m_defaultState;
+    QByteArray m_editorState;
 
     // Current file & Autosave
     FileController *fileController = nullptr;
@@ -87,9 +104,12 @@ private:
 
     // Initialization Stages (Startup)
     void initModels();
+    void setupDocks();
     void setupTheme();
     void setupConnections();
     void setupPalette();
+    void setupToolsFlow();
+    void setupStatusBar();
 
     // Signal connection assignment
     void connectModelToLists();

@@ -3,6 +3,7 @@
 
 #include <QListWidget>
 #include <QMenu>
+#include <QResizeEvent>
 
 class ProjectModel;
 
@@ -14,6 +15,11 @@ public:
     void setModel(ProjectModel *model);
     void reloadTheme();
     void rebuildList();
+    void setHorizontal(bool horizontal);
+    bool m_horizontal = false;
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
     void showContextMenu(const QPoint &pos);
@@ -21,6 +27,7 @@ private slots:
     void onThumbnailUpdated(int index);
     void onRowsMoved(const QModelIndex &parent, int start, int end, const QModelIndex &destination, int row);
     void onCurrentRowChanged(int row);
+    void updateItemSizes();
 
 private:
     ProjectModel *m_model = nullptr;

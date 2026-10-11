@@ -4,8 +4,10 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QAction>
+#include <QMenu>
 #include <QEvent>
 #include <QMouseEvent>
+#include <QResizeEvent>
 
 LayerListWidget::LayerListWidget(QWidget *parent) : QListWidget(parent) {
     this->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -13,6 +15,9 @@ LayerListWidget::LayerListWidget(QWidget *parent) : QListWidget(parent) {
     this->setIconSize(QSize(64, 32));
     this->setSpacing(3);
     this->setDragDropMode(QAbstractItemView::InternalMove);
+    this->setResizeMode(QListView::Adjust);
+
+    setHorizontal(false);
 
     connect(this, &QWidget::customContextMenuRequested, this, &LayerListWidget::showContextMenu);
     connect(this, &QListWidget::currentRowChanged, this, &LayerListWidget::onCurrentRowChanged);
@@ -20,6 +25,34 @@ LayerListWidget::LayerListWidget(QWidget *parent) : QListWidget(parent) {
     connect(this->model(), &QAbstractItemModel::rowsMoved, this, &LayerListWidget::onRowsMoved);
 
     this->viewport()->installEventFilter(this);
+}
+
+void LayerListWidget::setHorizontal(bool horizontal) {
+    m_horizontal = horizontal;
+
+    setFlow(horizontal ? QListView::LeftToRight : QListView::TopToBottom);
+    setWrapping(false);
+    setVerticalScrollBarPolicy  (horizontal ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded);
+    setHorizontalScrollBarPolicy(horizontal ? Qt::ScrollBarAsNeeded  : Qt::ScrollBarAlwaysOff);
+    setMinimumHeight(horizontal ? 70 : 0);
+    setMinimumWidth (horizontal ? 0  : 120);
+
+    updateItemSizes();
+}
+
+void LayerListWidget::updateItemSizes() {
+    QSize hint(120, 46);
+    if (!m_horizontal) {
+        hint.setWidth(qMax(80, viewport()->width() - 2 * spacing() - 1));
+    }
+    for (int i = 0; i < count(); ++i) {
+        item(i)->setSizeHint(hint);
+    }
+}
+
+void LayerListWidget::resizeEvent(QResizeEvent *event) {
+    QListWidget::resizeEvent(event);
+    if (!m_horizontal) updateItemSizes();
 }
 
 void LayerListWidget::setModel(ProjectModel *model) {
@@ -93,15 +126,15 @@ void LayerListWidget::rebuildList() {
         itemBg = "black";
         textColor = "white";
     } else if (theme == "light") {
-        normalItemBorder = "border: 1px solid #d4d4d4;";
-        selectedItemBorder = "border: 2px solid #0078d7;";
-        itemBg = "#e0e0e0";
-        textColor = "#202020";
+        normalItemBorder = "border: 1px solid #C4C2BC;";
+        selectedItemBorder = "border: 2px solid #3E7FD6;";
+        itemBg = "#F3F2EF";
+        textColor = "#2A2C2F";
     } else { // dark
-        normalItemBorder = "border: 1px solid #444444;";
-        selectedItemBorder = "border: 2px solid #888888;";
-        itemBg = "#333333";
-        textColor = "white";
+        normalItemBorder = "border: 1px solid #3f4246;";
+        selectedItemBorder = "border: 2px solid #5aa2ff;";
+        itemBg = "#2f3135";
+        textColor = "#e3e5e8";
     }
 
     this->setStyleSheet(
@@ -139,7 +172,7 @@ void LayerListWidget::rebuildList() {
         if (isVis) {
             textLabel->setStyleSheet("color: " + textColor + "; font-weight: bold; background: transparent;");
         } else {
-            textLabel->setStyleSheet("color: #777777; font-weight: bold; text-decoration: line-through; background: transparent;");
+            textLabel->setStyleSheet("color: " + ((theme == "1bit") ? textColor : QString("#777777")) + "; font-weight: bold; text-decoration: line-through; background: transparent;");
         }
 
         layout->addWidget(imageLabel);
@@ -149,6 +182,7 @@ void LayerListWidget::rebuildList() {
         this->setItemWidget(item, rowWidget);
     }
 
+    updateItemSizes();
     this->setCurrentRow(m_model->getCurrentLayerIndex());
 }
 

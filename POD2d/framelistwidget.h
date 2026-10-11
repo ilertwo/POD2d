@@ -3,6 +3,7 @@
 
 #include <QListWidget>
 #include <QMenu>
+#include <QResizeEvent>
 
 class ProjectModel;
 
@@ -16,9 +17,11 @@ public:
 public slots:
     void rebuildList();
     void reloadTheme();
+    void setHorizontal(bool horizontal);
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private slots:
     void showContextMenu(const QPoint &pos);
@@ -28,6 +31,9 @@ private slots:
 
 private:
     ProjectModel *m_model = nullptr;
+
+    void updateItemSizes();
+    bool m_horizontal = true;
 };
 
 #endif // FRAMELISTWIDGET_H

@@ -9,6 +9,7 @@
 #include "thememanager.h"
 #include "actionmanager.h"
 #include "settingsmanager.h"
+#include "flowlayout.h"
 
 #include <QFileDialog>
 #include <QColorDialog>
@@ -29,6 +30,30 @@
 #include <QDropEvent>
 #include <QMimeData>
 #include <QEvent>
+#include <QDockWidget>
+#include <QAction>
+#include <QSettings>
+#include <QToolBar>
+#include <QTabBar>
+#include <QMouseEvent>
+
+namespace {
+bool shapeWantsHorizontal(QMainWindow *mw, QDockWidget *dock, bool currentHorizontal) {
+    if (dock->isVisible() && dock->width() > 0 && dock->height() > 0) {
+        const double ratio = double(dock->width()) / double(dock->height());
+        if (ratio > 1.15)       return true;
+        if (ratio < 1.0 / 1.15) return false;
+        return currentHorizontal;
+    }
+    const Qt::DockWidgetArea area = mw->dockWidgetArea(dock);
+    return dock->isFloating()
+           || area == Qt::BottomDockWidgetArea
+           || area == Qt::TopDockWidgetArea
+           || area == Qt::NoDockWidgetArea;
+}
+
+constexpr int kDockStateVersion = 2;
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -37,6 +62,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     setWindowTitle("POD2d");
 
+    setupDocks();
     initModels();
     setupTheme();
     setupConnections();
@@ -48,6 +74,187 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow() {
     delete ui;
+}
+
+// ==========================================
+// 0. Dock widgets
+// ==========================================
+
+void MainWindow::setupToolsFlow() {
+    auto *flow = new FlowLayout(ui->toolButtonsHost, 0, 0, 0);
+    flow->setGroupGap(10);
+    flow->setPreferredWidth(147);
+
+    const QList<QList<QPushButton *>> groups = {
+        { ui->btn_Pen, ui->btn_Eraser, ui->btn_Text, ui->btn_Fill, ui->btn_Dithering, ui->btn_Pipette },
+        { ui->btn_Line, ui->btn_BrokenLine, ui->btn_Circle, ui->btn_Rectangle },
+        { ui->btn_RectangleSelection, ui->btn_LassoSelection, ui->btn_ShapeSelection,
+         ui->btn_Pan, ui->btn_Rotate, ui->btn_Lighten }
+    };
+    for (const auto &group : groups) {
+        for (QPushButton *b : group) flow->addWidget(b);
+        flow->addBreak();
+    }
+}
+
+void MainWindow::refreshMiniMap() {
+    if (!projectModel) return;
+    const QImage img = projectModel->getFlattenedImage();
+    if (img.isNull()) return;
+
+    QSize target = ui->miniCanvasWidget->size();
+    if (target.width() < 40 || target.height() < 30) target = QSize(140, 90);
+
+    ui->miniCanvasWidget->setPixmap(
+        QPixmap::fromImage(projectModel->applyBackground(img))
+            .scaled(target, Qt::KeepAspectRatio, Qt::FastTransformation));
+}
+
+void MainWindow::setupStatusBar() {
+    ui->statusbar->setSizeGripEnabled(false);
+    ui->statusbar->addWidget(ui->lbl_Position);
+
+    auto *sep = new QFrame(this);
+    sep->setObjectName("statusSep");
+    sep->setFrameShape(QFrame::VLine);
+    sep->setFixedHeight(14);
+    ui->statusbar->addWidget(sep);
+
+    ui->statusbar->addWidget(ui->lbl_WidthHeight);
+}
+
+void MainWindow::setupDocks() {
+    setupToolsFlow();
+    setupStatusBar();
+
+    ui->canvasWidget->setAttribute(Qt::WA_StyledBackground, true);
+
+    m_docks = { ui->dockMiniMap, ui->dockTools, ui->dockLayers,
+               ui->dockPalette, ui->dockFrames };
+
+    setDockOptions(QMainWindow::AnimatedDocks
+                   | QMainWindow::AllowTabbedDocks
+                   | QMainWindow::AllowNestedDocks);
+    setDockNestingEnabled(true);
+    setCorner(Qt::BottomLeftCorner,  Qt::LeftDockWidgetArea);
+    setCorner(Qt::BottomRightCorner, Qt::RightDockWidgetArea);
+    setTabPosition(Qt::AllDockWidgetAreas, QTabWidget::North);
+
+    toolBarMain = new QToolBar(tr("Main"), this);
+    toolBarMain->setObjectName("toolBarMain");
+    toolBarMain->setMovable(false);
+    toolBarMain->setFloatable(false);
+    toolBarMain->setAllowedAreas(Qt::TopToolBarArea);
+    toolBarMain->setContextMenuPolicy(Qt::PreventContextMenu);
+    ui->frm_Menu->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    toolBarMain->addWidget(ui->frm_Menu);
+    addToolBar(Qt::TopToolBarArea, toolBarMain);
+
+    QAction *anchor = ui->menuView->actions().value(0);
+    for (QDockWidget *d : m_docks)
+        ui->menuView->insertAction(anchor, d->toggleViewAction());
+    ui->menuView->insertSeparator(anchor);
+    actResetLayout = new QAction(tr("Reset Layout"), this);
+    connect(actResetLayout, &QAction::triggered, this, &MainWindow::resetDockLayout);
+    ui->menuView->insertAction(anchor, actResetLayout);
+
+    connect(ui->dockFrames, &QDockWidget::dockLocationChanged, this, [this](Qt::DockWidgetArea) { updateFramesOrientation(); });
+    connect(ui->dockFrames, &QDockWidget::topLevelChanged,     this, [this](bool)               { updateFramesOrientation(); });
+    connect(ui->dockLayers, &QDockWidget::dockLocationChanged, this, [this](Qt::DockWidgetArea) { updateLayersOrientation(); });
+    connect(ui->dockLayers, &QDockWidget::topLevelChanged,     this, [this](bool)               { updateLayersOrientation(); });
+    connect(ui->dockTools,  &QDockWidget::dockLocationChanged, this, [this](Qt::DockWidgetArea) { QTimer::singleShot(0, this, &MainWindow::snapToolsWidth); });
+
+    m_defaultDockState = saveState(kDockStateVersion);
+    updateFramesOrientation();
+    updateLayersOrientation();
+
+    for (QDockWidget *d : m_docks) d->hide();
+    toolBarMain->hide();
+    ui->statusbar->hide();
+}
+
+void MainWindow::updateFramesOrientation() {
+    const bool current = ui->framesLayout->direction() == QBoxLayout::LeftToRight;
+    const bool horizontal = shapeWantsHorizontal(this, ui->dockFrames, current);
+
+    ui->framesListWidget->setHorizontal(horizontal);
+    ui->framesLayout->setDirection(horizontal ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom);
+    ui->frm_AddDeleteFrame->setMaximumWidth(horizontal ? 160 : QWIDGETSIZE_MAX);
+}
+
+void MainWindow::updateLayersOrientation() {
+    const bool current = ui->layersLayout->direction() == QBoxLayout::LeftToRight;
+    const bool horizontal = shapeWantsHorizontal(this, ui->dockLayers, current);
+
+    ui->layersListWidget->setHorizontal(horizontal);
+
+    ui->layersLayout->setDirection(horizontal ? QBoxLayout::LeftToRight : QBoxLayout::TopToBottom);
+    ui->addDeleteLayerLayout->setDirection(horizontal ? QBoxLayout::TopToBottom : QBoxLayout::LeftToRight);
+
+    QFrame *bar = ui->frm_AddDeleteLayer;
+    if (horizontal) {
+        bar->setMinimumSize(70, 0);
+        bar->setMaximumSize(90, QWIDGETSIZE_MAX);
+    } else {
+        bar->setMinimumSize(0, 40);
+        bar->setMaximumSize(QWIDGETSIZE_MAX, 40);
+    }
+}
+
+void MainWindow::snapToolsWidth() {
+    if (property("snappingTools").toBool()) return;
+    if (QGuiApplication::mouseButtons() & Qt::LeftButton) return;
+
+    QDockWidget *dock = ui->dockTools;
+    if (!dock->isVisible() || dock->isFloating()) return;
+
+    const Qt::DockWidgetArea area = dockWidgetArea(dock);
+    if (area != Qt::LeftDockWidgetArea && area != Qt::RightDockWidgetArea) return;
+
+    constexpr int kCell = 49;
+    constexpr int kMargin = 2;
+    constexpr int kMaxCols = 6;
+
+    const int viewportW = ui->toolsScroll->viewport()->width();
+    if (viewportW <= 0) return;
+
+    const int cols = qBound(1, qRound(double(viewportW - 2 * kMargin) / kCell), kMaxCols);
+    const int delta = viewportW - (cols * kCell + 2 * kMargin);
+    if (delta == 0) return;
+
+    setProperty("snappingTools", true);
+    resizeDocks({ dock }, { dock->width() - delta }, Qt::Horizontal);
+    setProperty("snappingTools", false);
+}
+
+void MainWindow::saveDockVisibility() {
+    SettingsManager::setShowLayers (ui->dockLayers ->toggleViewAction()->isChecked());
+    SettingsManager::setShowFrames (ui->dockFrames ->toggleViewAction()->isChecked());
+    SettingsManager::setShowTools  (ui->dockTools  ->toggleViewAction()->isChecked());
+    SettingsManager::setShowMiniMap(ui->dockMiniMap->toggleViewAction()->isChecked());
+}
+
+void MainWindow::saveDockState() {
+    QSettings s;
+    s.setValue("ui/dockState", saveState(kDockStateVersion));
+}
+
+void MainWindow::restoreDockState() {
+    QSettings s;
+    const QByteArray st = s.value("ui/dockState").toByteArray();
+    if (!st.isEmpty()) restoreState(st, kDockStateVersion);
+}
+
+void MainWindow::resetDockLayout() {
+    restoreState(m_defaultDockState, kDockStateVersion);
+    for (QDockWidget *d : m_docks) {
+        d->setFloating(false);
+        d->show();
+    }
+    updateFramesOrientation();
+    updateLayersOrientation();
+    if (!ui->dockPalette->toggleViewAction()->isEnabled())
+        ui->dockPalette->hide();
 }
 
 // ==========================================
@@ -124,7 +331,7 @@ void MainWindow::connectMiniCanvas() {
 
     QImage initialImg = projectModel->applyBackground(projectModel->getFlattenedImage());
     QPixmap initialPixmap = QPixmap::fromImage(initialImg).scaled(
-        miniCanvas->size(),
+        QSize(140, 90).expandedTo(miniCanvas->size().boundedTo(QSize(400, 300))),
         Qt::KeepAspectRatio,
         Qt::FastTransformation
         );
@@ -179,9 +386,9 @@ void MainWindow::connectEditorControls() {
 
     connectPlayerControls();
 
-    connect(ui->btn_HideMiniMap, &QPushButton::clicked, ui->act_ViewMiniMap, &QAction::trigger);
-    connect(ui->btn_HideFrames, &QPushButton::clicked, ui->act_ViewFrames, &QAction::trigger);
-    connect(ui->btn_HideLayers, &QPushButton::clicked, ui->act_ViewLayers, &QAction::trigger);
+    connect(ui->btn_HideMiniMap, &QPushButton::clicked, ui->dockMiniMap->toggleViewAction(), &QAction::trigger);
+    connect(ui->btn_HideFrames,  &QPushButton::clicked, ui->dockFrames->toggleViewAction(),  &QAction::trigger);
+    connect(ui->btn_HideLayers,  &QPushButton::clicked, ui->dockLayers->toggleViewAction(),  &QAction::trigger);
 }
 
 void MainWindow::connectPlayerControls() {
@@ -358,25 +565,6 @@ void MainWindow::connectEditActions() {
 }
 
 void MainWindow::connectViewActions() {
-    connect(ui->act_ViewMiniMap, &QAction::triggered, this, [this]() {
-        setMiniMapVisible(!ui->miniCanvasFrame->isVisible());
-    });
-
-    connect(ui->act_ViewFrames, &QAction::triggered, this, [this]() {
-        setFrameListVisible(!ui->framesListWidget->isVisible());
-    });
-
-    connect(ui->act_ViewLayers, &QAction::triggered, this, [this]() {
-        setLayerListVisible(!ui->layersListWidget->isVisible());
-    });
-
-    connect(ui->act_ViewTools, &QAction::triggered, this, [this]() {
-        setToolsVisible(!ui->frm_Tools->isVisible());
-    });
-
-    connect(ui->act_Palette, &QAction::triggered, this, [this]() {
-        setPaletteVisible(!ui->frm_Palette->isVisible());
-    });
 
     connect(ui->act_ThemeDark, &QAction::triggered, this, [this]() {
         ThemeManager::applyTheme("dark", this);
@@ -472,16 +660,26 @@ void MainWindow::onProjectReady(int width, int height, bool isRgb) {
     setEditorUIEnabled(true);
     updateUiStates();
 
+    if (!property("dockStateApplied").toBool()) {
+        restoreDockState();
+        setProperty("dockStateApplied", true);
+        updateFramesOrientation();
+        updateLayersOrientation();
+    }
+
     setLayerListVisible(SettingsManager::getShowLayers());
     setFrameListVisible(SettingsManager::getShowFrames());
     setToolsVisible(SettingsManager::getShowTools());
     setMiniMapVisible(SettingsManager::getShowMiniMap());
 
-    ui->act_Palette->setEnabled(isRgb);
-    ui->frm_Palette->setVisible(isRgb);
+    ui->dockPalette->toggleViewAction()->setEnabled(isRgb);
+    setPaletteVisible(isRgb);
     ui->btn_Pipette->setVisible(isRgb);
 
+    toolBarMain->show();
+    ui->statusbar->show();
     ui->stackedWidget->setCurrentIndex(1);
+    QTimer::singleShot(150, this, &MainWindow::snapToolsWidth);
 
     QTimer::singleShot(50, this, [this]() {
         ui->canvasWidget->fitToScreen();
@@ -509,6 +707,13 @@ void MainWindow::openFile(const QString &filePath) {
 
 void MainWindow::closeProject() {
     if (!maybeSave()) return;
+
+    saveDockVisibility();
+    saveDockState();
+    for (QDockWidget *d : m_docks) d->hide();
+    toolBarMain->hide();
+    ui->statusbar->hide();
+
     ui->stackedWidget->setCurrentIndex(0);
     setEditorUIEnabled(false);
 
@@ -524,10 +729,8 @@ void MainWindow::closeProject() {
 void MainWindow::closeEvent(QCloseEvent *event) {
     if (maybeSave()) {
         if (ui->stackedWidget->currentIndex() == 1) {
-            SettingsManager::setShowLayers(ui->layersListWidget->isVisible());
-            SettingsManager::setShowFrames(ui->framesListWidget->isVisible());
-            SettingsManager::setShowTools(ui->frm_Tools->isVisible());
-            SettingsManager::setShowMiniMap(ui->miniCanvasFrame->isVisible());
+            saveDockVisibility();
+            saveDockState();
         }
 
         event->accept();
@@ -730,65 +933,29 @@ void MainWindow::setEditorUIEnabled(bool enabled) {
     ui->act_Fill->setEnabled(enabled);
     ui->act_Clear->setEnabled(enabled);
 
-    ui->act_ViewMiniMap->setEnabled(enabled);
-    ui->act_ViewFrames->setEnabled(enabled);
-    ui->act_ViewLayers->setEnabled(enabled);
-    ui->act_ViewTools->setEnabled(enabled);
-    ui->act_Palette->setEnabled(enabled);
+    for (QDockWidget *d : m_docks)
+        d->toggleViewAction()->setEnabled(enabled);
+    if (actResetLayout) actResetLayout->setEnabled(enabled);
 }
 
 void MainWindow::setMiniMapVisible(bool visible) {
-    ui->miniCanvasFrame->setVisible(visible);
-
-    QString text = visible ? "Hide Minimap" : "Show Minimap";
-    ui->act_ViewMiniMap->setText(text);
+    ui->dockMiniMap->setVisible(visible);
 }
 
 void MainWindow::setFrameListVisible(bool visible) {
-    ui->framesListWidget->setVisible(visible);
-    ui->frm_AddDeleteFrame->setVisible(visible);
-
-    QString text = visible ? "Hide Frames" : "Show Frames";
-    ui->act_ViewFrames->setText(text);
+    ui->dockFrames->setVisible(visible);
 }
 
 void MainWindow::setLayerListVisible(bool visible) {
-    ui->layersListWidget->setVisible(visible);
-    ui->layersLabel->setVisible(visible);
-    ui->frm_AddDeleteLayer->setVisible(visible);
-    ui->layersPanelWidget->setVisible(visible);
-
-    QString text = visible ? "Hide Layers" : "Show Layers";
-    ui->act_ViewLayers->setText(text);
-
-    bool isVisible = ui->frm_Palette->isVisible();
-
-    if(!isVisible) {
-        ui->rightPanelFrame->setVisible(visible);
-    }
+    ui->dockLayers->setVisible(visible);
 }
 
 void MainWindow::setToolsVisible(bool visible) {
-    ui->frm_Tools->setVisible(visible);
-    ui->miniCanvasFrame->setVisible(visible);
-    ui->toolsLabel->setVisible(visible);
-
-    QString text = visible ? "Hide Tools" : "Show Tools";
-    ui->act_ViewTools->setText(text);
-    ui->act_ViewMiniMap->setEnabled(visible);
+    ui->dockTools->setVisible(visible);
 }
 
 void MainWindow::setPaletteVisible(bool visible) {
-    ui->frm_Palette->setVisible(visible);
-
-    QString text = visible ? "Hide Palette" : "Show Palette";
-    ui->act_Palette->setText(text);
-
-    bool isVisible = ui->layersListWidget->isVisible();
-
-    if(!isVisible) {
-        ui->rightPanelFrame->setVisible(visible);
-    }
+    ui->dockPalette->setVisible(visible);
 }
 
 void MainWindow::updateUIProportions(int projWidth, int projHeight) {
@@ -863,7 +1030,7 @@ void MainWindow::updateUiStates() {
     bool isPlaying = projectModel->isPlaying();
     bool canDraw = hasLayers && !isPlaying;
 
-    ui->frm_Tools->setEnabled(canDraw);
+    ui->toolsContents->setEnabled(canDraw);
     ui->act_Cut->setEnabled(canDraw);
     ui->act_Copy->setEnabled(canDraw);
     ui->act_Paste->setEnabled(canDraw);
@@ -873,6 +1040,35 @@ void MainWindow::updateUiStates() {
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::MouseButtonRelease ||
+        (event->type() == QEvent::Resize && watched == ui->toolsScroll->viewport())) {
+        QTimer::singleShot(0, this, &MainWindow::snapToolsWidth);
+    }
+
+    if (event->type() == QEvent::Resize && watched == ui->miniCanvasWidget) {
+        refreshMiniMap();
+    }
+
+    if (event->type() == QEvent::Resize) {
+        if (watched == ui->dockFrames)      updateFramesOrientation();
+        else if (watched == ui->dockLayers) updateLayersOrientation();
+    }
+
+    if (event->type() == QEvent::MouseButtonDblClick) {
+        QTabBar *bar = qobject_cast<QTabBar*>(watched);
+        if (bar && bar->parentWidget() == this) {
+            const int idx = bar->tabAt(static_cast<QMouseEvent*>(event)->pos());
+            if (idx >= 0) {
+                for (QDockWidget *d : m_docks) {
+                    if (d->windowTitle() == bar->tabText(idx)) {
+                        d->setFloating(true);
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
     if (event->type() == QEvent::MouseButtonPress) {
         QWidget *clickedWidget = qobject_cast<QWidget*>(watched);
 

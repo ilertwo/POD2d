@@ -5,7 +5,9 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QAction>
+#include <QMenu>
 #include <QMouseEvent>
+#include <QResizeEvent>
 #include <QEvent>
 
 FrameListWidget::FrameListWidget(QWidget *parent) : QListWidget(parent) {
@@ -13,19 +15,45 @@ FrameListWidget::FrameListWidget(QWidget *parent) : QListWidget(parent) {
     this->setDragDropMode(QAbstractItemView::InternalMove);
     this->setWrapping(false);
     this->setSpacing(6);
-    this->setFixedHeight(125);
     this->setViewMode(QListView::IconMode);
     this->setMovement(QListView::Static);
+    this->setResizeMode(QListView::Adjust);
 
-    this->setFlow(QListView::LeftToRight);
-    this->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    setHorizontal(true);
 
     connect(this, &QWidget::customContextMenuRequested, this, &FrameListWidget::showContextMenu);
     connect(this, &QListWidget::currentRowChanged, this, &FrameListWidget::onCurrentRowChanged);
     connect(this->model(), &QAbstractItemModel::rowsMoved, this, &FrameListWidget::onRowsMoved);
 
     this->viewport()->installEventFilter(this);
+}
+
+void FrameListWidget::setHorizontal(bool horizontal) {
+    m_horizontal = horizontal;
+
+    setFlow(horizontal ? QListView::LeftToRight : QListView::TopToBottom);
+    setWrapping(false);
+    setVerticalScrollBarPolicy  (horizontal ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded);
+    setHorizontalScrollBarPolicy(horizontal ? Qt::ScrollBarAsNeeded  : Qt::ScrollBarAlwaysOff);
+    setMinimumHeight(horizontal ? 108 : 0);   // 88 (клітинка) + відступи + місце під scrollbar
+    setMinimumWidth (horizontal ? 0   : 150);
+
+    updateItemSizes();
+}
+
+void FrameListWidget::updateItemSizes() {
+    QSize hint(140, 88);
+    if (!m_horizontal) {
+        hint.setWidth(qMax(140, viewport()->width() - 2 * spacing() - 1));
+    }
+    for (int i = 0; i < count(); ++i) {
+        item(i)->setSizeHint(hint);
+    }
+}
+
+void FrameListWidget::resizeEvent(QResizeEvent *event) {
+    QListWidget::resizeEvent(event);
+    if (!m_horizontal) updateItemSizes();
 }
 
 void FrameListWidget::setModel(ProjectModel *model) {
@@ -109,28 +137,28 @@ void FrameListWidget::rebuildList() {
     int borderRadius = (theme == "1bit") ? 0 : 6;
 
     if (theme == "1bit") {
-        topBorder = "border-top: 2px solid white;";
+        topBorder = "";
         normalItemBorder = "border: 1px solid white;";
         selectedItemBorder = "border: 2px solid white;";
         itemBg = "black";
         textColor = "white";
     } else if (theme == "light") {
-        topBorder = "border-top: 1px solid #d4d4d4;";
-        normalItemBorder = "border: 1px solid #d4d4d4;";
-        selectedItemBorder = "border: 2px solid #0078d7;";
-        itemBg = "#e0e0e0";
-        textColor = "#202020";
+        topBorder = "";
+        normalItemBorder = "border: 1px solid #C4C2BC;";
+        selectedItemBorder = "border: 2px solid #3E7FD6;";
+        itemBg = "#F3F2EF";
+        textColor = "#2A2C2F";
     } else { // dark
-        topBorder = "border-top: 2px solid #333333;";
-        normalItemBorder = "border: 1px solid #444444;";
-        selectedItemBorder = "border: 2px solid #888888;";
-        itemBg = "#333333";
-        textColor = "white";
+        topBorder = "";
+        normalItemBorder = "border: 1px solid #3f4246;";
+        selectedItemBorder = "border: 2px solid #5aa2ff;";
+        itemBg = "#2f3135";
+        textColor = "#e3e5e8";
     }
 
     this->setStyleSheet(
-        "QListWidget { outline: 0; background: transparent; border: none; " + topBorder + " padding-top: 4px; }"
-                                                                                          "QListWidget::item { background-color: " + itemBg + "; " + normalItemBorder + " border-radius: " + QString::number(borderRadius) + "px; }"
+        "QListWidget { outline: 0; background: transparent; border: none; " + topBorder + (topBorder.isEmpty() ? "" : " padding-top: 4px;") + " }"
+                                                                                                                                              "QListWidget::item { background-color: " + itemBg + "; " + normalItemBorder + " border-radius: " + QString::number(borderRadius) + "px; }"
                                                                                                   "QListWidget::item:selected { " + selectedItemBorder + " }"
         );
 
@@ -165,7 +193,7 @@ void FrameListWidget::rebuildList() {
         if (isVis) {
             textLabel->setStyleSheet("color: " + textColor + "; font-size: 11px; font-weight: bold; background: transparent;");
         } else {
-            textLabel->setStyleSheet("color: #777777; font-size: 11px; font-weight: bold; text-decoration: line-through; background: transparent;");
+            textLabel->setStyleSheet("color: " + ((theme == "1bit") ? textColor : QString("#777777")) + "; font-size: 11px; font-weight: bold; text-decoration: line-through; background: transparent;");
         }
 
         layout->addWidget(imageLabel);
@@ -174,6 +202,7 @@ void FrameListWidget::rebuildList() {
         this->setItemWidget(item, frameWidget);
     }
 
+    updateItemSizes();
     this->setCurrentRow(m_model->getCurrentFrameIndex());
 }
 

@@ -7,6 +7,7 @@
 #include <QEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QResizeEvent>
 
 PaletteWidget::PaletteWidget(QWidget *parent) : QWidget(parent) {
     m_gridLayout = new QGridLayout(this);
@@ -14,6 +15,22 @@ PaletteWidget::PaletteWidget(QWidget *parent) : QWidget(parent) {
     setLayout(m_gridLayout);
 
     loadPaletteFromSettings();
+}
+
+// Кількість колонок залежить від ширини дока (мінімум 4, як було раніше)
+void PaletteWidget::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+
+    const QMargins m = m_gridLayout->contentsMargins();
+    const int spacing = m_gridLayout->spacing() > 0 ? m_gridLayout->spacing() : 4;
+    const int cell = 24 + spacing;                                   // кнопка + проміжок
+    const int avail = width() - m.left() - m.right() + spacing;
+    const int cols = qMax(4, avail / cell);
+
+    if (cols != m_columns) {
+        m_columns = cols;
+        rebuildGrid();
+    }
 }
 
 void PaletteWidget::loadPaletteFromSettings() {
@@ -71,7 +88,7 @@ void PaletteWidget::rebuildGrid() {
 
     m_gridLayout->setSpacing(4);
 
-    int columns = 4;
+    const int columns = m_columns;
 
     for (int i = 0; i <= columns; ++i) {
         m_gridLayout->setColumnStretch(i, 0);
@@ -98,9 +115,9 @@ void PaletteWidget::rebuildGrid() {
     btnAddColor->setCursor(Qt::PointingHandCursor);
 
     if (theme == "1bit") {
-        btnAddColor->setStyleSheet("background-color: transparent; border: 1px dashed white; color: white; font-size: 16px; font-weight: bold;");
+        btnAddColor->setStyleSheet("background-color: transparent; border: 2px solid white; color: white; font-size: 16px; font-weight: bold;");
     } else {
-        btnAddColor->setStyleSheet("background-color: transparent; border: 1px dashed #888888; color: #aaaaaa; font-size: 16px; font-weight: bold; border-radius: 2px;");
+        btnAddColor->setStyleSheet("background-color: transparent; border: 1px solid #888888; color: #aaaaaa; font-size: 16px; font-weight: bold; border-radius: 2px;");
     }
 
     connect(btnAddColor, &QPushButton::clicked, this, &PaletteWidget::onAddNewColorClicked);
@@ -134,7 +151,7 @@ bool PaletteWidget::eventFilter(QObject *watched, QEvent *event) {
                 if (me->button() == Qt::LeftButton && (me->modifiers() & Qt::ShiftModifier)) {
                     if (m_mainSwapIndex == -1) {
                         m_mainSwapIndex = colorIndex;
-                        btn->setStyleSheet(btn->styleSheet() + " border: 2px dashed white;");
+                        btn->setStyleSheet(btn->styleSheet() + " border: 2px solid white;");
                     } else {
                         if (m_mainSwapIndex < m_palette.size() && colorIndex < m_palette.size()) {
                             m_palette.swapItemsAt(m_mainSwapIndex, colorIndex);
