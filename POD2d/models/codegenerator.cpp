@@ -1,0 +1,615 @@
+#include "codegenerator.h"
+
+#include <QSettings>
+
+QVector<uint8_t> CodeGenerator::generateCropData(const QImage &img, int &cX, int &cY, int &cW, int &cH) {
+    int minX = CANVAS_WIDTH, maxX = -1;
+    int minY = CANVAS_HEIGHT, maxY = -1;
+
+    for (int y = 0; y < CANVAS_HEIGHT; ++y) {
+        for (int x = 0; x < CANVAS_WIDTH; ++x) {
+            if (img.pixelColor(x, y) == Qt::white) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+
+    QVector<uint8_t> cropData;
+    cX = cY = cW = cH = 0;
+
+    if (maxX < 0) return cropData;
+
+    cX = (minX / 8) * 8;
+    maxX = qMin(CANVAS_WIDTH - 1, ((maxX / 8) * 8) + 7);
+
+    cW = maxX - cX + 1;
+    cY = minY;
+    cH = maxY - minY + 1;
+
+    cropData.reserve((cW / 8) * cH);
+
+    for (int y = cY; y < cY + cH; ++y) {
+        for (int x = cX; x < cX + cW; x += 8) {
+            cropData.append(extractByteHorizontal(img, x, y));
+        }
+    }
+
+    return cropData;
+}
+
+QVector<uint8_t> CodeGenerator::generatePixelRleData(const QImage &img, bool invertColors) {
+    QVector<uint8_t> data;
+    data.reserve(CANVAS_WIDTH * CANVAS_HEIGHT);
+
+    bool currentColor = false;
+    int count = 0;
+
+    for (int y = 0; y < CANVAS_HEIGHT; ++y) {
+        for (int x = 0; x < CANVAS_WIDTH; ++x) {
+            bool isSet = (img.pixelColor(x, y) == Qt::white);
+            if (invertColors) {
+                isSet = !isSet;
+            }
+
+            if (isSet == currentColor) {
+                if (count == 255) {
+                    data.append(255);
+                    data.append(0);
+                    count = 1;
+                } else {
+                    count++;
+                }
+            } else {
+                data.append(count);
+                currentColor = isSet;
+                count = 1;
+            }
+        }
+    }
+
+    data.append(count);
+    data.squeeze();
+    return data;
+}
+
+QVector<uint8_t> CodeGenerator::generateByteRleData(const QVector<uint8_t> &rawData) {
+    QVector<uint8_t> data;
+    if (rawData.isEmpty()) return data;
+
+    data.reserve(rawData.size() * 2);
+
+    uint8_t currentByte = rawData[0];
+    int count = 1;
+
+    for (int i = 1; i < rawData.size(); ++i) {
+        const uint8_t nextByte = rawData[i];
+
+        if (nextByte == currentByte && count < 255) {
+            count++;
+        } else {
+            data.append(count);
+            data.append(currentByte);
+
+            currentByte = nextByte;
+            count = 1;
+        }
+    }
+
+    data.append(count);
+    data.append(currentByte);
+
+    data.squeeze();
+
+    return data;
+}
+
+QString CodeGenerator::formatArrayCode(const QVector<uint8_t> &data, const QString &methodName, bool isCpp, int frameIndex) {
+    QSettings settings("POD2d", "EditorSettings");
+    QString prefix = settings.value("export/variablePrefix", "bitmap_").toString();
+    bool useProgmem = settings.value("export/useProgmem", true).toBool();
+
+    QString code;
+    code.reserve(200 + data.size() * 6);
+
+    const QString arrName = prefix + ((frameIndex == -1) ? "optimized_data" : QString("frame_%1").arg(frameIndex));
+    const QString frameStr = (frameIndex == -1) ? "" : QString(" (Frame %1)").arg(frameIndex);
+
+    if (isCpp) {
+        QString progmemStr = useProgmem ? " PROGMEM" : "";
+        code += QString("// Method: %1%2\n// Size: %3 bytes\nconst unsigned char %4[]%5 = {\n  ")
+                    .arg(methodName, frameStr, QString::number(data.size()), arrName, progmemStr);
+    } else {
+        code += QString("# Method: %1%2\n# Size: %3 bytes\n%4 = bytearray([\n  ")
+        .arg(methodName, frameStr, QString::number(data.size()), arrName);
+    }
+
+    for (int i = 0; i < data.size(); ++i) {
+        code += QString("0x%1").arg(data[i], 2, 16, QChar('0'));
+
+        if (i < data.size() - 1) {
+            code += ", ";
+            if ((i + 1) % 16 == 0) {
+                code += "\n  ";
+            }
+        }
+    }
+
+    code += (isCpp ? "\n};\n\n" : "\n])\n\n");
+
+    return code;
+}
+
+QString CodeGenerator::generateDrawImageCode(ExportMethod method, bool isCpp) {
+    if (isCpp) {
+        switch (method) {
+        case ExportMethod::Raw: // Raw
+            return QString(R"(void drawImage(const unsigned char* frame_data, int data_size) {
+  display.drawBitmap(0, 0, frame_data, %1, %2, WHITE);
+}
+)").arg(CANVAS_WIDTH).arg(CANVAS_HEIGHT);
+
+        case ExportMethod::PixelRle: // Pixel RLE
+            return QString(R"(void drawImage(const unsigned char* frame_data, int data_size) {
+  bool isWhite = false;
+  int x = 0, y = 0;
+  for (int i = 0; i < data_size; i++) {
+    uint8_t count = pgm_read_byte(&frame_data[i]);
+    for (int p = 0; p < count; p++) {
+      if (isWhite) display.drawPixel(x, y, WHITE);
+      x++;
+      if (x >= %1) { x = 0; y++; }
+    }
+    isWhite = !isWhite;
+  }
+}
+)").arg(CANVAS_WIDTH);
+
+        case ExportMethod::ByteRle: // Byte RLE
+            return QString(R"(void drawImage(const unsigned char* frame_data, int data_size) {
+  int x = 0, y = 0;
+  for (int i = 0; i < data_size; i += 2) {
+    uint8_t count = pgm_read_byte(&frame_data[i]);
+    uint8_t val = pgm_read_byte(&frame_data[i+1]);
+    for (int c = 0; c < count; c++) {
+      for (int b = 0; b < 8; b++) {
+        if (val & (1 << (7 - b))) display.drawPixel(x + b, y, WHITE);
+      }
+      x += 8;
+      if (x >= %1) { x = 0; y++; }
+    }
+  }
+}
+)").arg(CANVAS_WIDTH);
+
+        default: return "";
+        }
+    } else {
+        // Python
+        switch (method) {
+        case ExportMethod::Raw: // Raw
+            return QString(R"(import framebuf
+
+def draw_image(frame_data):
+    fb = framebuf.FrameBuffer(frame_data, %1, %2, framebuf.MONO_HLSB)
+    display.blit(fb, 0, 0)
+)").arg(CANVAS_WIDTH).arg(CANVAS_HEIGHT);
+
+        case ExportMethod::PixelRle: // Pixel RLE
+            return QString(R"(def draw_image(frame_data):
+    is_white = False
+    x, y = 0, 0
+    for count in frame_data:
+        for _ in range(count):
+            if is_white:
+                display.pixel(x, y, 1)
+            x += 1
+            if x >= %1:
+                x, y = 0, y + 1
+        is_white = not is_white
+)").arg(CANVAS_WIDTH);
+
+        case ExportMethod::ByteRle: // Byte RLE
+            return QString(R"(def draw_image(frame_data):
+    x, y = 0, 0
+    for i in range(0, len(frame_data), 2):
+        count = frame_data[i]
+        val = frame_data[i+1]
+        for _ in range(count):
+            for b in range(8):
+                if val & (1 << (7 - b)):
+                    display.pixel(x + b, y, 1)
+            x += 8
+            if x >= %1:
+                x, y = 0, y + 1
+)").arg(CANVAS_WIDTH);
+
+        default: return "";
+        }
+    }
+}
+
+QString CodeGenerator::generateExportCode(const QList<QImage>& frames, int currentFrameIndex, bool optimize, bool isCpp, bool exportAnimation, bool isRGB, bool isDataOnly, bool invertColors) {
+
+    if (!frames.isEmpty()) {
+        CANVAS_WIDTH = frames.first().width();
+        CANVAS_HEIGHT = frames.first().height();
+    }
+
+    QSettings settings("POD2d", "EditorSettings");
+    QString prefix = settings.value("export/variablePrefix", "bitmap_").toString();
+    bool useProgmem = settings.value("export/useProgmem", true).toBool();
+    QString progmemStr = useProgmem ? " PROGMEM" : "";
+
+    const int frameCount = exportAnimation ? frames.size() : 1;
+    const int startIndex = exportAnimation ? 0 : currentFrameIndex;
+    const int endIndex = exportAnimation ? frames.size() : currentFrameIndex + 1;
+
+    QString arrayDeclarations;
+    QString arrayPointers, sizesArray, includes, mainLogic, drawCode;
+
+    // ==========================================
+    // BRANCH 1: RGB MODE (16-bit color)
+    // ==========================================
+    if (isRGB) {
+        QString methodName = "RGB565 RAW (16-bit)";
+        QVector<int> frameSizes;
+
+        for (int i = startIndex; i < endIndex; ++i) {
+            QVector<uint16_t> rgbData = generateRawDataRGB(frames[i]);
+            frameSizes.append(rgbData.size());
+            arrayDeclarations += formatArrayCodeRGB(rgbData, methodName, isCpp, exportAnimation ? (i - startIndex) : -1);
+        }
+
+        if (exportAnimation) {
+            if (isCpp) {
+                arrayPointers = QString("const uint16_t* const %1frames[]%2 = {\n  ").arg(prefix, progmemStr);
+                for(int i = 0; i < frameCount; ++i) {
+                    arrayPointers += QString("%1frame_%2%3").arg(prefix).arg(i).arg(i == frameCount - 1 ? "" : ", ");
+                }
+                arrayPointers += "\n};\n\n";
+            }
+        }
+
+        if (isCpp) {
+            includes = R"(#include <Adafruit_GFX.h>
+#include <Adafruit_ST7735.h> // Example for a TFT display (modify as needed)
+#include <SPI.h>
+
+#define TFT_CS    10
+#define TFT_RST   8
+#define TFT_DC    9
+Adafruit_ST7735 display = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+
+)";
+            if (exportAnimation) {
+                mainLogic = QString(R"(
+void setup() {
+  display.initR(INITR_BLACKTAB);
+  display.fillScreen(ST77XX_BLACK);
+}
+
+void loop() {
+  for(int i = 0; i < %1; i++) {
+    const uint16_t* current_frame = (const uint16_t*)pgm_read_ptr(&%2frames[i]);
+    drawImage(current_frame, %3 * %4);
+    delay(100);
+  }
+}
+)").arg(QString::number(frameCount), prefix, QString::number(CANVAS_WIDTH), QString::number(CANVAS_HEIGHT));
+            } else {
+                mainLogic = QString(R"(
+void setup() {
+  display.initR(INITR_BLACKTAB);
+  display.fillScreen(ST77XX_BLACK);
+  drawImage(%1color_data, %2 * %3);
+}
+
+void loop() {}
+)").arg(prefix, QString::number(CANVAS_WIDTH), QString::number(CANVAS_HEIGHT));
+            }
+        } else {
+            // Python RGB
+            includes = "import framebuf\nimport time\n\n";
+            mainLogic = exportAnimation ?
+                            QString("while True:\n    for f in %1frames:\n        draw_image(f)\n        time.sleep(0.1)\n").arg(prefix) :
+                            QString("draw_image(%1color_data)\n").arg(prefix);
+        }
+
+        drawCode = generateDrawImageCodeRGB(isCpp);
+    }
+    // ==========================================
+    // BRANCH 2: OLD MONOCHROME MODE (1-bit)
+    // ==========================================
+    else {
+    ExportMethod bestMethod = ExportMethod::Raw;
+    QString methodName = "Standard RAW (Unoptimized)";
+
+    QList<QVector<uint8_t>> finalFramesData;
+
+    if (!optimize) {
+        for (int i = startIndex; i < endIndex; ++i) {
+            finalFramesData.append(generateRawData(frames[i], invertColors));
+        }
+    } else {
+        int totalRaw = 0, totalPxRle = 0, totalByteRle = 0;
+        QList<QVector<uint8_t>> rawList, pxList, byteList;
+
+        for (int i = startIndex; i < endIndex; ++i) {
+            QVector<uint8_t> raw = generateRawData(frames[i], invertColors);
+            QVector<uint8_t> px = generatePixelRleData(frames[i], invertColors);
+            QVector<uint8_t> byte = generateByteRleData(raw);
+
+            totalRaw += raw.size();
+            totalPxRle += px.size();
+            totalByteRle += byte.size();
+
+            rawList.append(raw);
+            pxList.append(px);
+            byteList.append(byte);
+        }
+
+        if (totalPxRle < totalRaw && totalPxRle <= totalByteRle) {
+            bestMethod = ExportMethod::PixelRle;
+            methodName = "Pixel RLE Compression";
+            finalFramesData = pxList;
+        } else if (totalByteRle < totalRaw && totalByteRle < totalPxRle) {
+            bestMethod = ExportMethod::ByteRle;
+            methodName = "Byte RLE Compression";
+            finalFramesData = byteList;
+        } else {
+            bestMethod = ExportMethod::Raw;
+            methodName = "Standard RAW";
+            finalFramesData = rawList;
+        }
+    }
+
+    QVector<int> frameSizes;
+
+    for (int i = 0; i < finalFramesData.size(); ++i) {
+        frameSizes.append(finalFramesData[i].size());
+        arrayDeclarations += formatArrayCode(finalFramesData[i], methodName, isCpp, exportAnimation ? i : -1);
+    }
+
+    if (exportAnimation) {
+        if (isCpp) {
+            arrayPointers = QString("const unsigned char* const %1frames[]%2 = {\n  ").arg(prefix, progmemStr);
+            sizesArray = QString("const int %1frame_sizes[] = {\n  ").arg(prefix);
+
+            for(int i = 0; i < frameCount; ++i) {
+                arrayPointers += QString("%1frame_%2%3").arg(prefix).arg(i).arg(i == frameCount - 1 ? "" : ", ");
+                sizesArray += QString::number(frameSizes[i]) + (i == frameCount - 1 ? "" : ", ");
+            }
+            arrayPointers += "\n};\n\n";
+            sizesArray += "\n};\n\n";
+        } else {
+            arrayPointers = QString("%1frames = [\n  ").arg(prefix);
+            for(int i = 0; i < frameCount; ++i) {
+                arrayPointers += QString("%1frame_%2%3").arg(prefix).arg(i).arg(i == frameCount - 1 ? "" : ", ");
+            }
+            arrayPointers += "\n]\n\n";
+        }
+    }
+
+    if (isCpp) {
+        includes = R"(#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+)";
+        if (exportAnimation) {
+            mainLogic = QString(R"(
+void setup() {
+  Wire.begin();
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { for(;;); }
+}
+
+void loop() {
+  for(int i = 0; i < %1; i++) {
+    display.clearDisplay();
+    const unsigned char* current_frame = (const unsigned char*)pgm_read_ptr(&%2frames[i]);
+    drawImage(current_frame, %2frame_sizes[i]);
+    display.display();
+    delay(100);
+  }
+}
+)").arg(QString::number(frameCount), prefix);
+        } else {
+            mainLogic = QString(R"(
+void setup() {
+  Wire.begin();
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { for(;;); }
+  display.clearDisplay();
+  drawImage(%1optimized_data, sizeof(%1optimized_data));
+  display.display();
+}
+
+void loop() {
+}
+)").arg(prefix);
+        }
+    } else {
+        if (exportAnimation) {
+            includes = R"(from machine import Pin, I2C
+import ssd1306
+import time
+
+i2c = I2C(0, scl=Pin(5), sda=Pin(4))
+display = ssd1306.SSD1306_I2C(128, 64, i2c)
+
+)";
+            mainLogic = QString(R"(
+while True:
+    for frame_data in %1frames:
+        display.fill(0)
+        draw_image(frame_data)
+        display.show()
+        time.sleep(0.1)
+)").arg(prefix);
+        } else {
+            includes = R"(from machine import Pin, I2C
+import ssd1306
+
+i2c = I2C(0, scl=Pin(5), sda=Pin(4))
+display = ssd1306.SSD1306_I2C(128, 64, i2c)
+
+)";
+            mainLogic = QString(R"(
+display.fill(0)
+draw_image(%1optimized_data)
+display.show()
+)").arg(prefix);
+        }
+    }
+
+    drawCode = generateDrawImageCode(bestMethod, isCpp);
+
+    }
+
+    if (isDataOnly) {
+        return arrayDeclarations + arrayPointers + sizesArray;
+    }
+
+    return includes + arrayDeclarations + arrayPointers + sizesArray + drawCode + mainLogic;
+}
+
+uint8_t CodeGenerator::extractByteHorizontal(const QImage &img, int startX, int y, bool invertColors) {
+    uint8_t byteVal = 0;
+    for (int bit = 0; bit < 8; ++bit) {
+        if (startX + bit < CANVAS_WIDTH) {
+            bool isPixelSet = (img.pixelColor(startX + bit, y) == Qt::white);
+            if (invertColors) {
+                isPixelSet = !isPixelSet;
+            }
+            if (isPixelSet) {
+                byteVal |= (1 << (7 - bit)); // MSB first
+            }
+        }
+    }
+    return byteVal;
+}
+
+uint8_t CodeGenerator::extractByteVertical(const QImage &img, int x, int startY, bool invertColors) {
+    uint8_t byteVal = 0;
+    for (int bit = 0; bit < 8; ++bit) {
+        if (startY + bit < CANVAS_HEIGHT) {
+            bool isPixelSet = (img.pixelColor(x, startY + bit) == Qt::white);
+            if (invertColors) {
+                isPixelSet = !isPixelSet;
+            }
+            if (isPixelSet) {
+                byteVal |= (1 << bit); // LSB is top pixel
+            }
+        }
+    }
+    return byteVal;
+}
+
+QVector<uint8_t> CodeGenerator::generateRawData(const QImage &img, bool invertColors) {
+    QVector<uint8_t> data;
+    QSettings settings("POD2d", "EditorSettings");
+    bool isU8g2 = (settings.value("export/byteFormat", 0).toInt() == 1);
+
+    if (isU8g2) {
+        data.reserve(CANVAS_WIDTH * (CANVAS_HEIGHT / 8));
+        for (int page = 0; page < CANVAS_HEIGHT / 8; ++page) {
+            for (int x = 0; x < CANVAS_WIDTH; ++x) {
+                data.append(extractByteVertical(img, x, page * 8, invertColors));
+            }
+        }
+    } else {
+        data.reserve((CANVAS_WIDTH / 8) * CANVAS_HEIGHT);
+        for (int y = 0; y < CANVAS_HEIGHT; ++y) {
+            for (int x = 0; x < CANVAS_WIDTH; x += 8) {
+                data.append(extractByteHorizontal(img, x, y, invertColors));
+            }
+        }
+    }
+    return data;
+}
+
+QVector<uint16_t> CodeGenerator::generateRawDataRGB(const QImage &img) {
+    QVector<uint16_t> data;
+    data.reserve(CANVAS_WIDTH * CANVAS_HEIGHT);
+
+    for (int y = 0; y < CANVAS_HEIGHT; ++y) {
+        for (int x = 0; x < CANVAS_WIDTH; ++x) {
+            QColor c = img.pixelColor(x, y);
+
+            uint16_t r5 = (c.red() >> 3) & 0x1F;
+            uint16_t g6 = (c.green() >> 2) & 0x3F;
+            uint16_t b5 = (c.blue() >> 3) & 0x1F;
+
+            uint16_t rgb565 = (r5 << 11) | (g6 << 5) | b5;
+            data.append(rgb565);
+        }
+    }
+    return data;
+}
+
+QString CodeGenerator::formatArrayCodeRGB(const QVector<uint16_t> &data, const QString &methodName, bool isCpp, int frameIndex) {
+    QSettings settings("POD2d", "EditorSettings");
+    QString prefix = settings.value("export/variablePrefix", "bitmap_").toString();
+    bool useProgmem = settings.value("export/useProgmem", true).toBool();
+
+    QString code;
+    code.reserve(200 + data.size() * 8);
+
+    const QString arrName = prefix + ((frameIndex == -1) ? "color_data" : QString("frame_%1").arg(frameIndex));
+    const QString frameStr = (frameIndex == -1) ? "" : QString(" (Frame %1)").arg(frameIndex);
+
+    if (isCpp) {
+        QString progmemStr = useProgmem ? " PROGMEM" : "";
+        code += QString("// Method: %1%2\n// Size: %3 pixels (%4 bytes)\nconst uint16_t %5[]%6 = {\n  ")
+                    .arg(methodName, frameStr, QString::number(data.size()), QString::number(data.size() * 2), arrName, progmemStr);
+    } else {
+        code += QString("# Method: %1%2\n# Size: %3 pixels\n%4 = [\n  ")
+        .arg(methodName, frameStr, QString::number(data.size()), arrName);
+    }
+
+    for (int i = 0; i < data.size(); ++i) {
+        code += QString("0x%1").arg(data[i], 4, 16, QChar('0')).toUpper();
+
+        if (i < data.size() - 1) {
+            code += ", ";
+            if ((i + 1) % 8 == 0) {
+                code += "\n  ";
+            }
+        }
+    }
+
+    code += (isCpp ? "\n};\n\n" : "\n]\n\n");
+    return code;
+}
+
+QString CodeGenerator::generateDrawImageCodeRGB(bool isCpp) {
+    if (isCpp) {
+        return QString(R"(void drawImage(const uint16_t* frame_data, int data_size) {
+  int x = 0, y = 0;
+  for (int i = 0; i < data_size; i++) {
+    // Safe reading of 16-bit color from PROGMEM for any microcontroller
+    uint16_t color = pgm_read_word(&frame_data[i]);
+    display.drawPixel(x, y, color);
+    x++;
+    if (x >= %1) { x = 0; y++; }
+  }
+}
+)").arg(CANVAS_WIDTH).arg(CANVAS_HEIGHT);
+    } else {
+        return QString(R"(def draw_image(frame_data):
+    # The MicroPython framebuffer supports RGB565
+    import struct
+    # Converting an int array to bytes for the FrameBuffer
+    byte_data = struct.pack('<%dH' % len(frame_data), *frame_data)
+    fb = framebuf.FrameBuffer(bytearray(byte_data), %1, %2, framebuf.RGB565)
+    display.blit(fb, 0, 0)
+)").arg(CANVAS_WIDTH).arg(CANVAS_HEIGHT);
+    }
+}

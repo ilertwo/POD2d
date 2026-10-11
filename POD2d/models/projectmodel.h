@@ -1,0 +1,155 @@
+#ifndef PROJECTMODEL_H
+#define PROJECTMODEL_H
+
+#include <QObject>
+#include <QImage>
+#include <QList>
+#include <QRect>
+#include <QPoint>
+#include <QByteArray>
+
+
+
+// Structure of a single frame (contains its own layers)
+struct Frame {
+    QList<QImage> layers;
+    QList<bool> layerVisibility;
+    int activeLayerIndex = 0;
+    bool visible = true;
+};
+
+// Undo/Redo history step structure
+struct HistoryStep {
+    bool isStructuralChange;
+
+    // isStructuralChange = false
+    int frameIndex;
+    int layerIndex;
+    QImage previousState;
+    QImage newState;
+
+    // isStructuralChange = true
+    QList<Frame> oldFrames;
+    QList<Frame> newFrames;
+    int oldCurrentFrame;
+    int newCurrentFrame;
+};
+
+class ProjectModel : public QObject {
+    Q_OBJECT
+public:
+    explicit ProjectModel(QObject *parent = nullptr);
+    void initDefaultProject(int width, int height, bool isRGBMode = false);
+    void loadSettings();
+
+    // 1. FRAME MANAGEMENT
+    void addFrame();
+    void deleteCurrentFrame();
+    int getFrameCount() const;
+    int getCurrentFrameIndex() const;
+    void setCurrentFrame(int index);
+    void duplicateCurrentFrame();
+    void moveFrame(int fromIndex, int toIndex);
+    void toggleFrameVisibility(int index);
+    bool isFrameVisible(int index) const;
+    void setFrameDelay(int msecs);
+
+    // 2. LAYER MANAGEMENT
+    void addLayer();
+    void deleteCurrentLayer();
+    int getLayerCount() const;
+    int getCurrentLayerIndex() const;
+    void setCurrentLayer(int index);
+    void moveLayer(int fromIndex, int toIndex);
+    void toggleLayerVisibility(int index);
+    bool isLayerVisible(int index) const;
+    void mergeLayerDown();
+    void duplicateLayer(int index);
+
+    // 3. DATA ACCESS (Images)
+    bool getIsRGB() const;
+    QImage& getActiveLayerImage();
+    const QList<QImage>& getCurrentLayers() const;
+    QImage getFlattenedImage() const;
+    QImage getFlattenedFrame(int index) const;
+    QImage getFrameThumbnail(int index) const;
+    QImage getLayerThumbnail(int index) const;
+    QImage getCurrentLayerImage() const;
+    QImage applyBackground(const QImage &source) const;
+    void setMonoColor(const QColor &color);
+
+    // 4. CLIPBOARD AND EDITING
+    void setCanvasSize(int width, int height);
+    void setClipboardImage(const QImage &img);
+    QImage getClipboardImage() const;
+    void commitImageToCurrentLayer(const QPoint &pos, const QImage &image);
+    void clearRectOnCurrentLayer(const QRect &rect);
+    void clearCanvas();
+
+    // 5. UNDO / REDO / SERIALIZATION
+    void setMaxHistorySteps(int limit);
+    void saveHistoryStep(const QImage &previousState);
+    void saveStructuralHistoryStep(const QList<Frame>& oldFrames, int oldFrameIdx);
+    void undo();
+    void redo();
+    QByteArray saveProjectData() const;
+    bool loadProjectData(const QByteArray &data);
+
+    // 6. ANIMATION AND UI
+    bool isPlaying() const;
+    void togglePlay();
+    void onPlayTimerTick();
+    void notifyImageChanged();
+    void syncUIAfterHistoryStep();
+
+signals:
+    // Signals for updating the interface (MainWindow)
+    void frameListChanged();
+    void layersListChanged();
+    void layerThumbnailUpdated(int index);
+    void activeLayerChanged(int index);
+    void activeFrameChanged(int index);
+    void projectModified();
+
+    void imageChanged(const QImage &newImage);
+    void frameAdded(const QImage &thumbnail, int index);
+    void frameChanged(int index);
+    void isPlayingChanged(bool playing);
+    void frameDeleted(int deletedIndex);
+    void forceUIFrameSelection(int frameIndex);
+    void forceUILayerSelection(int layerIndex);
+    void framesListChanged();
+
+    void canUndoChanged(bool canUndo);
+    void canRedoChanged(bool canRedo);
+
+private:
+    Frame createDefaultFrame() const;
+    QImage applyTint(const QImage &source) const;
+
+    // Configuration constants
+    int maxFrames = 64;
+    int maxLayers = 16;
+
+    // Width X Height, Color mode
+    int CANVAS_WIDTH = 128;
+    int CANVAS_HEIGHT = 64;
+    bool isRGB = false;
+
+    // Single Source of Truth
+    QList<Frame> frames;
+    int currentFrameIndex = 0;
+
+    // History and clipboard
+    QList<HistoryStep> history;
+    int maxHistorySteps = 50;
+    int historyIndex = -1;
+    QImage internalClipboard;
+
+    // Animation
+    class QTimer *playTimer;
+
+    QColor m_monoColor = Qt::white;
+};
+
+#endif // PROJECTMODEL_H
