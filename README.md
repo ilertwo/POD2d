@@ -4,8 +4,7 @@
 
 POD2d is a desktop application written in C++ with Qt 6. Draw pixel-art animations frame by frame — with layers, a custom palette and a minimap — and **export them as ready-to-paste code arrays** for microcontroller displays (Arduino-style `PROGMEM` bitmaps).
 
-<!-- TODO: add a screenshot or GIF here. This is the most important part of a README! -->
-<!-- ![POD2d screenshot](docs/screenshot.png) -->
+![POD2d screenshot](docs/screenshot.png)
 
 ## Features
 
@@ -139,8 +138,6 @@ POD2d/
 ```
 
 ## Roadmap
-
-<!-- TODO: write your real plans, for example: -->
 
 - [ ] More export formats and output languages
 - [ ] Linux build
