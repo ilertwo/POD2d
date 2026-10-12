@@ -612,7 +612,8 @@ void MainWindow::connectHelpActions() {
     });
 
     connect(ui->act_HelpUpdates, &QAction::triggered, this, [this]() {
-        QMessageBox::information(this, tr("Check for Updates"), tr("You are using the latest version of POD2d."));
+        QDesktopServices::openUrl(QUrl("https://github.com/ilertwo/POD2d/tree/release"));
+        //QMessageBox::information(this, tr("Check for Updates"), tr("You are using the latest version of POD2d."));
     });
 
     connect(ui->act_HelpAbout, &QAction::triggered, this, [this]() {
