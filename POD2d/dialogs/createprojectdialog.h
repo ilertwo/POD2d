@@ -19,7 +19,7 @@ public:
     int getHeight() const;
     QString getProjectName() const;
     QString getFullFilePath() const;
-    void on_btn_Browse_clicked();
+    void onBrowseClicked();
 
     bool isRGBMode() const;
 

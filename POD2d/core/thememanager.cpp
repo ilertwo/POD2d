@@ -102,14 +102,11 @@ void updateDockTitleBars(Ui::MainWindow *ui, const QString &theme) {
 }
 
 void ThemeManager::applyTheme(const QString &themeName, QWidget *mainWindow) {
-    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
-    QString filePath = QString(basePath + "/themes/%1.qss").arg(themeName);
-
-    QFile file(filePath);
+    QFile file(QString(":/themes/%1.qss").arg(themeName));
     if (file.open(QFile::ReadOnly | QFile::Text)) {
         QTextStream stream(&file);
         QString styleSheet = stream.readAll();
-        styleSheet.replace("{BASE_PATH}", basePath);
+        styleSheet.replace("{BASE_PATH}", ":");
         qApp->setStyleSheet(styleSheet);
         file.close();
 
@@ -132,7 +129,7 @@ QIcon ThemeManager::generate1bitIcon(const QString &text) {
 }
 
 void ThemeManager::loadIcons(Ui::MainWindow *ui, const QString &theme, ProjectModel *model, QWidget *mainWindow) {
-    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
+    QString basePath = ":";
     QFont pixelFont("Courier New", 14, QFont::Bold);
 
     auto setBtnIcon = [&](QPushButton* btn, const QString& text, const QString& iconName) {

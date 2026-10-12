@@ -27,7 +27,7 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
     ui->spin_Height->setValue(defaultHeight);
     ui->cmb_ColorMode->setCurrentIndex(defaultColorMode);
 
-    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
+    QString basePath = ":";
 
     connect(ui->btn_ConfirmCreate, &QPushButton::clicked, this, [this]() {
         SettingsManager::setValue("editor/defaultColorMode", ui->cmb_ColorMode->currentIndex());
@@ -36,7 +36,7 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
 
     connect(ui->btn_Cancel, &QPushButton::clicked, this, &QDialog::reject);
 
-    connect(ui->btn_Browse,  &QPushButton::clicked, this, &CreateProjectDialog::on_btn_Browse_clicked);
+    connect(ui->btn_Browse,  &QPushButton::clicked, this, &CreateProjectDialog::onBrowseClicked);
 
     setTheme();
 }
@@ -79,7 +79,7 @@ QString CreateProjectDialog::getProjectName() const {
     return ui->input_ProjectName->text().trimmed();
 }
 
-void CreateProjectDialog::on_btn_Browse_clicked() {
+void CreateProjectDialog::onBrowseClicked() {
     QString currentPath = ui->input_Location->text().trimmed();
 
     if (currentPath.isEmpty() || !QDir(currentPath).exists()) {
