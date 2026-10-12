@@ -1,0 +1,96 @@
+<RCC>
+  <qresource prefix="/">
+    <!-- Кореневі іконки -->
+    <file>image/POD2d_icon.png</file>
+    <file>image/POD2d_icon_white.png</file>
+
+    <!-- Тема: dark -->
+    <file>image/dark/arrow_down.png</file>
+    <file>image/dark/arrow_up.png</file>
+    <file>image/dark/brokenLine.png</file>
+    <file>image/dark/center.png</file>
+    <file>image/dark/checked.png</file>
+    <file>image/dark/circle.png</file>
+    <file>image/dark/dithering.png</file>
+    <file>image/dark/dock_close.png</file>
+    <file>image/dark/dock_close@2x.png</file>
+    <file>image/dark/dock_float.png</file>
+    <file>image/dark/dock_float@2x.png</file>
+    <file>image/dark/edit_mode.png</file>
+    <file>image/dark/eraser.png</file>
+    <file>image/dark/hide_frames.png</file>
+    <file>image/dark/hide_layers.png</file>
+    <file>image/dark/hide_minimap.png</file>
+    <file>image/dark/lasso.png</file>
+    <file>image/dark/lighten.png</file>
+    <file>image/dark/line.png</file>
+    <file>image/dark/load.png</file>
+    <file>image/dark/mirror.png</file>
+    <file>image/dark/pain.png</file>
+    <file>image/dark/pan.png</file>
+    <file>image/dark/path.png</file>
+    <file>image/dark/pen.png</file>
+    <file>image/dark/pipette.png</file>
+    <file>image/dark/play.png</file>
+    <file>image/dark/rectangle.png</file>
+    <file>image/dark/redo.png</file>
+    <file>image/dark/rotate.png</file>
+    <file>image/dark/save.png</file>
+    <file>image/dark/select.png</file>
+    <file>image/dark/shape.png</file>
+    <file>image/dark/stop.png</file>
+    <file>image/dark/text.png</file>
+    <file>image/dark/undo.png</file>
+
+    <!-- Тема: light -->
+    <file>image/light/arrow_down.png</file>
+    <file>image/light/arrow_up.png</file>
+    <file>image/light/brokenLine.png</file>
+    <file>image/light/center.png</file>
+    <file>image/light/checked.png</file>
+    <file>image/light/circle.png</file>
+    <file>image/light/dithering.png</file>
+    <file>image/light/dock_close.png</file>
+    <file>image/light/dock_close@2x.png</file>
+    <file>image/light/dock_float.png</file>
+    <file>image/light/dock_float@2x.png</file>
+    <file>image/light/edit_mode.png</file>
+    <file>image/light/eraser.png</file>
+    <file>image/light/hide_frames.png</file>
+    <file>image/light/hide_layers.png</file>
+    <file>image/light/hide_minimap.png</file>
+    <file>image/light/lasso.png</file>
+    <file>image/light/lighten.png</file>
+    <file>image/light/line.png</file>
+    <file>image/light/load.png</file>
+    <file>image/light/mirror.png</file>
+    <file>image/light/pain.png</file>
+    <file>image/light/pan.png</file>
+    <file>image/light/path.png</file>
+    <file>image/light/pen.png</file>
+    <file>image/light/pipette.png</file>
+    <file>image/light/play.png</file>
+    <file>image/light/rectangle.png</file>
+    <file>image/light/redo.png</file>
+    <file>image/light/rotate.png</file>
+    <file>image/light/save.png</file>
+    <file>image/light/select.png</file>
+    <file>image/light/shape.png</file>
+    <file>image/light/stop.png</file>
+    <file>image/light/text.png</file>
+    <file>image/light/undo.png</file>
+
+    <!-- Тема: 1bit -->
+    <file>image/1bit/checked.png</file>
+    <file>image/1bit/checked_black.png</file>
+    <file>image/1bit/down.png</file>
+    <file>image/1bit/down_black.png</file>
+    <file>image/1bit/up.png</file>
+    <file>image/1bit/up_black.png</file>
+
+    <!-- Файли стилів (QSS) -->
+    <file>themes/1bit.qss</file>
+    <file>themes/dark.qss</file>
+    <file>themes/light.qss</file>
+  </qresource>
+</RCC>

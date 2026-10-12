@@ -58,7 +58,7 @@ PaletteDialog::PaletteDialog(QWidget *parent) :
 }
 
 void PaletteDialog::setTheme() {
-    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
+    QString basePath = ":";
     QSettings settings("POD2d", "EditorSettings");
     QString theme = settings.value("ui/theme", "dark").toString();
 
