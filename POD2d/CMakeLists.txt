@@ -71,6 +71,7 @@ set(MAIN_FILES
     mainwindow.h
     mainwindow.cpp
     mainwindow.ui
+    app_icon.rc
 )
 
 set(PROJECT_SOURCES
