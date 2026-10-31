@@ -198,48 +198,6 @@
                 <string>Open project</string>
                </property>
               </widget>
-              <widget class="QPushButton" name="btn_ProjectsTab">
-               <property name="geometry">
-                <rect>
-                 <x>60</x>
-                 <y>170</y>
-                 <width>121</width>
-                 <height>31</height>
-                </rect>
-               </property>
-               <property name="font">
-                <font>
-                 <pointsize>11</pointsize>
-                </font>
-               </property>
-               <property name="cursor">
-                <cursorShape>PointingHandCursor</cursorShape>
-               </property>
-               <property name="text">
-                <string>project</string>
-               </property>
-              </widget>
-              <widget class="QPushButton" name="btn_ExamplesTab">
-               <property name="geometry">
-                <rect>
-                 <x>60</x>
-                 <y>210</y>
-                 <width>121</width>
-                 <height>31</height>
-                </rect>
-               </property>
-               <property name="font">
-                <font>
-                 <pointsize>11</pointsize>
-                </font>
-               </property>
-               <property name="cursor">
-                <cursorShape>PointingHandCursor</cursorShape>
-               </property>
-               <property name="text">
-                <string>examples</string>
-               </property>
-              </widget>
              </widget>
             </item>
             <item>
@@ -401,6 +359,12 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
            </property>
            <item>
             <widget class="QPushButton" name="btn_Save">
+             <property name="minimumSize">
+              <size>
+               <width>30</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="maximumSize">
               <size>
                <width>30</width>
@@ -1938,8 +1902,21 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
             <second>0</second>
            </time>
           </property>
+          <property name="currentSection">
+           <enum>QDateTimeEdit::Section::SecondSection</enum>
+          </property>
           <property name="displayFormat">
            <string>ss:zzz</string>
+          </property>
+          <property name="currentSectionIndex">
+           <number>0</number>
+          </property>
+          <property name="time">
+           <time>
+            <hour>0</hour>
+            <minute>0</minute>
+            <second>0</second>
+           </time>
           </property>
          </widget>
         </item>

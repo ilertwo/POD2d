@@ -42,7 +42,7 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
 }
 
 void CreateProjectDialog::setTheme() {
-    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
+    QString basePath = ":";
     QString theme = SettingsManager::getTheme();
 
     QFont pixelFont("Courier New", 14, QFont::Bold);

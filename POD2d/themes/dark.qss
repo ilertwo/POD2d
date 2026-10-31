@@ -1,14 +1,5 @@
 /* =====================================================================
-   POD2d — DARK THEME ("graphite + blue accent")
-
-   Surfaces :  #1b1c1e  wells (lists, inputs)
-               #26272a  window / docks / toolbar
-               #2f3135  buttons, cards
-               #3a3d41  hover
-               #45484d  pressed
-   Borders  :  #3f4246  normal      #4b4e53  strong
-   Text     :  #e3e5e8  normal      #9a9da3  dim      #5f6268  disabled
-   Accent   :  #5aa2ff  (selection / focus)      #2f6fc5  (checked fill)
+   POD2d — DARK THEME
    ===================================================================== */
 
 /* =======================================
@@ -137,13 +128,13 @@ QStatusBar QLabel {
 /* =======================================
    PANELS, FRAMES, LABELS & LINES
    ======================================= */
-QFrame[frameShape="4"] {            /* HLine */
+QFrame[frameShape="4"] {
     border: none;
     background-color: #3f4246;
     min-height: 1px;
     max-height: 1px;
 }
-QFrame[frameShape="5"] {            /* VLine */
+QFrame[frameShape="5"] {
     border: none;
     background-color: #3f4246;
     min-width: 1px;
@@ -248,50 +239,63 @@ QComboBox QAbstractItemView::item { min-height: 26px; padding-left: 8px; }
 /* =======================================
    SPINBOXES & TIMEEDIT
    ======================================= */
-QSpinBox, QTimeEdit {
+QSpinBox, QDoubleSpinBox, QTimeEdit {
     background-color: #1b1c1e;
     color: #e3e5e8;
     border: 1px solid #3f4246;
     border-radius: 4px;
-    padding: 4px 25px 4px 8px;
+    
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 2px;   
+    padding-right: 18px;
+    
+    /* Додаємо центрування тексту, щоб він завжди був посередині вільного простору */
+    qproperty-alignment: 'AlignHCenter|AlignVCenter';
 }
-QSpinBox:hover, QTimeEdit:hover { border: 1px solid #5a5e64; }
-QSpinBox:focus, QTimeEdit:focus { border: 1px solid #5aa2ff; }
 
-QSpinBox::up-button, QTimeEdit::up-button {
-    subcontrol-origin: border;
+QSpinBox:hover, QDoubleSpinBox:hover, QTimeEdit:hover { 
+    border: 1px solid #5a5e64; 
+}
+QSpinBox:focus, QDoubleSpinBox:focus, QTimeEdit:focus { 
+    border: 1px solid #5aa2ff; 
+}
+
+QSpinBox::up-button, QDoubleSpinBox::up-button, QTimeEdit::up-button {
+    subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 20px;
-    margin-top: 1px;
-    margin-right: 1px;
-    background-color: transparent;
-    border: none;
+    width: 18px;
+    background-color: #2f3135;
+    border-none: none;
     border-left: 1px solid #3f4246;
     border-bottom: 1px solid #3f4246;
     border-top-right-radius: 3px;
 }
-QSpinBox::down-button, QTimeEdit::down-button {
-    subcontrol-origin: border;
+QSpinBox::down-button, QDoubleSpinBox::down-button, QTimeEdit::down-button {
+    subcontrol-origin: padding;
     subcontrol-position: bottom right;
-    width: 20px;
-    margin-bottom: 1px;
-    margin-right: 1px;
-    background-color: transparent;
-    border: none;
+    width: 18px;
+    background-color: #2f3135;
+    border-none: none;
     border-left: 1px solid #3f4246;
     border-bottom-right-radius: 3px;
 }
-QSpinBox::up-button:hover, QTimeEdit::up-button:hover,
-QSpinBox::down-button:hover, QTimeEdit::down-button:hover { background-color: #34373b; }
-QSpinBox::up-button:pressed, QTimeEdit::up-button:pressed,
-QSpinBox::down-button:pressed, QTimeEdit::down-button:pressed { background-color: #45484d; }
 
-QSpinBox::up-arrow, QTimeEdit::up-arrow {
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover, QTimeEdit::up-button:hover,
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover, QTimeEdit::down-button:hover { 
+    background-color: #3a3d41; 
+}
+QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed, QTimeEdit::up-button:pressed,
+QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed, QTimeEdit::down-button:pressed { 
+    background-color: #45484d; 
+}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow, QTimeEdit::up-arrow {
     image: url("{BASE_PATH}/image/dark/arrow_up.png");
     width: 10px;
     height: 10px;
 }
-QSpinBox::down-arrow, QTimeEdit::down-arrow {
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow, QTimeEdit::down-arrow {
     image: url("{BASE_PATH}/image/dark/arrow_down.png");
     width: 10px;
     height: 10px;
@@ -364,9 +368,6 @@ QMainWindow { background-color: #1b1c1e; }
 
 /* =======================================
    DOCK WIDGETS / TABS / SEPARATORS
-   Панелі стоять впритул; межа — це роздільник (він же ручка зміни розміру).
-   Хочеш тоншу межу — зменш width/height роздільника (мінімум зручно ~3px).
-   Іконки кнопок: image/dark/dock_close.png, dock_float.png (+ @2x)
    ======================================= */
 QMainWindow::separator {
     background-color: #383a3f;
@@ -376,7 +377,7 @@ QMainWindow::separator {
 QMainWindow::separator:hover { background-color: #5aa2ff; }
 
 QDockWidget {
-    border: 1px solid #4b4e53;      /* рамка плаваючого дока */
+    border: 1px solid #4b4e53;
     titlebar-close-icon: url("{BASE_PATH}/image/dark/dock_close.png");
     titlebar-normal-icon: url("{BASE_PATH}/image/dark/dock_float.png");
 }
@@ -431,4 +432,13 @@ QMainWindow > QTabBar::tab:hover {
 QMainWindow > QTabBar::tab:selected {
     color: #ffffff;
     border-bottom: 2px solid #5aa2ff;
+}
+
+/* =======================================
+   SYSTEM DIALOG BUTTONS
+   ======================================= */
+QDialogButtonBox QPushButton, QMessageBox QPushButton, QColorDialog QPushButton, QInputDialog QPushButton {
+    min-width: 60px;
+    min-height: 26px;
+    padding: 4px 12px;
 }
