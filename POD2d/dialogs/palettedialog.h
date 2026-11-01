@@ -37,6 +37,8 @@ private:
     void rebuildGrid();
     void updateSpectrums();
     void updateHex();
+
+    void pickColorFromScreen();
 };
 
 #endif // PALETTEDIALOG_H
