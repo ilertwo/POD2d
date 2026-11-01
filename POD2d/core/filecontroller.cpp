@@ -5,9 +5,7 @@
 #include "core/settingsmanager.h"
 
 #include <QFileDialog>
-#include <QStandardPaths>
 #include <QMessageBox>
-#include <QSettings>
 #include <QFile>
 #include <QFileInfo>
 #include <QInputDialog>
@@ -38,11 +36,16 @@ void FileController::createProject() {
         QString newPath = dialog.getFullFilePath();
         if (newPath.isEmpty()) return;
 
+        SettingsManager::setSessionLastDirectory(QFileInfo(newPath).absolutePath());
+
         m_currentFilePath = newPath;
         m_currentProjectName = dialog.getProjectName();
         m_projectWidth = dialog.getWidth();
         m_projectHeight = dialog.getHeight();
         bool isRGB = dialog.isRGBMode();
+
+        SettingsManager::setLastProjectWidth(m_projectWidth);
+        SettingsManager::setLastProjectHeight(m_projectHeight);
 
         if (m_model) {
             m_model->initDefaultProject(m_projectWidth, m_projectHeight, isRGB);
@@ -59,8 +62,7 @@ void FileController::createProject() {
 }
 
 void FileController::openProject() {
-    QSettings settings("POD2d", "EditorSettings");
-    QString lastDir = settings.value("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
+    const QString lastDir = SettingsManager::getSessionLastDirectory();
 
     const QString path = QFileDialog::getOpenFileName(
         m_parentWindow, "Open project", lastDir,
@@ -68,7 +70,7 @@ void FileController::openProject() {
         );
 
     if (path.isEmpty()) return;
-    settings.setValue("lastDirectory", QFileInfo(path).absolutePath());
+    SettingsManager::setSessionLastDirectory(QFileInfo(path).absolutePath());
 
     if (path.endsWith(".png", Qt::CaseInsensitive)) {
         openPngAsProject(path);
@@ -95,6 +97,8 @@ void FileController::loadProjectFromFile(const QString &path) {
     m_currentFilePath = path;
     m_currentProjectName = QFileInfo(path).baseName();
 
+    SettingsManager::setSessionLastDirectory(QFileInfo(path).absolutePath());
+
     QImage loadedImg = m_model->getActiveLayerImage();
     m_projectWidth = loadedImg.width();
     m_projectHeight = loadedImg.height();
@@ -110,7 +114,7 @@ void FileController::loadProjectFromFile(const QString &path) {
 }
 
 void FileController::saveProjectAs() {
-    QString lastDir = SettingsManager::getLastDirectory();
+    QString lastDir = SettingsManager::getSessionLastDirectory();
 
     QString defaultFileName = m_currentProjectName.isEmpty() ? "Untitled.pod2d" : m_currentProjectName;
     if (!defaultFileName.endsWith(".pod2d") && !defaultFileName.endsWith(".png")) {
@@ -125,7 +129,7 @@ void FileController::saveProjectAs() {
 
     if (filePath.isEmpty()) return;
 
-    SettingsManager::setLastDirectory(QFileInfo(filePath).absolutePath());
+    SettingsManager::setSessionLastDirectory(QFileInfo(filePath).absolutePath());
 
     m_currentFilePath = filePath;
     m_currentProjectName = QFileInfo(filePath).baseName();
@@ -225,13 +229,12 @@ void FileController::openPngAsProject(const QString &path) {
 }
 
 void FileController::actionImportPng() {
-    QSettings settings("POD2d", "EditorSettings");
-    QString lastDir = settings.value("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
+    QString lastDir = SettingsManager::getSessionLastDirectory();
     QString path = QFileDialog::getOpenFileName(
         m_parentWindow, "Import PNG", lastDir, "Images (*.png *.jpg *.bmp)"
         );
     if (path.isEmpty()) return;
-    settings.setValue("lastDirectory", QFileInfo(path).absolutePath());
+    SettingsManager::setSessionLastDirectory(QFileInfo(path).absolutePath());
     importPngToCanvas(path);
 }
 
@@ -290,8 +293,7 @@ void FileController::actionImportCArray() {
                                                       "Insert your array (e.g., 0xFF, 0x9914...):", "", &ok);
     if (!ok || codeText.isEmpty()) return;
 
-    QSettings settings("POD2d", "EditorSettings");
-    bool isU8g2 = (settings.value("export/byteFormat", 0).toInt() == 1);
+    bool isU8g2 = (SettingsManager::getSessionExportFormat() == 1);
 
     QImage img(m_projectWidth, m_projectHeight, QImage::Format_ARGB32);
     img.fill(Qt::transparent);

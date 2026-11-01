@@ -2,6 +2,7 @@
 #include "ui_exportdialog.h"
 #include "models/projectmodel.h"
 #include "models/codegenerator.h"
+#include "core/settingsmanager.h"
 
 #include "models/gif.h"
 
@@ -24,6 +25,13 @@ ExportDialog::ExportDialog(ProjectModel *model, const QString &projName, QWidget
     QSettings settings("POD2d", "EditorSettings");
     int defaultFormat = settings.value("export/defaultFormat", 0).toInt();
     ui->cmb_Language->setCurrentIndex(defaultFormat);
+
+    ui->cmb_Language->setCurrentIndex(SettingsManager::getSessionExportFormat());
+
+    ui->chk_Optimize->setChecked(SettingsManager::getSessionExportOption("optimize", true));
+    ui->chk_Animation->setChecked(SettingsManager::getSessionExportOption("animation", false));
+    ui->chk_DataOnly->setChecked(SettingsManager::getSessionExportOption("dataOnly", false));
+    ui->chk_InvertColors->setChecked(SettingsManager::getSessionExportOption("invertColors", false));
 
     this->setWindowTitle("Export");
     Q_ASSERT_X(projectModel != nullptr, "ExportDialog", "Critical error: ProjectModel was not passed!");
@@ -60,9 +68,13 @@ void ExportDialog::generateCode() {
     bool exportAnimation = ui->chk_Animation->isChecked();
     bool isRGBMode = projectModel->getIsRGB();
     bool isDataOnly = ui->chk_DataOnly->isChecked();
-
-    // --- ДОДАНО ---
     bool invertColors = ui->chk_InvertColors->isChecked();
+
+    SettingsManager::setSessionExportFormat(ui->cmb_Language->currentIndex());
+    SettingsManager::setSessionExportOption("optimize", isOptimize);
+    SettingsManager::setSessionExportOption("animation", exportAnimation);
+    SettingsManager::setSessionExportOption("dataOnly", isDataOnly);
+    SettingsManager::setSessionExportOption("invertColors", invertColors);
 
     const int frameCount = projectModel->getFrameCount();
     QList<QImage> flattenedFrames;

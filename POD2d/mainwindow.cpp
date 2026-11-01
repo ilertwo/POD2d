@@ -36,6 +36,7 @@
 #include <QToolBar>
 #include <QTabBar>
 #include <QMouseEvent>
+#include <QScrollBar>
 
 namespace {
 bool shapeWantsHorizontal(QMainWindow *mw, QDockWidget *dock, bool currentHorizontal) {
@@ -203,6 +204,7 @@ void MainWindow::updateLayersOrientation() {
 
 void MainWindow::snapToolsWidth() {
     if (property("snappingTools").toBool()) return;
+
     if (QGuiApplication::mouseButtons() & Qt::LeftButton) return;
 
     QDockWidget *dock = ui->dockTools;
@@ -218,9 +220,18 @@ void MainWindow::snapToolsWidth() {
     const int viewportW = ui->toolsScroll->viewport()->width();
     if (viewportW <= 0) return;
 
+    QScrollBar *vBar = ui->toolsScroll->verticalScrollBar();
+    bool hasScrollbar = vBar && vBar->isVisible() && (vBar->maximum() > vBar->minimum());
+    int scrollbarWidth = hasScrollbar ? vBar->width() : 0;
+
     const int cols = qBound(1, qRound(double(viewportW - 2 * kMargin) / kCell), kMaxCols);
-    const int delta = viewportW - (cols * kCell + 2 * kMargin);
-    if (delta == 0) return;
+
+    int targetViewportW = (cols * kCell + 2 * kMargin);
+
+    int currentViewportW = viewportW;
+    int delta = currentViewportW - targetViewportW;
+
+    if (qAbs(delta) < 2) return;
 
     setProperty("snappingTools", true);
     resizeDocks({ dock }, { dock->width() - delta }, Qt::Horizontal);
@@ -921,6 +932,9 @@ void MainWindow::dropEvent(QDropEvent *event) {
 void MainWindow::setEditorUIEnabled(bool enabled) {
     ui->act_Save->setEnabled(enabled);
     ui->act_SaveAs->setEnabled(enabled);
+    ui->act_ExportCode->setEnabled(enabled);
+    ui->act_ImportCArray->setEnabled(enabled);
+    ui->act_ImportPNG->setEnabled(enabled);
     ui->act_Undo->setEnabled(enabled);
     ui->act_Redo->setEnabled(enabled);
     ui->act_Select->setEnabled(enabled);

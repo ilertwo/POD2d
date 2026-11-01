@@ -533,6 +533,30 @@ void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
     update();
 }
 
+void PixelCanvas::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+
+    QSize oldSize = event->oldSize();
+    QSize newSize = event->size();
+
+    if (!oldSize.isValid()) {
+        fitToScreen();
+        return;
+    }
+
+    int deltaW = newSize.width() - oldSize.width();
+    int deltaH = newSize.height() - oldSize.height();
+
+    offset.setX(offset.x() + deltaW / 2.0);
+    offset.setY(offset.y() + deltaH / 2.0);
+
+    clampOffset();
+
+    if (isViewCentered) {
+        fitToScreen();
+    }
+}
+
 void PixelCanvas::paintEvent(QPaintEvent *event) {
     Q_UNUSED(event);
 

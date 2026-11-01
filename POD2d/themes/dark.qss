@@ -442,3 +442,103 @@ QDialogButtonBox QPushButton, QMessageBox QPushButton, QColorDialog QPushButton,
     min-height: 26px;
     padding: 4px 12px;
 }
+
+/* =======================================
+   GROUPBOX
+   ======================================= */
+QGroupBox {
+    border: 1px solid #3f4246;
+    border-radius: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 10px;
+    padding: 0px 4px;
+    color: #9a9da3;
+}
+
+/* =======================================
+   PLAIN TEXT EDIT
+   ======================================= */
+QPlainTextEdit {
+    background-color: #1b1c1e;
+    border: 1px solid #3f4246;
+    border-radius: 4px;
+    padding: 3px 6px;
+}
+QPlainTextEdit:hover { border: 1px solid #5a5e64; }
+QPlainTextEdit:focus { border: 1px solid #5aa2ff; }
+
+/* =======================================
+   TABLE (QTableWidget + заголовки)
+   ======================================= */
+QTableWidget {
+    background-color: #1b1c1e;
+    border: 1px solid #3f4246;
+    border-radius: 6px;
+    gridline-color: #3f4246;
+}
+QTableWidget::item { padding: 2px 6px; }
+QTableWidget::item:selected { background-color: #2f5a96; color: #ffffff; }
+QHeaderView::section {
+    background-color: #2c2e32;
+    color: #b0b3b9;
+    border: none;
+    border-right: 1px solid #3f4246;
+    border-bottom: 1px solid #3f4246;
+    padding: 4px 8px;
+    font-weight: bold;
+}
+QTableCornerButton::section {
+    background-color: #2c2e32;
+    border: none;
+    border-bottom: 1px solid #3f4246;
+}
+
+/* =======================================
+   TAB WIDGET (settings dialog)
+   ======================================= */
+QTabWidget::pane {
+    border: 1px solid #3f4246;
+    border-radius: 6px;
+    top: -1px;
+}
+QTabWidget > QTabBar { background-color: transparent; }
+QTabWidget > QTabBar::tab {
+    background-color: transparent;
+    color: #9a9da3;
+    padding: 6px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+}
+QTabWidget > QTabBar::tab:hover { color: #e3e5e8; background-color: #34373b; }
+QTabWidget > QTabBar::tab:selected { color: #ffffff; border-bottom: 2px solid #5aa2ff; }
+
+/* =======================================
+   SCROLL AREA / LIST ITEMS
+   ======================================= */
+QScrollArea { border: none; }
+
+QListWidget::item { padding: 3px 6px; border-radius: 4px; }
+QListWidget::item:hover    { background-color: #34373b; }
+QListWidget::item:selected { background-color: #2f5a96; color: #ffffff; }
+
+/* Замінює inline styleSheet у mainwindow.ui (list_RecentProjects) */
+QListWidget#list_RecentProjects {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+QListWidget#list_RecentProjects::item:hover { background-color: #34373b; border-radius: 5px; }
+
+/* =======================================
+   START PAGE PANELS (QFrame StyledPanel/Raised)
+   Раніше малювались нативно з палітри Qt -> у світлій темі невидимі.
+   ======================================= */
+#frm_Logo, #frm_StartMenu, #recentProjectLabel, #frm_RecentProjects {
+    border: 1px solid #505359;
+    border-radius: 0px;
+}

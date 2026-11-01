@@ -107,6 +107,7 @@ void SettingsDialog::loadSettings() {
     ui->spin_UndoLimit->setValue(SettingsManager::getUndoLimit());
     ui->spin_MaxFrames->setValue(SettingsManager::getMaxFrames());
     ui->spin_MaxLayers->setValue(SettingsManager::getMaxLayers());
+    ui->chk_AddEmptyLayerOnDuplicate->setChecked(SettingsManager::getValue("editor/addEmptyLayerOnDuplicate", true).toBool());
     ui->chk_AutoSave->setChecked(SettingsManager::getAutoSave());
     ui->spin_AutoSaveInterval->setValue(SettingsManager::getAutoSaveInterval());
 
@@ -153,6 +154,7 @@ void SettingsDialog::saveSettings() {
     SettingsManager::setValue("editor/undoLimit", ui->spin_UndoLimit->value());
     SettingsManager::setValue("editor/maxFrames", ui->spin_MaxFrames->value());
     SettingsManager::setValue("editor/maxLayers", ui->spin_MaxLayers->value());
+    SettingsManager::setValue("editor/addEmptyLayerOnDuplicate", ui->chk_AddEmptyLayerOnDuplicate->isChecked());
     SettingsManager::setValue("editor/autoSave", ui->chk_AutoSave->isChecked());
     SettingsManager::setValue("editor/autoSaveInterval", ui->spin_AutoSaveInterval->value());
     SettingsManager::setValue("editor/rightClickEraser", ui->chk_RightClickEraser->isChecked());

@@ -8,6 +8,8 @@
 
 class SettingsManager {
 public:
+    SettingsManager();
+
     static QVariant getValue(const QString &key, const QVariant &defaultValue = QVariant());
     static void setValue(const QString &key, const QVariant &value);
 
@@ -45,6 +47,8 @@ public:
     static int getUndoLimit();
     static int getMaxFrames();
     static int getMaxLayers();
+    static bool getAddEmptyLayerOnDuplicate();
+    static void setAddEmptyLayerOnDuplicate(bool enable);
 
     // ==========================================
     // Files & Projects
@@ -56,6 +60,27 @@ public:
     static void setLastDirectory(const QString &dir);
 
     static int getExportByteFormat();
+
+    static void setSessionLastDirectory(const QString &path);
+    static QString getSessionLastDirectory();
+
+    static void setLastProjectHeight(int height);
+    static int getLastProjectHeight();
+    static void setLastProjectWidth(int width);
+    static int getLastProjectWidth();
+
+    static int getSessionExportFormat();
+    static void setSessionExportFormat(int format);
+
+    static bool getSessionExportOption(const QString &key, bool defaultValue);
+    static void setSessionExportOption(const QString &key, bool enabled);
+
+private:
+    static QString m_sessionDirectory;
+    static int m_sessionWidth;
+    static int m_sessionHeight;
+    static int m_sessionExportFormat;
+    static QMap<QString, bool> m_sessionExportOptions;
 };
 
 #endif // SETTINGSMANAGER_H

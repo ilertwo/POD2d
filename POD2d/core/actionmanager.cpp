@@ -23,6 +23,10 @@ void ActionManager::setupShortcuts(Ui::MainWindow *ui) {
         }
     };
 
+    ui->btn_Save->setToolTip("Save");
+    ui->btn_Undo->setToolTip("Undo");
+    ui->btn_Redo->setToolTip("Redo");
+
     // File (QAction)
     setShortcutAndToolTip(ui->act_NewFile, "New Project", "shortcuts/newFile", "Ctrl+N");
     setShortcutAndToolTip(ui->act_Save, "Save", "shortcuts/save", "Ctrl+S");
