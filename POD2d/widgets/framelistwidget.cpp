@@ -35,20 +35,18 @@ void FrameListWidget::setHorizontal(bool horizontal) {
     setWrapping(false);
     setVerticalScrollBarPolicy  (horizontal ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded);
     setHorizontalScrollBarPolicy(horizontal ? Qt::ScrollBarAsNeeded  : Qt::ScrollBarAlwaysOff);
-    setMinimumHeight(horizontal ? 108 : 0);   // 88 (клітинка) + відступи + місце під scrollbar
-    setMinimumWidth (horizontal ? 0   : 150);
+    setMinimumHeight(horizontal ? kFrameItem.height() + 22 : 0);
+    setMinimumWidth (horizontal ? 0 : 150);
 
     updateItemSizes();
 }
 
 void FrameListWidget::updateItemSizes() {
-    QSize hint(140, 88);
-    if (!m_horizontal) {
-        hint.setWidth(qMax(140, viewport()->width() - 2 * spacing() - 1));
-    }
-    for (int i = 0; i < count(); ++i) {
+    QSize hint = kFrameItem;
+    if (!m_horizontal)
+        hint.setWidth(qMax(kFrameItem.width(), viewport()->width() - 2 * spacing() - 1));
+    for (int i = 0; i < count(); ++i)
         item(i)->setSizeHint(hint);
-    }
 }
 
 void FrameListWidget::resizeEvent(QResizeEvent *event) {
@@ -69,24 +67,21 @@ void FrameListWidget::setModel(ProjectModel *model) {
     });
 
     connect(m_model, &ProjectModel::imageChanged, this, [this](const QImage &flatImg) {
-        int currentIndex = m_model->getCurrentFrameIndex();
-        QListWidgetItem *item = this->item(currentIndex);
-        if (item) {
-            if (QWidget *cellWidget = this->itemWidget(item)) {
-                if (QLabel *imgLabel = cellWidget->findChild<QLabel*>("frameImage")) {
-                    QImage bgImg = m_model->applyBackground(flatImg);
-                    QPixmap newPix = QPixmap::fromImage(bgImg).scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
-                    imgLabel->setPixmap(newPix);
-                }
-            }
-        }
+        QListWidgetItem *it = item(m_model->getCurrentFrameIndex());
+        if (!it) return;
+        QWidget *cell = itemWidget(it);
+        auto *imgLabel = cell ? cell->findChild<QLabel*>("frameImage") : nullptr;
+        if (!imgLabel) return;
+            const QPixmap pix = QPixmap::fromImage(m_model->applyBackground(flatImg)).scaled(kFrameThumb, Qt::KeepAspectRatio, Qt::FastTransformation);
+            imgLabel->setPixmap(pix);
+            imgLabel->setFixedSize(pix.size());
     });
 
     rebuildList();
 }
 
 void FrameListWidget::reloadTheme() {
-    rebuildList();
+    viewport()->update();
 }
 
 void FrameListWidget::onCurrentRowChanged(int row) {
@@ -127,83 +122,45 @@ bool FrameListWidget::eventFilter(QObject *watched, QEvent *event) {
 void FrameListWidget::rebuildList() {
     if (!m_model) return;
     const QSignalBlocker blocker(this);
-    this->clear();
+    setUpdatesEnabled(false);
+    clear();
 
     const int frameCount = m_model->getFrameCount();
-    QSettings settings("POD2d", "EditorSettings");
-    QString theme = settings.value("ui/theme", "dark").toString();
-
-    QString topBorder, normalItemBorder, selectedItemBorder, itemBg, textColor;
-    int borderRadius = (theme == "1bit") ? 0 : 6;
-
-    if (theme == "1bit") {
-        topBorder = "";
-        normalItemBorder = "border: 1px solid white;";
-        selectedItemBorder = "border: 2px solid white;";
-        itemBg = "black";
-        textColor = "white";
-    } else if (theme == "light") {
-        topBorder = "";
-        normalItemBorder = "border: 1px solid #C4C2BC;";
-        selectedItemBorder = "border: 2px solid #3E7FD6;";
-        itemBg = "#F3F2EF";
-        textColor = "#2A2C2F";
-    } else { // dark
-        topBorder = "";
-        normalItemBorder = "border: 1px solid #3f4246;";
-        selectedItemBorder = "border: 2px solid #5aa2ff;";
-        itemBg = "#2f3135";
-        textColor = "#e3e5e8";
-    }
-
-    this->setStyleSheet(
-        "QListWidget { outline: 0; background: transparent; border: none; " + topBorder + (topBorder.isEmpty() ? "" : " padding-top: 4px;") + " }"
-                                                                                                                                              "QListWidget::item { background-color: " + itemBg + "; " + normalItemBorder + " border-radius: " + QString::number(borderRadius) + "px; }"
-                                                                                                  "QListWidget::item:selected { " + selectedItemBorder + " }"
-        );
 
     for (int i = 0; i < frameCount; ++i) {
-        QListWidgetItem *item = new QListWidgetItem();
-        item->setSizeHint(QSize(140, 88));
-        this->addItem(item);
+        auto *item = new QListWidgetItem();
+        item->setSizeHint(kFrameItem);
+        addItem(item);
 
-        QFrame *frameWidget = new QFrame();
-        frameWidget->setStyleSheet("background: transparent; border: none;");
+        auto *cell = new QFrame();
+        cell->setObjectName("frameCell");
 
-        QVBoxLayout *layout = new QVBoxLayout(frameWidget);
-        layout->setContentsMargins(4, 4, 4, 4);
+        auto *layout = new QVBoxLayout(cell);
+        layout->setContentsMargins(3, 3, 3, 3);
         layout->setSpacing(2);
-        layout->setAlignment(Qt::AlignCenter);
 
-        QLabel *imageLabel = new QLabel();
+        auto *imageLabel = new QLabel();
         imageLabel->setObjectName("frameImage");
-        imageLabel->setFixedSize(128, 64);
-        imageLabel->setStyleSheet("background-color: rgba(0, 0, 0, 0.2); border-radius: 2px;");
-        imageLabel->setAlignment(Qt::AlignCenter);
+        const QPixmap pix = QPixmap::fromImage(m_model->getFrameThumbnail(i))
+                                .scaled(kFrameThumb, Qt::KeepAspectRatio, Qt::FastTransformation);
+        imageLabel->setPixmap(pix);
+        imageLabel->setFixedSize(pix.size());
 
-        QImage thumb = m_model->getFrameThumbnail(i);
-        QPixmap pixmap = QPixmap::fromImage(thumb).scaled(128, 64, Qt::KeepAspectRatio, Qt::FastTransformation);
-        imageLabel->setPixmap(pixmap);
-
-        QLabel *textLabel = new QLabel(QString::number(i + 1));
+        auto *textLabel = new QLabel(QString::number(i + 1));
+        textLabel->setObjectName("frameNumber");
         textLabel->setAlignment(Qt::AlignCenter);
         textLabel->setFixedHeight(16);
+        textLabel->setProperty("hiddenItem", !m_model->isFrameVisible(i));
 
-        bool isVis = m_model->isFrameVisible(i);
-        if (isVis) {
-            textLabel->setStyleSheet("color: " + textColor + "; font-size: 11px; font-weight: bold; background: transparent;");
-        } else {
-            textLabel->setStyleSheet("color: " + ((theme == "1bit") ? textColor : QString("#777777")) + "; font-size: 11px; font-weight: bold; text-decoration: line-through; background: transparent;");
-        }
-
-        layout->addWidget(imageLabel);
+        layout->addWidget(imageLabel, 0, Qt::AlignHCenter);
         layout->addWidget(textLabel);
 
-        this->setItemWidget(item, frameWidget);
+        setItemWidget(item, cell);
     }
 
+    setUpdatesEnabled(true);
     updateItemSizes();
-    this->setCurrentRow(m_model->getCurrentFrameIndex());
+    setCurrentRow(m_model->getCurrentFrameIndex());
 }
 
 void FrameListWidget::showContextMenu(const QPoint &pos) {

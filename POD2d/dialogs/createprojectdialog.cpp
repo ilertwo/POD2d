@@ -2,7 +2,6 @@
 #include "ui_createprojectdialog.h"
 #include "core/settingsmanager.h"
 
-#include <QSettings>
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QDir>
@@ -16,8 +15,10 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
 
     this->setWindowTitle("Create project");
 
-    QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    //QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    QString defaultPath = SettingsManager::getSessionLastDirectory();
     ui->input_Location->setPlaceholderText(defaultPath);
+
 
     int defaultWidth = SettingsManager::getValue("editor/defaultWidth", 128).toInt();
     int defaultHeight = SettingsManager::getValue("editor/defaultHeight", 64).toInt();
@@ -25,6 +26,10 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
 
     ui->spin_Width->setValue(defaultWidth);
     ui->spin_Height->setValue(defaultHeight);
+
+    ui->spin_Width->setValue(SettingsManager::getLastProjectWidth());
+    ui->spin_Height->setValue(SettingsManager::getLastProjectHeight());
+
     ui->cmb_ColorMode->setCurrentIndex(defaultColorMode);
 
     QString basePath = ":";
@@ -42,7 +47,7 @@ CreateProjectDialog::CreateProjectDialog(QWidget *parent) :
 }
 
 void CreateProjectDialog::setTheme() {
-    QString basePath = QDir(QFileInfo(__FILE__).dir()).absoluteFilePath("..");
+    QString basePath = ":";
     QString theme = SettingsManager::getTheme();
 
     QFont pixelFont("Courier New", 14, QFont::Bold);
@@ -83,7 +88,7 @@ void CreateProjectDialog::onBrowseClicked() {
     QString currentPath = ui->input_Location->text().trimmed();
 
     if (currentPath.isEmpty() || !QDir(currentPath).exists()) {
-        currentPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        currentPath = SettingsManager::getSessionLastDirectory();
     }
 
     QString dir = QFileDialog::getExistingDirectory(this,
@@ -99,7 +104,7 @@ void CreateProjectDialog::onBrowseClicked() {
 QString CreateProjectDialog::getFullFilePath() const {
     QString currentPath = ui->input_Location->text().trimmed();
     if (currentPath.isEmpty()) {
-        currentPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        currentPath = SettingsManager::getSessionLastDirectory();
     }
 
     QString baseName = getProjectName();

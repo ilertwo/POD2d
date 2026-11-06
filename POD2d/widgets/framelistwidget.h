@@ -5,6 +5,11 @@
 #include <QMenu>
 #include <QResizeEvent>
 
+namespace {
+constexpr QSize kFrameThumb(128, 64);
+constexpr QSize kFrameItem (140, 94);   // 3 + 64 + 2 + 16 + 3 = 88
+}
+
 class ProjectModel;
 
 class FrameListWidget : public QListWidget {

@@ -2,6 +2,13 @@
 #include <QSettings>
 #include <QStandardPaths>
 
+QString SettingsManager::m_sessionDirectory = QString();
+int SettingsManager::m_sessionWidth = -1;
+int SettingsManager::m_sessionHeight = -1;
+int SettingsManager::m_sessionExportFormat = -1;
+QMap<QString, bool> SettingsManager::m_sessionExportOptions = QMap<QString, bool>();
+
+
 namespace {
 const QString ORG_NAME = "POD2d";
 const QString APP_NAME = "EditorSettings";
@@ -50,6 +57,12 @@ bool SettingsManager::getRightClickEraser() { return getValue("editor/rightClick
 int SettingsManager::getUndoLimit() { return getValue("editor/undoLimit", 50).toInt(); }
 int SettingsManager::getMaxFrames() { return getValue("editor/maxFrames", 64).toInt(); }
 int SettingsManager::getMaxLayers() { return getValue("editor/maxLayers", 16).toInt(); }
+bool SettingsManager::getAddEmptyLayerOnDuplicate() {
+    return getValue("editor/addEmptyLayerOnDuplicate", true).toBool();
+}
+void SettingsManager::setAddEmptyLayerOnDuplicate(bool enable) {
+    setValue("editor/addEmptyLayerOnDuplicate", enable);
+}
 
 // Files
 QStringList SettingsManager::getRecentProjects() {
@@ -67,7 +80,7 @@ void SettingsManager::addRecentProject(const QString &path) {
 }
 
 QString SettingsManager::getLastDirectory() {
-    return getValue("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DesktopLocation)).toString();
+    return getValue("lastDirectory", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString();
 }
 
 void SettingsManager::setLastDirectory(const QString &dir) {
@@ -76,4 +89,50 @@ void SettingsManager::setLastDirectory(const QString &dir) {
 
 int SettingsManager::getExportByteFormat() {
     return getValue("export/byteFormat", 0).toInt();
+}
+
+void SettingsManager::setSessionLastDirectory(const QString &path) {
+    m_sessionDirectory = path;
+}
+
+QString SettingsManager::getSessionLastDirectory() {
+    if (m_sessionDirectory.isEmpty()) {
+        return getLastDirectory();
+    }
+    return m_sessionDirectory;
+}
+
+void SettingsManager::setLastProjectWidth(int w) { m_sessionWidth = w; }
+int SettingsManager::getLastProjectWidth() {
+    if (m_sessionWidth == -1) {
+        return getValue("editor/defaultWidth", 128).toInt();
+    }
+    return m_sessionWidth;
+}
+
+void SettingsManager::setLastProjectHeight(int h) { m_sessionHeight = h; }
+int SettingsManager::getLastProjectHeight() {
+    if (m_sessionHeight == -1) {
+        return getValue("editor/defaultHeight", 64).toInt();
+    }
+    return m_sessionHeight;
+}
+
+int SettingsManager::getSessionExportFormat() {
+    if (m_sessionExportFormat == -1) {
+        return getExportByteFormat();
+    }
+    return m_sessionExportFormat;
+}
+
+void SettingsManager::setSessionExportFormat(int format) {
+    m_sessionExportFormat = format;
+}
+
+bool SettingsManager::getSessionExportOption(const QString &key, bool defaultValue) {
+    return m_sessionExportOptions.value(key, defaultValue);
+}
+
+void SettingsManager::setSessionExportOption(const QString &key, bool enabled) {
+    m_sessionExportOptions[key] = enabled;
 }

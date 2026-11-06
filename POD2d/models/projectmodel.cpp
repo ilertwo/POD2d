@@ -163,20 +163,27 @@ void ProjectModel::duplicateCurrentFrame() {
     QList<Frame> backupFrames = frames;
     int backupIndex = currentFrameIndex;
 
-    Frame newFrame = frames[currentFrameIndex];
+    const Frame &srcFrame = frames[currentFrameIndex];
+    Frame newFrame;
 
-    if (newFrame.layers.size() < maxLayers) {
+    for (const QImage &img : srcFrame.layers) {
+        newFrame.layers.append(img.copy());
+    }
+    newFrame.layerVisibility = srcFrame.layerVisibility;
+    newFrame.activeLayerIndex = srcFrame.activeLayerIndex;
+
+    bool addEmptyLayer = SettingsManager::getAddEmptyLayerOnDuplicate();
+
+    if (addEmptyLayer && newFrame.layers.size() < maxLayers) {
         QImage newEmptyLayer(CANVAS_WIDTH, CANVAS_HEIGHT, QImage::Format_ARGB32);
         newEmptyLayer.fill(Qt::transparent);
 
         newFrame.layers.append(newEmptyLayer);
         newFrame.layerVisibility.append(true);
-
         newFrame.activeLayerIndex = newFrame.layers.size() - 1;
     }
 
     frames.insert(currentFrameIndex + 1, newFrame);
-
     currentFrameIndex++;
     saveStructuralHistoryStep(backupFrames, backupIndex);
     syncUIAfterHistoryStep();

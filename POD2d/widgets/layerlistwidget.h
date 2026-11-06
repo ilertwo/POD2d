@@ -5,6 +5,11 @@
 #include <QMenu>
 #include <QResizeEvent>
 
+namespace {
+constexpr QSize kLayerThumb(80, 30);
+constexpr QSize kLayerItem (120, 46);
+}
+
 class ProjectModel;
 
 class LayerListWidget : public QListWidget {

@@ -1,14 +1,5 @@
 /* =====================================================================
-   POD2d — DARK THEME ("graphite + blue accent")
-
-   Surfaces :  #1b1c1e  wells (lists, inputs)
-               #26272a  window / docks / toolbar
-               #2f3135  buttons, cards
-               #3a3d41  hover
-               #45484d  pressed
-   Borders  :  #3f4246  normal      #4b4e53  strong
-   Text     :  #e3e5e8  normal      #9a9da3  dim      #5f6268  disabled
-   Accent   :  #5aa2ff  (selection / focus)      #2f6fc5  (checked fill)
+   POD2d — DARK THEME
    ===================================================================== */
 
 /* =======================================
@@ -137,13 +128,13 @@ QStatusBar QLabel {
 /* =======================================
    PANELS, FRAMES, LABELS & LINES
    ======================================= */
-QFrame[frameShape="4"] {            /* HLine */
+QFrame[frameShape="4"] {
     border: none;
     background-color: #3f4246;
     min-height: 1px;
     max-height: 1px;
 }
-QFrame[frameShape="5"] {            /* VLine */
+QFrame[frameShape="5"] {
     border: none;
     background-color: #3f4246;
     min-width: 1px;
@@ -248,50 +239,62 @@ QComboBox QAbstractItemView::item { min-height: 26px; padding-left: 8px; }
 /* =======================================
    SPINBOXES & TIMEEDIT
    ======================================= */
-QSpinBox, QTimeEdit {
+QSpinBox, QDoubleSpinBox, QTimeEdit {
     background-color: #1b1c1e;
     color: #e3e5e8;
     border: 1px solid #3f4246;
     border-radius: 4px;
-    padding: 4px 25px 4px 8px;
+    
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 2px;   
+    padding-right: 12px;
+    
+    qproperty-alignment: 'AlignHCenter|AlignVCenter';
 }
-QSpinBox:hover, QTimeEdit:hover { border: 1px solid #5a5e64; }
-QSpinBox:focus, QTimeEdit:focus { border: 1px solid #5aa2ff; }
 
-QSpinBox::up-button, QTimeEdit::up-button {
-    subcontrol-origin: border;
+QSpinBox:hover, QDoubleSpinBox:hover, QTimeEdit:hover { 
+    border: 1px solid #5a5e64; 
+}
+QSpinBox:focus, QDoubleSpinBox:focus, QTimeEdit:focus { 
+    border: 1px solid #5aa2ff; 
+}
+
+QSpinBox::up-button, QDoubleSpinBox::up-button, QTimeEdit::up-button {
+    subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 20px;
-    margin-top: 1px;
-    margin-right: 1px;
-    background-color: transparent;
-    border: none;
+    width: 12px;
+    background-color: #2f3135;
+    border-none: none;
     border-left: 1px solid #3f4246;
     border-bottom: 1px solid #3f4246;
     border-top-right-radius: 3px;
 }
-QSpinBox::down-button, QTimeEdit::down-button {
-    subcontrol-origin: border;
+QSpinBox::down-button, QDoubleSpinBox::down-button, QTimeEdit::down-button {
+    subcontrol-origin: padding;
     subcontrol-position: bottom right;
-    width: 20px;
-    margin-bottom: 1px;
-    margin-right: 1px;
-    background-color: transparent;
-    border: none;
+    width: 12px;
+    background-color: #2f3135;
+    border-none: none;
     border-left: 1px solid #3f4246;
     border-bottom-right-radius: 3px;
 }
-QSpinBox::up-button:hover, QTimeEdit::up-button:hover,
-QSpinBox::down-button:hover, QTimeEdit::down-button:hover { background-color: #34373b; }
-QSpinBox::up-button:pressed, QTimeEdit::up-button:pressed,
-QSpinBox::down-button:pressed, QTimeEdit::down-button:pressed { background-color: #45484d; }
 
-QSpinBox::up-arrow, QTimeEdit::up-arrow {
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover, QTimeEdit::up-button:hover,
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover, QTimeEdit::down-button:hover { 
+    background-color: #3a3d41; 
+}
+QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed, QTimeEdit::up-button:pressed,
+QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed, QTimeEdit::down-button:pressed { 
+    background-color: #45484d; 
+}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow, QTimeEdit::up-arrow {
     image: url("{BASE_PATH}/image/dark/arrow_up.png");
     width: 10px;
     height: 10px;
 }
-QSpinBox::down-arrow, QTimeEdit::down-arrow {
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow, QTimeEdit::down-arrow {
     image: url("{BASE_PATH}/image/dark/arrow_down.png");
     width: 10px;
     height: 10px;
@@ -364,9 +367,6 @@ QMainWindow { background-color: #1b1c1e; }
 
 /* =======================================
    DOCK WIDGETS / TABS / SEPARATORS
-   Панелі стоять впритул; межа — це роздільник (він же ручка зміни розміру).
-   Хочеш тоншу межу — зменш width/height роздільника (мінімум зручно ~3px).
-   Іконки кнопок: image/dark/dock_close.png, dock_float.png (+ @2x)
    ======================================= */
 QMainWindow::separator {
     background-color: #383a3f;
@@ -376,7 +376,7 @@ QMainWindow::separator {
 QMainWindow::separator:hover { background-color: #5aa2ff; }
 
 QDockWidget {
-    border: 1px solid #4b4e53;      /* рамка плаваючого дока */
+    border: 1px solid #4b4e53;
     titlebar-close-icon: url("{BASE_PATH}/image/dark/dock_close.png");
     titlebar-normal-icon: url("{BASE_PATH}/image/dark/dock_float.png");
 }
@@ -432,3 +432,159 @@ QMainWindow > QTabBar::tab:selected {
     color: #ffffff;
     border-bottom: 2px solid #5aa2ff;
 }
+
+/* =======================================
+   SYSTEM DIALOG BUTTONS
+   ======================================= */
+QDialogButtonBox QPushButton, QMessageBox QPushButton, QColorDialog QPushButton, QInputDialog QPushButton {
+    padding: 6px 18px;
+}
+
+/* =======================================
+   GROUPBOX
+   ======================================= */
+QGroupBox {
+    border: 1px solid #3f4246;
+    border-radius: 6px;
+    margin-top: 10px;
+    padding-top: 8px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 10px;
+    padding: 0px 4px;
+    color: #9a9da3;
+}
+
+/* =======================================
+   PLAIN TEXT EDIT
+   ======================================= */
+QPlainTextEdit {
+    background-color: #1b1c1e;
+    border: 1px solid #3f4246;
+    border-radius: 4px;
+    padding: 3px 6px;
+}
+QPlainTextEdit:hover { border: 1px solid #5a5e64; }
+QPlainTextEdit:focus { border: 1px solid #5aa2ff; }
+
+/* =======================================
+   TABLE 
+   ======================================= */
+QTableWidget {
+    background-color: #1b1c1e;
+    border: 1px solid #3f4246;
+    border-radius: 6px;
+    gridline-color: #3f4246;
+}
+QTableWidget::item { padding: 2px 6px; }
+QTableWidget::item:selected { background-color: #2f5a96; color: #ffffff; }
+QHeaderView::section {
+    background-color: #2c2e32;
+    color: #b0b3b9;
+    border: none;
+    border-right: 1px solid #3f4246;
+    border-bottom: 1px solid #3f4246;
+    padding: 4px 8px;
+    font-weight: bold;
+}
+QTableCornerButton::section {
+    background-color: #2c2e32;
+    border: none;
+    border-bottom: 1px solid #3f4246;
+}
+
+/* =======================================
+   TAB WIDGET (settings dialog)
+   ======================================= */
+QTabWidget::pane {
+    border: 1px solid #3f4246;
+    border-radius: 6px;
+    top: -1px;
+}
+QTabWidget > QTabBar { background-color: transparent; }
+QTabWidget > QTabBar::tab {
+    background-color: transparent;
+    color: #9a9da3;
+    padding: 6px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+}
+QTabWidget > QTabBar::tab:hover { color: #e3e5e8; background-color: #34373b; }
+QTabWidget > QTabBar::tab:selected { color: #ffffff; border-bottom: 2px solid #5aa2ff; }
+
+/* =======================================
+   SCROLL AREA / LIST ITEMS
+   ======================================= */
+QScrollArea { border: none; }
+
+QListWidget::item { padding: 3px 6px; border-radius: 4px; }
+QListWidget::item:hover    { background-color: #34373b; }
+QListWidget::item:selected { background-color: #2f5a96; color: #ffffff; }
+
+QListWidget#list_RecentProjects {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+QListWidget#list_RecentProjects::item:hover { background-color: #34373b; border-radius: 5px; }
+
+/* =======================================
+   START PAGE PANELS (QFrame StyledPanel/Raised)
+   ======================================= */
+#frm_Logo, #frm_StartMenu, #recentProjectLabel, #frm_RecentProjects {
+    border: 1px solid #505359;
+    border-radius: 0px;
+}
+
+/* =======================================
+   LISTS: Frames / Layers / Recent projects / Color indicators
+   Objects: #framesListWidget, #layersListWidget, #frameCell, #layerCell,
+            #frameImage, #layerImage, #frameNumber, #layerNumber,
+            #recentRow, #recentName, #recentPath, #btn_PrimaryColor, #btn_SecondaryColor
+   ======================================= */
+#framesListWidget, #layersListWidget {
+    outline: 0;
+    background: transparent;
+    border: none;
+}
+#framesListWidget::item, #layersListWidget::item {
+    background-color: #2F3135;
+    border: 1px solid #50545B;
+    border-radius: 6px;
+    padding: 0px;
+}
+#framesListWidget::item:hover, #layersListWidget::item:hover {
+    background-color: #2F3135;
+    border: 1px solid #6B7078;
+}
+#framesListWidget::item:selected, #layersListWidget::item:selected {
+    background-color: #2F3135;
+    border: 2px solid #5AA2FF;
+}
+
+QFrame#frameCell, QWidget#layerCell, QWidget#recentRow {
+    background: transparent;
+    border: none;
+}
+QLabel#frameImage, QLabel#layerImage {
+    background: rgba(0, 0, 0, 0.2);
+    border: none;
+}
+QLabel#frameNumber, QLabel#layerNumber {
+    color: #E3E5E8;
+    font-weight: bold;
+    background: transparent;
+}
+QLabel#frameNumber { font-size: 11px; }
+QLabel#frameNumber[hiddenItem="true"], QLabel#layerNumber[hiddenItem="true"] {
+    color: #777777;
+    text-decoration: line-through;
+}
+
+QLabel#recentName { color: #64B5F6; font-weight: bold; font-size: 14px; background: transparent; }
+QLabel#recentPath { color: #A8ACB3; font-size: 11px; background: transparent; }
+
+#btn_PrimaryColor   { border: 2px solid #FFFFFF; border-image: none; }
+#btn_SecondaryColor { border: 2px solid #888888; border-image: none; }

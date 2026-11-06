@@ -1,5 +1,6 @@
 #include "dialogs/palettedialog.h"
 #include "ui_palettedialog.h"
+#include "flowlayout.h"
 
 #include <QMouseEvent>
 #include <QPainter>
@@ -12,6 +13,11 @@
 #include <QLineEdit>
 #include <QSettings>
 #include <QColorDialog>
+#include <QScreen>
+#include <QGuiApplication>
+#include <QEventLoop>
+#include <QCursor>
+#include <QThread>
 
 PaletteDialog::PaletteDialog(QWidget *parent) :
     QDialog(parent),
@@ -53,6 +59,7 @@ PaletteDialog::PaletteDialog(QWidget *parent) :
     connect(ui->spin_Hue, QOverload<int>::of(&QSpinBox::valueChanged), this, updateFromSpins);
     connect(ui->spin_Sat, QOverload<int>::of(&QSpinBox::valueChanged), this, updateFromSpins);
     connect(ui->spin_Val, QOverload<int>::of(&QSpinBox::valueChanged), this, updateFromSpins);
+    connect(ui->btn_Eyedropper, &QPushButton::clicked, this, &PaletteDialog::pickColorFromScreen);
 
     setTheme();
 }
@@ -78,6 +85,7 @@ void PaletteDialog::setTheme() {
 
     setBtnIcon(ui->btn_Load, "L", "load.png");
     setBtnIcon(ui->btn_Save, "S", "save.png");
+    setBtnIcon(ui->btn_Eyedropper, "E", "pipette.png");
 }
 
 PaletteDialog::~PaletteDialog() {
@@ -187,30 +195,20 @@ void PaletteDialog::updateSpectrums() {
 }
 
 void PaletteDialog::rebuildGrid() {
-    QGridLayout *gridLayout = qobject_cast<QGridLayout*>(ui->widget_Palette->layout());
-
-    if (!gridLayout) {
-        if (ui->widget_Palette->layout()) {
-            delete ui->widget_Palette->layout();
+    QLayout *oldLayout = ui->widget_Palette->layout();
+    if (oldLayout) {
+        QLayoutItem *child;
+        while ((child = oldLayout->takeAt(0)) != nullptr) {
+            if (child->widget()) {
+                child->widget()->hide();
+                child->widget()->deleteLater();
+            }
+            delete child;
         }
-        gridLayout = new QGridLayout(ui->widget_Palette);
-        gridLayout->setSpacing(2);
-        gridLayout->setContentsMargins(5, 5, 5, 5);
+        delete oldLayout;
     }
 
-    QLayoutItem *child;
-    while ((child = gridLayout->takeAt(0)) != nullptr) {
-        if (child->widget()) {
-            child->widget()->hide();
-            child->widget()->deleteLater();
-        }
-        delete child;
-    }
-
-    for (int i = 0; i < gridLayout->rowCount(); ++i) gridLayout->setRowStretch(i, 0);
-    for (int i = 0; i < gridLayout->columnCount(); ++i) gridLayout->setColumnStretch(i, 0);
-
-    int columns = 6;
+    FlowLayout *flowLayout = new FlowLayout(ui->widget_Palette, 5, 2, 2);
 
     for (int i = 0; i < m_palette.size(); ++i) {
         QPushButton *btn = new QPushButton();
@@ -219,7 +217,6 @@ void PaletteDialog::rebuildGrid() {
         btn->setFocusPolicy(Qt::NoFocus);
 
         QString border = (i == m_activeIndex) ? "border: 2px solid white;" : "border: 1px solid #555;";
-
         QString style = QString("QPushButton { background-color: %1; %2 border-radius: 2px; outline: none; margin: 0px; padding: 0px; }")
                             .arg(m_palette[i].name(), border);
         btn->setStyleSheet(style);
@@ -227,7 +224,7 @@ void PaletteDialog::rebuildGrid() {
         btn->setProperty("colorIndex", i);
         btn->installEventFilter(this);
 
-        gridLayout->addWidget(btn, i / columns, i % columns);
+        flowLayout->addWidget(btn);
     }
 
     QPushButton *addBtn = new QPushButton();
@@ -253,10 +250,7 @@ void PaletteDialog::rebuildGrid() {
         }
     });
 
-    gridLayout->addWidget(addBtn, m_palette.size() / columns, m_palette.size() % columns);
-
-    gridLayout->setRowStretch((m_palette.size() / columns) + 1, 1);
-    gridLayout->setColumnStretch(columns, 1);
+    flowLayout->addWidget(addBtn);
 }
 
 // MESH PROCESSING (INTERACTION WITH GRADIENTS AND THE GRID)
@@ -339,4 +333,61 @@ bool PaletteDialog::eventFilter(QObject *watched, QEvent *event) {
     }
 
     return QDialog::eventFilter(watched, event);
+}
+
+void PaletteDialog::pickColorFromScreen() {
+    this->grabMouse(Qt::CrossCursor);
+
+    QEventLoop eventLoop;
+    QColor pickedColor = m_currentColor;
+    bool colorPicked = false;
+
+    class ScreenPickFilter : public QObject {
+    public:
+        std::function<bool(QEvent*)> callback;
+        bool eventFilter(QObject *obj, QEvent *ev) override {
+            if (callback) return callback(ev);
+            return false;
+        }
+    } filter;
+
+    filter.callback = [&](QEvent *event) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+
+            if (mouseEvent->button() == Qt::LeftButton) {
+                QPoint globalPos = QCursor::pos();
+
+                QScreen *screen = QGuiApplication::screenAt(globalPos);
+                if (!screen) screen = QGuiApplication::primaryScreen();
+
+                if (screen) {
+                    QRect geom = screen->geometry();
+                    int localX = globalPos.x() - geom.x();
+                    int localY = globalPos.y() - geom.y();
+
+                    QPixmap pixmap = screen->grabWindow(0, localX, localY, 1, 1);
+                    if (!pixmap.isNull()) {
+                        pickedColor = pixmap.toImage().pixelColor(0, 0);
+                        colorPicked = true;
+                    }
+                }
+            }
+            eventLoop.quit();
+
+            return true;
+        }
+        return false;
+    };
+
+    qApp->installEventFilter(&filter);
+    eventLoop.exec();
+    qApp->removeEventFilter(&filter);
+
+    this->releaseMouse();
+
+    if (colorPicked) {
+        m_currentColor = pickedColor;
+        syncColorToUI(true);
+    }
 }
