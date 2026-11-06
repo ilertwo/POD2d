@@ -41,13 +41,11 @@ void LayerListWidget::setHorizontal(bool horizontal) {
 }
 
 void LayerListWidget::updateItemSizes() {
-    QSize hint(120, 46);
-    if (!m_horizontal) {
+    QSize hint = kLayerItem;
+    if (!m_horizontal)
         hint.setWidth(qMax(80, viewport()->width() - 2 * spacing() - 1));
-    }
-    for (int i = 0; i < count(); ++i) {
+    for (int i = 0; i < count(); ++i)
         item(i)->setSizeHint(hint);
-    }
 }
 
 void LayerListWidget::resizeEvent(QResizeEvent *event) {
@@ -71,7 +69,7 @@ void LayerListWidget::setModel(ProjectModel *model) {
 }
 
 void LayerListWidget::reloadTheme() {
-    rebuildList();
+    viewport()->update();
 }
 
 void LayerListWidget::onCurrentRowChanged(int row) {
@@ -89,17 +87,16 @@ void LayerListWidget::onActiveLayerChanged(int index) {
 }
 
 void LayerListWidget::onThumbnailUpdated(int index) {
-    if (m_model && index >= 0 && index < this->count()) {
-        QImage thumb = m_model->getLayerThumbnail(index);
-        QListWidgetItem *item = this->item(index);
+    if (!m_model || index < 0 || index >= count()) return;
 
-        if (QWidget *cellWidget = this->itemWidget(item)) {
-            if (QLabel *imgLabel = cellWidget->findChild<QLabel*>("layerImage")) {
-                QPixmap newPix = QPixmap::fromImage(thumb).scaled(100, 32, Qt::KeepAspectRatio, Qt::FastTransformation);
-                imgLabel->setPixmap(newPix);
-            }
-        }
-    }
+    QWidget *cell = itemWidget(item(index));
+    auto *imgLabel = cell ? cell->findChild<QLabel*>("layerImage") : nullptr;
+    if (!imgLabel) return;
+
+    const QPixmap pix = QPixmap::fromImage(m_model->getLayerThumbnail(index))
+                            .scaled(kLayerThumb, Qt::KeepAspectRatio, Qt::FastTransformation);
+    imgLabel->setPixmap(pix);
+    imgLabel->setFixedSize(pix.size());
 }
 
 void LayerListWidget::onRowsMoved(const QModelIndex &, int start, int, const QModelIndex &, int row) {
@@ -111,79 +108,45 @@ void LayerListWidget::onRowsMoved(const QModelIndex &, int start, int, const QMo
 void LayerListWidget::rebuildList() {
     if (!m_model) return;
     const QSignalBlocker blocker(this);
-    this->clear();
+    setUpdatesEnabled(false);
+    clear();
 
-    const int count = m_model->getLayerCount();
-    QSettings settings("POD2d", "EditorSettings");
-    QString theme = settings.value("ui/theme", "dark").toString();
+    const int layerCount = m_model->getLayerCount();
 
-    QString normalItemBorder, selectedItemBorder, itemBg, textColor;
-    int borderRadius = (theme == "1bit") ? 0 : 6;
+    for (int i = 0; i < layerCount; ++i) {
+        auto *item = new QListWidgetItem();
+        item->setSizeHint(kLayerItem);
+        addItem(item);
 
-    if (theme == "1bit") {
-        normalItemBorder = "border: 1px solid white;";
-        selectedItemBorder = "border: 2px solid white;";
-        itemBg = "black";
-        textColor = "white";
-    } else if (theme == "light") {
-        normalItemBorder = "border: 1px solid #C4C2BC;";
-        selectedItemBorder = "border: 2px solid #3E7FD6;";
-        itemBg = "#F3F2EF";
-        textColor = "#2A2C2F";
-    } else { // dark
-        normalItemBorder = "border: 1px solid #3f4246;";
-        selectedItemBorder = "border: 2px solid #5aa2ff;";
-        itemBg = "#2f3135";
-        textColor = "#e3e5e8";
-    }
+        auto *cell = new QWidget();
+        cell->setObjectName("layerCell");
 
-    this->setStyleSheet(
-        "QListWidget { outline: 0; background: transparent; border: none; }"
-        "QListWidget::item { background-color: " + itemBg + "; " + normalItemBorder + " border-radius: " + QString::number(borderRadius) + "px; margin: 2px; }"
-                                                                                                  "QListWidget::item:selected { " + selectedItemBorder + " }"
-        );
+        auto *layout = new QHBoxLayout(cell);
+        layout->setContentsMargins(6, 4, 8, 4);
+        layout->setSpacing(6);
 
-    for (int i = 0; i < count; ++i) {
-        QListWidgetItem *item = new QListWidgetItem();
-        item->setSizeHint(QSize(110, 46));
-        this->addItem(item);
-
-        QWidget *rowWidget = new QWidget();
-        rowWidget->setStyleSheet("background: transparent; border: none;");
-
-        QHBoxLayout *layout = new QHBoxLayout(rowWidget);
-        layout->setContentsMargins(6, 6, 6, 6);
-        layout->setSpacing(5);
-
-        QLabel *imageLabel = new QLabel();
+        auto *imageLabel = new QLabel();
         imageLabel->setObjectName("layerImage");
-        imageLabel->setFixedSize(80, 30);
-        imageLabel->setStyleSheet("background-color: rgba(0, 0, 0, 0.2); border-radius: 2px;");
-        imageLabel->setAlignment(Qt::AlignCenter);
+        const QPixmap pix = QPixmap::fromImage(m_model->getLayerThumbnail(i))
+                                .scaled(kLayerThumb, Qt::KeepAspectRatio, Qt::FastTransformation);
+        imageLabel->setPixmap(pix);
+        imageLabel->setFixedSize(pix.size());
 
-        QImage thumb = m_model->getLayerThumbnail(i);
-        QPixmap pixmap = QPixmap::fromImage(thumb).scaled(80, 30, Qt::KeepAspectRatio, Qt::FastTransformation);
-        imageLabel->setPixmap(pixmap);
-
-        QLabel *textLabel = new QLabel(QString::number(i));
+        auto *textLabel = new QLabel(QString::number(i));
+        textLabel->setObjectName("layerNumber");
         textLabel->setAlignment(Qt::AlignCenter);
+        textLabel->setProperty("hiddenItem", !m_model->isLayerVisible(i));
 
-        bool isVis = m_model->isLayerVisible(i);
-        if (isVis) {
-            textLabel->setStyleSheet("color: " + textColor + "; font-weight: bold; background: transparent;");
-        } else {
-            textLabel->setStyleSheet("color: " + ((theme == "1bit") ? textColor : QString("#777777")) + "; font-weight: bold; text-decoration: line-through; background: transparent;");
-        }
-
-        layout->addWidget(imageLabel);
+        layout->addWidget(imageLabel, 0, Qt::AlignVCenter);
         layout->addStretch();
-        layout->addWidget(textLabel);
+        layout->addWidget(textLabel, 0, Qt::AlignVCenter);
 
-        this->setItemWidget(item, rowWidget);
+        setItemWidget(item, cell);
     }
 
+    setUpdatesEnabled(true);
     updateItemSizes();
-    this->setCurrentRow(m_model->getCurrentLayerIndex());
+    setCurrentRow(m_model->getCurrentLayerIndex());
 }
 
 void LayerListWidget::showContextMenu(const QPoint &pos) {

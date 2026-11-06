@@ -595,6 +595,12 @@ void MainWindow::connectViewActions() {
         ui->framesListWidget->reloadTheme();
         ui->layersListWidget->reloadTheme();
     });
+    connect(ui->act_ThemePixel, &QAction::triggered, this, [this]() {
+        ThemeManager::applyTheme("pixel", this);
+        ThemeManager::loadIcons(ui, "pixel", projectModel, this);
+        ui->framesListWidget->reloadTheme();
+        ui->layersListWidget->reloadTheme();
+    });
 }
 
 void MainWindow::connectPreferencesActions(){
@@ -976,7 +982,7 @@ void MainWindow::setPaletteVisible(bool visible) {
 void MainWindow::updateUIProportions(int projWidth, int projHeight) {
     if (projHeight == 0) return;
 
-    ui->framesListWidget->reloadTheme();
+    ui->framesListWidget->rebuildList();
     ui->layersListWidget->rebuildList();
 
     QImage currentImg = projectModel->getFlattenedImage();
@@ -994,48 +1000,34 @@ void MainWindow::updateUIProportions(int projWidth, int projHeight) {
 void MainWindow::updateRecentProjectsUI() {
     ui->list_RecentProjects->clear();
 
-    QStringList recentFiles = SettingsManager::getRecentProjects();
+    const QStringList recentFiles = SettingsManager::getRecentProjects();
 
     for (const QString &filePath : recentFiles) {
-        QFileInfo fileInfo(filePath);
+        const QFileInfo fileInfo(filePath);
         if (!fileInfo.exists()) continue;
 
-        QListWidgetItem *item = new QListWidgetItem(ui->list_RecentProjects);
+        auto *item = new QListWidgetItem(ui->list_RecentProjects);
         item->setSizeHint(QSize(400, 55));
 
-        QWidget *rowWidget = new QWidget();
+        auto *rowWidget = new QWidget();
+        rowWidget->setObjectName("recentRow");
         rowWidget->setCursor(Qt::PointingHandCursor);
 
-        QVBoxLayout *layout = new QVBoxLayout(rowWidget);
+        auto *layout = new QVBoxLayout(rowWidget);
         layout->setContentsMargins(10, 5, 10, 5);
         layout->setSpacing(2);
 
-        QLabel *nameLabel = new QLabel(fileInfo.fileName());
-        nameLabel->setStyleSheet("color: #64B5F6; font-weight: bold; font-size: 14px; background: transparent;");
-
-        QLabel *pathLabel = new QLabel(fileInfo.absoluteFilePath());
-        pathLabel->setStyleSheet("color: #888888; font-size: 11px; background: transparent;");
+        auto *nameLabel = new QLabel(fileInfo.fileName());
+        nameLabel->setObjectName("recentName");
+        auto *pathLabel = new QLabel(fileInfo.absoluteFilePath());
+        pathLabel->setObjectName("recentPath");
 
         layout->addWidget(nameLabel);
         layout->addWidget(pathLabel);
 
         ui->list_RecentProjects->setItemWidget(item, rowWidget);
-
         item->setData(Qt::UserRole, filePath);
     }
-}
-
-void MainWindow::updateColorIndicators() {
-    QString primaryStyle = QString("background-color: rgba(%1, %2, %3, %4); border: 2px solid white;")
-    .arg(currentPrimaryColor.red()).arg(currentPrimaryColor.green())
-        .arg(currentPrimaryColor.blue()).arg(currentPrimaryColor.alpha());
-
-    QString secondaryStyle = QString("background-color: rgba(%1, %2, %3, %4); border: 2px solid gray;")
-                                 .arg(currentSecondaryColor.red()).arg(currentSecondaryColor.green())
-                                 .arg(currentSecondaryColor.blue()).arg(currentSecondaryColor.alpha());
-
-    ui->btn_PrimaryColor->setStyleSheet(primaryStyle);
-    ui->btn_SecondaryColor->setStyleSheet(secondaryStyle);
 }
 
 void MainWindow::updateUiStates() {
@@ -1052,6 +1044,15 @@ void MainWindow::updateUiStates() {
     ui->act_Clear->setEnabled(canDraw);
     ui->btn_DeleteLayer->setEnabled(hasLayers);
     ui->btn_DeleteFrame->setEnabled(projectModel->getFrameCount() > 1);
+}
+
+void MainWindow::updateColorIndicators() {
+    auto fill = [](const QColor &c) {
+        return QString("background-color: rgba(%1, %2, %3, %4);")
+        .arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alpha());
+    };
+    ui->btn_PrimaryColor->setStyleSheet(fill(currentPrimaryColor));
+    ui->btn_SecondaryColor->setStyleSheet(fill(currentSecondaryColor));
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {

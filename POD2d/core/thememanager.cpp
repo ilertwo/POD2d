@@ -146,11 +146,16 @@ void ThemeManager::loadIcons(Ui::MainWindow *ui, const QString &theme, ProjectMo
         }
     };
 
-    mainWindow->setWindowIcon(QIcon(basePath + "/image/" + "POD2d_icon.png"));
+    mainWindow->setWindowIcon(QIcon(basePath + "/image/POD2d_icon.png"));
 
-    QPixmap logoPixmap = (theme == "light") ?
-                             QPixmap(basePath + "/image/POD2d_icon_white.png") :
-                             QPixmap(basePath + "/image/POD2d_icon.png");
+    QPixmap logoPixmap;
+    if (theme == "light") {
+        logoPixmap = QPixmap(basePath + "/image/POD2d_icon_white.png");
+    } else if (theme == "pixel") {
+        logoPixmap = QPixmap(basePath + "/image/POD2d_icon_white.png");
+    } else {
+        logoPixmap = QPixmap(basePath + "/image/POD2d_icon.png");
+    }
 
     QPixmap scaledLogo = logoPixmap.scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     ui->lbl_Logo->setPixmap(scaledLogo);

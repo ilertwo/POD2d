@@ -571,3 +571,54 @@ QComboBox::down-arrow:hover {
 QComboBox::down-arrow:on {
     image: url("{BASE_PATH}/image/1bit/up.png");
 }
+
+/* =======================================
+   LISTS: Frames / Layers / Recent projects / Color indicators
+   Objects: #framesListWidget, #layersListWidget, #frameCell, #layerCell,
+            #frameImage, #layerImage, #frameNumber, #layerNumber,
+            #recentRow, #recentName, #recentPath, #btn_PrimaryColor, #btn_SecondaryColor
+   ======================================= */
+#framesListWidget, #layersListWidget {
+    outline: 0;
+    background: transparent;
+    border: none;
+}
+#framesListWidget::item, #layersListWidget::item {
+    background-color: #000000;
+    border: 1px solid #FFFFFF;
+    border-radius: 0px;
+    padding: 0px;
+}
+#framesListWidget::item:hover, #layersListWidget::item:hover {
+    background-color: #000000;
+    border: 1px solid #FFFFFF;
+}
+#framesListWidget::item:selected, #layersListWidget::item:selected {
+    background-color: #000000;
+    border: 2px solid #FFFFFF;
+}
+
+QFrame#frameCell, QWidget#layerCell, QWidget#recentRow {
+    background: transparent;
+    border: none;
+}
+QLabel#frameImage, QLabel#layerImage {
+    background: transparent;
+    border: none;
+}
+QLabel#frameNumber, QLabel#layerNumber {
+    color: #FFFFFF;
+    font-weight: bold;
+    background: transparent;
+}
+QLabel#frameNumber { font-size: 11px; }
+QLabel#frameNumber[hiddenItem="true"], QLabel#layerNumber[hiddenItem="true"] {
+    color: #FFFFFF;
+    text-decoration: line-through;
+}
+
+QLabel#recentName { color: #FFFFFF; font-weight: bold; font-size: 14px; background: transparent; }
+QLabel#recentPath { color: #FFFFFF; font-size: 11px; background: transparent; }
+
+#btn_PrimaryColor   { border: 2px solid #FFFFFF; border-image: none; }
+#btn_SecondaryColor { border: 2px dotted #FFFFFF; border-image: none; }

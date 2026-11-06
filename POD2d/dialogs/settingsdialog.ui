@@ -23,7 +23,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>2</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="general">
       <attribute name="title">
@@ -140,6 +140,11 @@
           <item>
            <property name="text">
             <string>1bit</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>pixel</string>
            </property>
           </item>
          </widget>

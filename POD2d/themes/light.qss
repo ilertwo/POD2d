@@ -267,9 +267,8 @@ QSpinBox, QDoubleSpinBox, QTimeEdit {
     padding-top: 2px;
     padding-bottom: 2px;
     padding-left: 2px;
-    padding-right: 18px;
+    padding-right: 12px;
 
-    /* Центрування тексту у вільному просторі */
     qproperty-alignment: 'AlignHCenter|AlignVCenter';
 }
 
@@ -283,7 +282,7 @@ QSpinBox:focus, QDoubleSpinBox:focus, QTimeEdit:focus {
 QSpinBox::up-button, QDoubleSpinBox::up-button, QTimeEdit::up-button {
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 18px;
+    width: 12px;
     background-color: #E0DFDB;
     border: none;
     border-left: 1px solid #A3A19A;
@@ -293,7 +292,7 @@ QSpinBox::up-button, QDoubleSpinBox::up-button, QTimeEdit::up-button {
 QSpinBox::down-button, QDoubleSpinBox::down-button, QTimeEdit::down-button {
     subcontrol-origin: padding;
     subcontrol-position: bottom right;
-    width: 18px;
+    width: 12px;
     background-color: #E0DFDB;
     border: none;
     border-left: 1px solid #A3A19A;
@@ -457,9 +456,7 @@ QMainWindow > QTabBar::tab:selected {
    SYSTEM DIALOG BUTTONS
    ======================================= */
 QDialogButtonBox QPushButton, QMessageBox QPushButton, QColorDialog QPushButton, QInputDialog QPushButton {
-    min-width: 60px;
-    min-height: 26px;
-    padding: 4px 12px;
+    padding: 6px 18px;
 }
 
 /* =======================================
@@ -492,7 +489,7 @@ QPlainTextEdit:hover { border: 1px solid #8F8D86; }
 QPlainTextEdit:focus { border: 1px solid #3E7FD6; }
 
 /* =======================================
-   TABLE (QTableWidget + заголовки)
+   TABLE 
    ======================================= */
 QTableWidget {
     background-color: #F3F2EF;
@@ -545,7 +542,6 @@ QListWidget::item { padding: 3px 6px; border-radius: 4px; }
 QListWidget::item:hover    { background-color: #DCDBD6; }
 QListWidget::item:selected { background-color: #BCD3F2; color: #1B1D20; }
 
-/* Замінює inline styleSheet у mainwindow.ui (list_RecentProjects) */
 QListWidget#list_RecentProjects {
     background: transparent;
     border: none;
@@ -555,9 +551,59 @@ QListWidget#list_RecentProjects::item:hover { background-color: #DCDBD6; border-
 
 /* =======================================
    START PAGE PANELS (QFrame StyledPanel/Raised)
-   Раніше малювались нативно з палітри Qt -> у світлій темі невидимі.
    ======================================= */
 #frm_Logo, #frm_StartMenu, #recentProjectLabel, #frm_RecentProjects {
     border: 1px solid #A3A19A;
     border-radius: 0px;
 }
+
+/* =======================================
+   LISTS: Frames / Layers / Recent projects / Color indicators
+   Objects: #framesListWidget, #layersListWidget, #frameCell, #layerCell,
+            #frameImage, #layerImage, #frameNumber, #layerNumber,
+            #recentRow, #recentName, #recentPath, #btn_PrimaryColor, #btn_SecondaryColor
+   ======================================= */
+#framesListWidget, #layersListWidget {
+    outline: 0;
+    background: transparent;
+    border: none;
+}
+#framesListWidget::item, #layersListWidget::item {
+    background-color: #F3F2EF;
+    border: 1px solid #A3A19A;
+    border-radius: 6px;
+    padding: 0px;
+}
+#framesListWidget::item:hover, #layersListWidget::item:hover {
+    background-color: #F3F2EF;
+    border: 1px solid #7E7C75;
+}
+#framesListWidget::item:selected, #layersListWidget::item:selected {
+    background-color: #F3F2EF;
+    border: 2px solid #3E7FD6;
+}
+
+QFrame#frameCell, QWidget#layerCell, QWidget#recentRow {
+    background: transparent;
+    border: none;
+}
+QLabel#frameImage, QLabel#layerImage {
+    background: rgba(0, 0, 0, 0.06);
+    border: none;
+}
+QLabel#frameNumber, QLabel#layerNumber {
+    color: #2A2C2F;
+    font-weight: bold;
+    background: transparent;
+}
+QLabel#frameNumber { font-size: 11px; }
+QLabel#frameNumber[hiddenItem="true"], QLabel#layerNumber[hiddenItem="true"] {
+    color: #9A9CA2;
+    text-decoration: line-through;
+}
+
+QLabel#recentName { color: #2F6FD0; font-weight: bold; font-size: 14px; background: transparent; }
+QLabel#recentPath { color: #575A61; font-size: 11px; background: transparent; }
+
+#btn_PrimaryColor   { border: 2px solid #23252A; border-image: none; }
+#btn_SecondaryColor { border: 2px solid #8F8D86; border-image: none; }
