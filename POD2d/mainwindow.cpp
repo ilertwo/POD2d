@@ -262,6 +262,10 @@ void MainWindow::resetDockLayout() {
         d->setFloating(false);
         d->show();
     }
+    resizeDocks({ ui->dockTools, ui->dockLayers }, { 155, 165 }, Qt::Horizontal);
+    resizeDocks({ ui->dockMiniMap, ui->dockFrames }, { 125, 155 }, Qt::Vertical);
+    resizeDocks({ ui->dockLayers, ui->dockPalette }, { 450, 180 }, Qt::Vertical);
+    resizeDocks({ ui->dockPalette, ui->dockPalette }, { 200, 180 }, Qt::Vertical);
     updateFramesOrientation();
     updateLayersOrientation();
     if (!ui->dockPalette->toggleViewAction()->isEnabled())

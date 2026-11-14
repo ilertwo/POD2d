@@ -28,9 +28,6 @@ QWidget {
     color: #1F1A26;
     selection-background-color: #5B4B73;
     selection-color: #FBF7EE;
-    /* Для справжнього піксельного шрифту підключи TTF через
-       QFontDatabase::addApplicationFont і постав його першим
-       (напр. "Pixelify Sans", "Silkscreen", "ChiKareGo"). */
     font-family: "Pixelify Sans", "ChiKareGo", "Tahoma", "Segoe UI", sans-serif;
 }
 
@@ -206,7 +203,6 @@ QFrame[frameShape="5"] {
     border: 2px solid #1F1A26;
 }
 
-/* Панелі стартової сторінки (StyledPanel/Raised) */
 #frm_Logo, #frm_StartMenu, #recentProjectLabel, #frm_RecentProjects {
     border: 2px solid #1F1A26;
 }
@@ -309,7 +305,7 @@ QSpinBox::up-button, QDoubleSpinBox::up-button, QTimeEdit::up-button {
 QSpinBox::down-button, QDoubleSpinBox::down-button, QTimeEdit::down-button {
     subcontrol-origin: padding;
     subcontrol-position: bottom right;
-    width: 12px;
+    width: 14px;
     background-color: #CDC9D6;
     border: none;
     border-left: 2px solid #1F1A26;

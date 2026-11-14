@@ -9,6 +9,11 @@ TextDialog::TextDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    ui->previewLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    if (this->layout()) {
+        this->layout()->setSizeConstraint(QLayout::SetFixedSize);
+    }
+
     ui->weightCombo->setItemData(0, QFont::Light);
     ui->weightCombo->setItemData(1, QFont::Normal);
     ui->weightCombo->setItemData(2, QFont::Bold);
@@ -19,7 +24,6 @@ TextDialog::TextDialog(QWidget *parent) :
     connect(ui->sizeSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &TextDialog::updatePreview);
     connect(ui->weightCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &TextDialog::updatePreview);
     connect(ui->stretchSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), this, &TextDialog::updatePreview);
-
 
     currentFont.setFamily("Arial");
     currentFont.setStyleStrategy(QFont::NoAntialias);
