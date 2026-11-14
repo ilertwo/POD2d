@@ -621,4 +621,4 @@ QLabel#recentName { color: #FFFFFF; font-weight: bold; font-size: 14px; backgrou
 QLabel#recentPath { color: #FFFFFF; font-size: 11px; background: transparent; }
 
 #btn_PrimaryColor   { border: 2px solid #FFFFFF; border-image: none; }
-#btn_SecondaryColor { border: 2px dotted #FFFFFF; border-image: none; }
+#btn_SecondaryColor { border: 2px solid #FFFFFF; border-image: none; }

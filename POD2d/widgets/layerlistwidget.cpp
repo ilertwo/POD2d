@@ -8,6 +8,8 @@
 #include <QEvent>
 #include <QMouseEvent>
 #include <QResizeEvent>
+#include <QScrollBar>
+#include <QImage>
 
 LayerListWidget::LayerListWidget(QWidget *parent) : QListWidget(parent) {
     this->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -28,29 +30,76 @@ LayerListWidget::LayerListWidget(QWidget *parent) : QListWidget(parent) {
 }
 
 void LayerListWidget::setHorizontal(bool horizontal) {
+    const bool changed = (m_horizontal != horizontal);
     m_horizontal = horizontal;
 
+    setViewMode(horizontal ? QListView::IconMode : QListView::ListMode);
+    setMovement(QListView::Static);
+    setSpacing(horizontal ? 6 : 3);
     setFlow(horizontal ? QListView::LeftToRight : QListView::TopToBottom);
     setWrapping(false);
     setVerticalScrollBarPolicy  (horizontal ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded);
     setHorizontalScrollBarPolicy(horizontal ? Qt::ScrollBarAsNeeded  : Qt::ScrollBarAlwaysOff);
-    setMinimumHeight(horizontal ? 70 : 0);
+    setMinimumHeight(horizontal ? 96 : 0);
     setMinimumWidth (horizontal ? 0  : 120);
 
+    if (changed && count() > 0) {
+        rebuildList();
+        return;
+    }
+
+    setProperty("cellSize", QSize());
+    setProperty("cellBox", QSize());
     updateItemSizes();
 }
 
 void LayerListWidget::updateItemSizes() {
-    QSize hint = kLayerItem;
-    if (!m_horizontal)
-        hint.setWidth(qMax(80, viewport()->width() - 2 * spacing() - 1));
-    for (int i = 0; i < count(); ++i)
-        item(i)->setSizeHint(hint);
+    QSize cell;
+    QSize box;
+
+    if (m_horizontal) {
+        const QScrollBar *bar = horizontalScrollBar();
+        const int fullH = viewport()->height() + (bar->isVisible() ? bar->height() : 0);
+        const int h = qBound(88, (fullH - bar->sizeHint().height() - 2 * spacing() - 2) / 4 * 4, 120);
+        const int w = qMax(96, int((h - 22) * 1.8));
+        cell = QSize(w, h);
+        box  = QSize(cell.width() - 8, cell.height() - 24);
+    } else {
+        cell = QSize(qMax(80, viewport()->width() - 2 * spacing() - 1), 48);
+        box  = QSize(72, 40);
+    }
+
+    const bool sizeChanged = property("cellSize").toSize() != cell;
+    const bool boxChanged  = property("cellBox").toSize()  != box;
+    if (!sizeChanged && !boxChanged) return;
+    setProperty("cellSize", cell);
+    setProperty("cellBox", box);
+
+    for (int i = 0; i < count(); ++i) {
+        QListWidgetItem *it = item(i);
+        it->setSizeHint(cell);
+        if (!boxChanged) continue;
+
+        QWidget *cellWidget = itemWidget(it);
+        auto *imgLabel = cellWidget ? cellWidget->findChild<QLabel*>("layerImage") : nullptr;
+        if (!imgLabel) continue;
+
+        QImage src = it->data(Qt::UserRole + 1).value<QImage>();
+        if (src.isNull() && m_model) {
+            src = m_model->getLayerThumbnail(i);
+            it->setData(Qt::UserRole + 1, src);
+        }
+        if (src.isNull()) continue;
+
+        const QPixmap pix = QPixmap::fromImage(src).scaled(box, Qt::KeepAspectRatio, Qt::FastTransformation);
+        imgLabel->setPixmap(pix);
+        imgLabel->setFixedSize(pix.size());
+    }
 }
 
 void LayerListWidget::resizeEvent(QResizeEvent *event) {
     QListWidget::resizeEvent(event);
-    if (!m_horizontal) updateItemSizes();
+    updateItemSizes();
 }
 
 void LayerListWidget::setModel(ProjectModel *model) {
@@ -93,8 +142,13 @@ void LayerListWidget::onThumbnailUpdated(int index) {
     auto *imgLabel = cell ? cell->findChild<QLabel*>("layerImage") : nullptr;
     if (!imgLabel) return;
 
-    const QPixmap pix = QPixmap::fromImage(m_model->getLayerThumbnail(index))
-                            .scaled(kLayerThumb, Qt::KeepAspectRatio, Qt::FastTransformation);
+    const QImage thumb = m_model->getLayerThumbnail(index);
+    item(index)->setData(Qt::UserRole + 1, thumb);
+
+    QSize box = property("cellBox").toSize();
+    if (!box.isValid()) box = kLayerThumb;
+
+    const QPixmap pix = QPixmap::fromImage(thumb).scaled(box, Qt::KeepAspectRatio, Qt::FastTransformation);
     imgLabel->setPixmap(pix);
     imgLabel->setFixedSize(pix.size());
 }
@@ -121,13 +175,11 @@ void LayerListWidget::rebuildList() {
         auto *cell = new QWidget();
         cell->setObjectName("layerCell");
 
-        auto *layout = new QHBoxLayout(cell);
-        layout->setContentsMargins(6, 4, 8, 4);
-        layout->setSpacing(6);
-
         auto *imageLabel = new QLabel();
         imageLabel->setObjectName("layerImage");
-        const QPixmap pix = QPixmap::fromImage(m_model->getLayerThumbnail(i))
+        const QImage thumb = m_model->getLayerThumbnail(i);
+        item->setData(Qt::UserRole + 1, thumb);
+        const QPixmap pix = QPixmap::fromImage(thumb)
                                 .scaled(kLayerThumb, Qt::KeepAspectRatio, Qt::FastTransformation);
         imageLabel->setPixmap(pix);
         imageLabel->setFixedSize(pix.size());
@@ -137,14 +189,28 @@ void LayerListWidget::rebuildList() {
         textLabel->setAlignment(Qt::AlignCenter);
         textLabel->setProperty("hiddenItem", !m_model->isLayerVisible(i));
 
-        layout->addWidget(imageLabel, 0, Qt::AlignVCenter);
-        layout->addStretch();
-        layout->addWidget(textLabel, 0, Qt::AlignVCenter);
+        if (m_horizontal) {
+            auto *layout = new QVBoxLayout(cell);
+            layout->setContentsMargins(3, 3, 3, 3);
+            layout->setSpacing(2);
+            textLabel->setFixedHeight(16);
+            layout->addWidget(imageLabel, 0, Qt::AlignHCenter);
+            layout->addWidget(textLabel);
+        } else {
+            auto *layout = new QHBoxLayout(cell);
+            layout->setContentsMargins(6, 4, 8, 4);
+            layout->setSpacing(6);
+            layout->addWidget(imageLabel, 0, Qt::AlignVCenter);
+            layout->addStretch();
+            layout->addWidget(textLabel, 0, Qt::AlignVCenter);
+        }
 
         setItemWidget(item, cell);
     }
 
     setUpdatesEnabled(true);
+    setProperty("cellSize", QSize());
+    setProperty("cellBox", QSize());
     updateItemSizes();
     setCurrentRow(m_model->getCurrentLayerIndex());
 }

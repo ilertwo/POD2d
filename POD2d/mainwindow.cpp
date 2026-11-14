@@ -200,6 +200,13 @@ void MainWindow::updateLayersOrientation() {
         bar->setMinimumSize(0, 40);
         bar->setMaximumSize(QWIDGETSIZE_MAX, 40);
     }
+
+    QPushButton *buttons[] = { ui->btn_AddLayer, ui->btn_DeleteLayer };
+    for (QPushButton *b : buttons) {
+        b->setSizePolicy(QSizePolicy::Expanding, horizontal ? QSizePolicy::Expanding : QSizePolicy::Fixed);
+        b->setMinimumSize(30, horizontal ? 24 : 40);
+        b->setMaximumSize(QWIDGETSIZE_MAX, horizontal ? QWIDGETSIZE_MAX : 40);
+    }
 }
 
 void MainWindow::snapToolsWidth() {

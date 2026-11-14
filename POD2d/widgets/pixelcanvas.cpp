@@ -628,7 +628,24 @@ void PixelCanvas::paintEvent(QPaintEvent *event) {
         painter.setClipRect(0, 0, canvasWidth, canvasHeight);
 
         if (isFloating && !floatingImage.isNull()) {
-            painter.drawImage(selectionRect.topLeft(), floatingImage);
+            QImage floatingToDraw = floatingImage;
+
+            if (m_model && !m_model->getIsRGB() && m_monoColor != Qt::white) {
+                floatingToDraw = floatingToDraw.convertToFormat(QImage::Format_ARGB32);
+                const QRgb whiteRgb = qRgba(255, 255, 255, 255);
+                const QRgb targetRgb = m_monoColor.rgba();
+
+                for (int y = 0; y < floatingToDraw.height(); ++y) {
+                    QRgb *line = reinterpret_cast<QRgb*>(floatingToDraw.scanLine(y));
+                    for (int x = 0; x < floatingToDraw.width(); ++x) {
+                        if (line[x] == whiteRgb) {
+                            line[x] = targetRgb;
+                        }
+                    }
+                }
+            }
+
+            painter.drawImage(selectionRect.topLeft(), floatingToDraw);
 
             QRect rotRect = getRotationHandleRect();
             int centerX = rotRect.x() + 1;

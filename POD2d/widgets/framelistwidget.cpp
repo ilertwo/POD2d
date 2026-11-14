@@ -8,6 +8,8 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QResizeEvent>
+#include <QScrollBar>
+#include <QImage>
 #include <QEvent>
 
 FrameListWidget::FrameListWidget(QWidget *parent) : QListWidget(parent) {
@@ -29,29 +31,76 @@ FrameListWidget::FrameListWidget(QWidget *parent) : QListWidget(parent) {
 }
 
 void FrameListWidget::setHorizontal(bool horizontal) {
+    const bool changed = (m_horizontal != horizontal);
     m_horizontal = horizontal;
 
+    setViewMode(horizontal ? QListView::IconMode : QListView::ListMode);
+    setMovement(QListView::Static);
+    setSpacing(horizontal ? 6 : 3);
     setFlow(horizontal ? QListView::LeftToRight : QListView::TopToBottom);
     setWrapping(false);
     setVerticalScrollBarPolicy  (horizontal ? Qt::ScrollBarAlwaysOff : Qt::ScrollBarAsNeeded);
     setHorizontalScrollBarPolicy(horizontal ? Qt::ScrollBarAsNeeded  : Qt::ScrollBarAlwaysOff);
     setMinimumHeight(horizontal ? kFrameItem.height() + 22 : 0);
-    setMinimumWidth (horizontal ? 0 : 150);
+    setMinimumWidth (horizontal ? 0 : 120);
 
+    if (changed && count() > 0) {
+        rebuildList();
+        return;
+    }
+
+    setProperty("cellSize", QSize());
+    setProperty("cellBox", QSize());
     updateItemSizes();
 }
 
 void FrameListWidget::updateItemSizes() {
-    QSize hint = kFrameItem;
-    if (!m_horizontal)
-        hint.setWidth(qMax(kFrameItem.width(), viewport()->width() - 2 * spacing() - 1));
-    for (int i = 0; i < count(); ++i)
-        item(i)->setSizeHint(hint);
+    QSize cell;
+    QSize box;
+
+    if (m_horizontal) {
+        const QScrollBar *bar = horizontalScrollBar();
+        const int fullH = viewport()->height() + (bar->isVisible() ? bar->height() : 0);
+        const int h = qBound(88, (fullH - bar->sizeHint().height() - 2 * spacing() - 2) / 4 * 4, 120);
+        const int w = qMax(96, int((h - 22) * 1.8));
+        cell = QSize(w, h);
+        box  = QSize(cell.width() - 8, cell.height() - 24);
+    } else {
+        cell = QSize(qMax(80, viewport()->width() - 2 * spacing() - 1), 48);
+        box  = QSize(72, 40);
+    }
+
+    const bool sizeChanged = property("cellSize").toSize() != cell;
+    const bool boxChanged  = property("cellBox").toSize()  != box;
+    if (!sizeChanged && !boxChanged) return;
+    setProperty("cellSize", cell);
+    setProperty("cellBox", box);
+
+    for (int i = 0; i < count(); ++i) {
+        QListWidgetItem *it = item(i);
+        it->setSizeHint(cell);
+        if (!boxChanged) continue;
+
+        QWidget *cellWidget = itemWidget(it);
+        auto *imgLabel = cellWidget ? cellWidget->findChild<QLabel*>("frameImage") : nullptr;
+        if (!imgLabel) continue;
+
+        QImage src = it->data(Qt::UserRole + 1).value<QImage>();
+        if (src.isNull() && m_model) {
+            src = m_model->getFrameThumbnail(i);
+            it->setData(Qt::UserRole + 1, src);
+        }
+        if (src.isNull()) continue;
+
+        const QPixmap pix = QPixmap::fromImage(src).scaled(box, Qt::KeepAspectRatio, Qt::FastTransformation);
+        imgLabel->setPixmap(pix);
+        imgLabel->setFixedSize(pix.size());
+    }
 }
 
 void FrameListWidget::resizeEvent(QResizeEvent *event) {
     QListWidget::resizeEvent(event);
-    if (!m_horizontal) updateItemSizes();
+    updateItemSizes();
 }
 
 void FrameListWidget::setModel(ProjectModel *model) {
@@ -72,9 +121,16 @@ void FrameListWidget::setModel(ProjectModel *model) {
         QWidget *cell = itemWidget(it);
         auto *imgLabel = cell ? cell->findChild<QLabel*>("frameImage") : nullptr;
         if (!imgLabel) return;
-            const QPixmap pix = QPixmap::fromImage(m_model->applyBackground(flatImg)).scaled(kFrameThumb, Qt::KeepAspectRatio, Qt::FastTransformation);
-            imgLabel->setPixmap(pix);
-            imgLabel->setFixedSize(pix.size());
+
+        const QImage bg = m_model->applyBackground(flatImg);
+        it->setData(Qt::UserRole + 1, bg);
+
+        QSize box = property("cellBox").toSize();
+        if (!box.isValid()) box = kFrameThumb;
+
+        const QPixmap pix = QPixmap::fromImage(bg).scaled(box, Qt::KeepAspectRatio, Qt::FastTransformation);
+        imgLabel->setPixmap(pix);
+        imgLabel->setFixedSize(pix.size());
     });
 
     rebuildList();
@@ -135,30 +191,43 @@ void FrameListWidget::rebuildList() {
         auto *cell = new QFrame();
         cell->setObjectName("frameCell");
 
-        auto *layout = new QVBoxLayout(cell);
-        layout->setContentsMargins(3, 3, 3, 3);
-        layout->setSpacing(2);
-
         auto *imageLabel = new QLabel();
         imageLabel->setObjectName("frameImage");
-        const QPixmap pix = QPixmap::fromImage(m_model->getFrameThumbnail(i))
-                                .scaled(kFrameThumb, Qt::KeepAspectRatio, Qt::FastTransformation);
+        const QImage thumb = m_model->getFrameThumbnail(i);
+        item->setData(Qt::UserRole + 1, thumb);
+        const QSize initBox = m_horizontal ? kFrameThumb : QSize(72, 40);
+        const QPixmap pix = QPixmap::fromImage(thumb)
+                                .scaled(initBox, Qt::KeepAspectRatio, Qt::FastTransformation);
         imageLabel->setPixmap(pix);
         imageLabel->setFixedSize(pix.size());
 
         auto *textLabel = new QLabel(QString::number(i + 1));
         textLabel->setObjectName("frameNumber");
         textLabel->setAlignment(Qt::AlignCenter);
-        textLabel->setFixedHeight(16);
         textLabel->setProperty("hiddenItem", !m_model->isFrameVisible(i));
 
-        layout->addWidget(imageLabel, 0, Qt::AlignHCenter);
-        layout->addWidget(textLabel);
+        if (m_horizontal) {
+            auto *layout = new QVBoxLayout(cell);
+            layout->setContentsMargins(3, 3, 3, 3);
+            layout->setSpacing(2);
+            textLabel->setFixedHeight(16);
+            layout->addWidget(imageLabel, 0, Qt::AlignHCenter);
+            layout->addWidget(textLabel);
+        } else {
+            auto *layout = new QHBoxLayout(cell);
+            layout->setContentsMargins(6, 4, 8, 4);
+            layout->setSpacing(6);
+            layout->addWidget(imageLabel, 0, Qt::AlignVCenter);
+            layout->addStretch();
+            layout->addWidget(textLabel, 0, Qt::AlignVCenter);
+        }
 
         setItemWidget(item, cell);
     }
 
     setUpdatesEnabled(true);
+    setProperty("cellSize", QSize());
+    setProperty("cellBox", QSize());
     updateItemSizes();
     setCurrentRow(m_model->getCurrentFrameIndex());
 }
