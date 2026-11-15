@@ -35,6 +35,9 @@
 #include <QSettings>
 #include <QToolBar>
 #include <QTabBar>
+#include <QSet>
+#include <QCursor>
+#include <QPointer>
 #include <QMouseEvent>
 #include <QScrollBar>
 
@@ -54,6 +57,37 @@ bool shapeWantsHorizontal(QMainWindow *mw, QDockWidget *dock, bool currentHorizo
 }
 
 constexpr int kDockStateVersion = 2;
+
+void updateDockTitleBars(QMainWindow *mw, const QList<QDockWidget*> &docks) {
+    QSet<QString> tabbedTitles;
+    const auto bars = mw->findChildren<QTabBar*>(QString(), Qt::FindDirectChildrenOnly);
+    for (QTabBar *bar : bars) {
+        if (!bar->isVisible() || bar->count() < 2) continue;
+        for (int i = 0; i < bar->count(); ++i)
+            tabbedTitles.insert(bar->tabText(i));
+    }
+
+    for (QDockWidget *d : docks) {
+        const bool tabbed = !d->isFloating() && tabbedTitles.contains(d->windowTitle());
+        QWidget *custom = d->titleBarWidget();
+        if (tabbed && !custom) {
+            d->setTitleBarWidget(new QWidget(d));
+        } else if (!tabbed && custom) {
+            d->setTitleBarWidget(nullptr);
+            custom->deleteLater();
+        }
+    }
+}
+
+struct TabDragState {
+    QPointer<QDockWidget> pressDock;
+    QPoint                pressPos;
+    QPointer<QDockWidget> dragDock;
+    QPoint                offset;
+};
+TabDragState gTabDrag;
+constexpr int kTabPullDistance = 14;
+
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -1068,9 +1102,92 @@ void MainWindow::updateColorIndicators() {
 }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == this && event->type() == QEvent::LayoutRequest
+        && !property("_dockTitlePending").toBool()) {
+        setProperty("_dockTitlePending", true);
+        QTimer::singleShot(0, this, [this]() {
+            setProperty("_dockTitlePending", false);
+            updateDockTitleBars(this, m_docks);
+            ui->framesListWidget->reloadTheme();
+            ui->layersListWidget->reloadTheme();
+        });
+    }
+
     if (event->type() == QEvent::MouseButtonRelease ||
         (event->type() == QEvent::Resize && watched == ui->toolsScroll->viewport())) {
         QTimer::singleShot(0, this, &MainWindow::snapToolsWidth);
+    }
+
+    switch (event->type()) {
+    case QEvent::MouseButtonPress: {
+        auto *bar = qobject_cast<QTabBar*>(watched);
+        auto *me  = static_cast<QMouseEvent*>(event);
+        gTabDrag.pressDock = nullptr;
+        if (bar && bar->parentWidget() == this && me->button() == Qt::LeftButton) {
+            const int idx = bar->tabAt(me->pos());
+            if (idx >= 0) {
+                for (QDockWidget *d : m_docks) {
+                    if (!d->isFloating() && d->windowTitle() == bar->tabText(idx)) {
+                        gTabDrag.pressDock = d;
+                        gTabDrag.pressPos  = QCursor::pos();
+                        break;
+                    }
+                }
+            }
+        }
+        break;
+    }
+    case QEvent::MouseMove: {
+        if (gTabDrag.dragDock) {
+            if (!(QApplication::mouseButtons() & Qt::LeftButton)) {
+                gTabDrag.dragDock->releaseMouse();
+                gTabDrag.dragDock = nullptr;
+                break;
+            }
+            gTabDrag.dragDock->move(QCursor::pos() - gTabDrag.offset);
+            return true;
+        }
+        auto *bar = qobject_cast<QTabBar*>(watched);
+        if (bar && bar->parentWidget() == this && gTabDrag.pressDock
+            && (QApplication::mouseButtons() & Qt::LeftButton)) {
+            const QPoint delta = QCursor::pos() - gTabDrag.pressPos;
+            if (qAbs(delta.y()) > kTabPullDistance && qAbs(delta.y()) > qAbs(delta.x())) {
+                QDockWidget *dock = gTabDrag.pressDock;
+                gTabDrag.pressDock = nullptr;
+
+                QMouseEvent rel(QEvent::MouseButtonRelease, QPointF(bar->mapFromGlobal(QCursor::pos())),
+                                Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+                QCoreApplication::sendEvent(bar, &rel);
+
+                if (QWidget *tb = dock->titleBarWidget()) {
+                    dock->setTitleBarWidget(nullptr);
+                    tb->deleteLater();
+                }
+                const QSize keep = dock->size().boundedTo(QSize(480, 360));
+                dock->setFloating(true);
+                dock->resize(keep);
+
+                gTabDrag.offset   = QPoint(keep.width() / 2, 14);
+                gTabDrag.dragDock = dock;
+                dock->move(QCursor::pos() - gTabDrag.offset);
+                dock->raise();
+                dock->grabMouse();
+                return true;
+            }
+        }
+        break;
+    }
+    case QEvent::MouseButtonRelease:
+        if (gTabDrag.dragDock) {
+            gTabDrag.dragDock->releaseMouse();
+            gTabDrag.dragDock = nullptr;
+            gTabDrag.pressDock = nullptr;
+            return true;
+        }
+        gTabDrag.pressDock = nullptr;
+        break;
+    default:
+        break;
     }
 
     if (event->type() == QEvent::Resize && watched == ui->miniCanvasWidget) {

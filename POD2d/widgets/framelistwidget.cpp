@@ -10,7 +10,20 @@
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QImage>
+#include <QStyledItemDelegate>
+#include <QTimer>
 #include <QEvent>
+
+namespace {
+class FullRectDelegate : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+    void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option,
+                              const QModelIndex &) const override {
+        editor->setGeometry(option.rect);
+    }
+};
+}
 
 FrameListWidget::FrameListWidget(QWidget *parent) : QListWidget(parent) {
     this->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -20,6 +33,7 @@ FrameListWidget::FrameListWidget(QWidget *parent) : QListWidget(parent) {
     this->setViewMode(QListView::IconMode);
     this->setMovement(QListView::Static);
     this->setResizeMode(QListView::Adjust);
+    setItemDelegate(new FullRectDelegate(this));
 
     setHorizontal(true);
 
@@ -52,6 +66,7 @@ void FrameListWidget::setHorizontal(bool horizontal) {
     setProperty("cellSize", QSize());
     setProperty("cellBox", QSize());
     updateItemSizes();
+    QTimer::singleShot(0, this, [this]() { reloadTheme(); });
 }
 
 void FrameListWidget::updateItemSizes() {
@@ -101,6 +116,13 @@ void FrameListWidget::updateItemSizes() {
 void FrameListWidget::resizeEvent(QResizeEvent *event) {
     QListWidget::resizeEvent(event);
     updateItemSizes();
+    if (!property("_relayoutPending").toBool()) {
+        setProperty("_relayoutPending", true);
+        QTimer::singleShot(0, this, [this]() {
+            setProperty("_relayoutPending", false);
+            doItemsLayout();
+        });
+    }
 }
 
 void FrameListWidget::setModel(ProjectModel *model) {
@@ -137,6 +159,8 @@ void FrameListWidget::setModel(ProjectModel *model) {
 }
 
 void FrameListWidget::reloadTheme() {
+    updateItemSizes();
+    doItemsLayout();
     viewport()->update();
 }
 
@@ -230,6 +254,7 @@ void FrameListWidget::rebuildList() {
     setProperty("cellBox", QSize());
     updateItemSizes();
     setCurrentRow(m_model->getCurrentFrameIndex());
+    QTimer::singleShot(0, this, [this]() { reloadTheme(); });
 }
 
 void FrameListWidget::showContextMenu(const QPoint &pos) {

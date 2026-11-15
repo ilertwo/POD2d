@@ -10,6 +10,19 @@
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QImage>
+#include <QStyledItemDelegate>
+#include <QTimer>
+
+namespace {
+class FullRectDelegate : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+    void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option,
+                              const QModelIndex &) const override {
+        editor->setGeometry(option.rect);
+    }
+};
+}
 
 LayerListWidget::LayerListWidget(QWidget *parent) : QListWidget(parent) {
     this->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -18,6 +31,7 @@ LayerListWidget::LayerListWidget(QWidget *parent) : QListWidget(parent) {
     this->setSpacing(3);
     this->setDragDropMode(QAbstractItemView::InternalMove);
     this->setResizeMode(QListView::Adjust);
+    setItemDelegate(new FullRectDelegate(this));
 
     setHorizontal(false);
 
@@ -51,6 +65,7 @@ void LayerListWidget::setHorizontal(bool horizontal) {
     setProperty("cellSize", QSize());
     setProperty("cellBox", QSize());
     updateItemSizes();
+    QTimer::singleShot(0, this, [this]() { reloadTheme(); });
 }
 
 void LayerListWidget::updateItemSizes() {
@@ -100,6 +115,13 @@ void LayerListWidget::updateItemSizes() {
 void LayerListWidget::resizeEvent(QResizeEvent *event) {
     QListWidget::resizeEvent(event);
     updateItemSizes();
+    if (!property("_relayoutPending").toBool()) {
+        setProperty("_relayoutPending", true);
+        QTimer::singleShot(0, this, [this]() {
+            setProperty("_relayoutPending", false);
+            doItemsLayout();
+        });
+    }
 }
 
 void LayerListWidget::setModel(ProjectModel *model) {
@@ -118,6 +140,8 @@ void LayerListWidget::setModel(ProjectModel *model) {
 }
 
 void LayerListWidget::reloadTheme() {
+    updateItemSizes();
+    doItemsLayout();
     viewport()->update();
 }
 
@@ -213,6 +237,7 @@ void LayerListWidget::rebuildList() {
     setProperty("cellBox", QSize());
     updateItemSizes();
     setCurrentRow(m_model->getCurrentLayerIndex());
+    QTimer::singleShot(0, this, [this]() { reloadTheme(); });
 }
 
 void LayerListWidget::showContextMenu(const QPoint &pos) {
