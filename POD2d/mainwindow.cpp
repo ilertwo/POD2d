@@ -813,6 +813,7 @@ void MainWindow::applySettings() {
     }
 
     ui->canvasWidget->setEraserOnRightClick(SettingsManager::getRightClickEraser());
+    ui->canvasWidget->setPipetteOnRightClick(SettingsManager::getRightClickPipette());
 
     projectModel->loadSettings();
     ActionManager::setupShortcuts(ui);

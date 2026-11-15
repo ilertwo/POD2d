@@ -87,6 +87,13 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
             loadSettings();
         }
     });
+
+    connect(ui->chk_RightClickPipette, &QCheckBox::toggled, this, [this](bool checked) {
+        if (checked) ui->chk_RightClickEraser->setChecked(false);
+    });
+    connect(ui->chk_RightClickEraser, &QCheckBox::toggled, this, [this](bool checked) {
+        if (checked) ui->chk_RightClickPipette->setChecked(false);
+    });
 }
 
 SettingsDialog::~SettingsDialog()
@@ -117,6 +124,7 @@ void SettingsDialog::loadSettings() {
     ui->chk_Progmem->setChecked(SettingsManager::getValue("export/useProgmem", true).toBool());
     ui->chk_AutoCopy->setChecked(SettingsManager::getValue("export/autoCopy", false).toBool());
     ui->chk_RightClickEraser->setChecked(SettingsManager::getRightClickEraser());
+    ui->chk_RightClickPipette->setChecked(SettingsManager::getRightClickPipette());
 
     ui->cmb_Theme->setCurrentText(SettingsManager::getTheme());
     ui->slider_Scale->setValue(SettingsManager::getScale());
@@ -158,6 +166,7 @@ void SettingsDialog::saveSettings() {
     SettingsManager::setValue("editor/autoSave", ui->chk_AutoSave->isChecked());
     SettingsManager::setValue("editor/autoSaveInterval", ui->spin_AutoSaveInterval->value());
     SettingsManager::setValue("editor/rightClickEraser", ui->chk_RightClickEraser->isChecked());
+    SettingsManager::setValue("editor/rightClickPipette", ui->chk_RightClickPipette->isChecked());
 
     SettingsManager::setValue("export/defaultFormat", ui->cmb_Language->currentIndex());
     SettingsManager::setValue("export/variablePrefix", ui->input_VariablePrefix->text().trimmed());

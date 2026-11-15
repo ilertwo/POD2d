@@ -32,6 +32,7 @@ public:
     int getBrushSize() const;
     QRect getRotationHandleRect() const;
     void setEraserOnRightClick(bool rightEraser);
+    void setPipetteOnRightClick(bool rightPipette);
     DrawTool getCurrentTool() const;
     bool hasActiveSelection() const;
     void clearSelectionContent();
@@ -96,6 +97,7 @@ private:
     bool isRotating = false;
 
     bool m_eraserOnRightClick = false;
+    bool m_pipetteOnRightClick = false;
     bool m_showGrid = true;
     QColor m_gridColor = QColor(50, 50, 50);
     QString m_bgStyle = "Checkerboard";

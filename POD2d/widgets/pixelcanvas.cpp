@@ -126,6 +126,18 @@ void PixelCanvas::mouseMoveEvent(QMouseEvent *event) {
         return;
     }
 
+    if (m_pipetteOnRightClick && (event->buttons() & Qt::RightButton)) {
+        if (m_model && x >= 0 && x < canvasWidth && y >= 0 && y < canvasHeight) {
+            QColor picked = m_model->getActiveLayerImage().pixelColor(x, y);
+            if (!m_model->getIsRGB() && picked == Qt::white) {
+                picked = m_monoColor;
+            }
+            primaryColor = picked;
+            emit colorPicked(picked, true);
+        }
+        return;
+    }
+
     if (isDrawing && currentTool == DrawTool::LassoSelect) {
         selectionPath.lineTo(currentPoint);
         update();
@@ -310,6 +322,19 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
         return;
     }
 
+    if (m_pipetteOnRightClick && (event->buttons() & Qt::RightButton)) {
+        if (m_model && x >= 0 && x < canvasWidth && y >= 0 && y < canvasHeight) {
+            QColor picked = m_model->getActiveLayerImage().pixelColor(x, y);
+            if (!m_model->getIsRGB() && picked == Qt::white) {
+                picked = m_monoColor;
+            }
+            primaryColor = picked;
+            emit colorPicked(picked, true);
+        }
+        isDrawing = true;
+        return;
+    }
+
     if (currentTool == DrawTool::Select) {
         if (isFloating && getRotationHandleRect().adjusted(-2, -2, 2, 2).contains(currentPos)) {
             isRotating = true;
@@ -481,6 +506,11 @@ void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
 
     if (currentTool == DrawTool::Pan) {
         setCursor(Qt::OpenHandCursor);
+        isDrawing = false;
+        return;
+    }
+
+    if (m_pipetteOnRightClick && (event->button() == Qt::RightButton)) {
         isDrawing = false;
         return;
     }
@@ -1050,6 +1080,10 @@ bool PixelCanvas::hasActiveSelection() const {
 
 void PixelCanvas::setEraserOnRightClick(bool rightEraser) {
     m_eraserOnRightClick = rightEraser;
+}
+
+void PixelCanvas::setPipetteOnRightClick(bool rightPipette) {
+    m_pipetteOnRightClick = rightPipette;
 }
 
 void PixelCanvas::resetLastPoint() {

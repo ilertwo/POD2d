@@ -366,7 +366,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>Eraser:</string>
+           <string>Right-click:</string>
           </property>
          </widget>
         </widget>
@@ -571,7 +571,7 @@
            <rect>
             <x>0</x>
             <y>220</y>
-            <width>111</width>
+            <width>181</width>
             <height>26</height>
            </rect>
           </property>
@@ -579,7 +579,7 @@
            <cursorShape>PointingHandCursor</cursorShape>
           </property>
           <property name="text">
-           <string>Right-click eraser:</string>
+           <string>Right-click eraser</string>
           </property>
          </widget>
          <widget class="QCheckBox" name="chk_AddEmptyLayerOnDuplicate">
@@ -602,6 +602,22 @@
           </property>
           <property name="tristate">
            <bool>false</bool>
+          </property>
+         </widget>
+         <widget class="QCheckBox" name="chk_RightClickPipette">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>240</y>
+            <width>181</width>
+            <height>26</height>
+           </rect>
+          </property>
+          <property name="cursor">
+           <cursorShape>PointingHandCursor</cursorShape>
+          </property>
+          <property name="text">
+           <string>Right-click pipette</string>
           </property>
          </widget>
         </widget>

@@ -44,6 +44,7 @@ public:
     static bool getAutoSave();
     static int getAutoSaveInterval();
     static bool getRightClickEraser();
+    static bool getRightClickPipette();
     static int getUndoLimit();
     static int getMaxFrames();
     static int getMaxLayers();

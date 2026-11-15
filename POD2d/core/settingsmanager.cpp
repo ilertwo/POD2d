@@ -54,6 +54,7 @@ void SettingsManager::setMonoColor(const QColor &color) { setValue("editor/monoC
 bool SettingsManager::getAutoSave() { return getValue("editor/autoSave", false).toBool(); }
 int SettingsManager::getAutoSaveInterval() { return getValue("editor/autoSaveInterval", 5).toInt(); }
 bool SettingsManager::getRightClickEraser() { return getValue("editor/rightClickEraser", false).toBool(); }
+bool SettingsManager::getRightClickPipette() { return getValue("editor/rightClickPipette", false).toBool(); }
 int SettingsManager::getUndoLimit() { return getValue("editor/undoLimit", 50).toInt(); }
 int SettingsManager::getMaxFrames() { return getValue("editor/maxFrames", 64).toInt(); }
 int SettingsManager::getMaxLayers() { return getValue("editor/maxLayers", 16).toInt(); }
