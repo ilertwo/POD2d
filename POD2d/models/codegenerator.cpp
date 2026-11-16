@@ -1,4 +1,5 @@
 #include "codegenerator.h"
+#include "rgbexport.h"
 
 #include <QSettings>
 
@@ -254,72 +255,19 @@ QString CodeGenerator::generateExportCode(const QList<QImage>& frames, int curre
     // BRANCH 1: RGB MODE (16-bit color)
     // ==========================================
     if (isRGB) {
-        QString methodName = "RGB565 RAW (16-bit)";
-        QVector<int> frameSizes;
+        const RgbExport::Result r = RgbExport::build(
+            frames, startIndex, endIndex,
+            exportAnimation, optimize, invertColors,
+            isCpp, prefix, useProgmem);
 
-        for (int i = startIndex; i < endIndex; ++i) {
-            QVector<uint16_t> rgbData = generateRawDataRGB(frames[i]);
-            frameSizes.append(rgbData.size());
-            arrayDeclarations += formatArrayCodeRGB(rgbData, methodName, isCpp, exportAnimation ? (i - startIndex) : -1);
-        }
-
-        if (exportAnimation) {
-            if (isCpp) {
-                arrayPointers = QString("const uint16_t* const %1frames[]%2 = {\n  ").arg(prefix, progmemStr);
-                for(int i = 0; i < frameCount; ++i) {
-                    arrayPointers += QString("%1frame_%2%3").arg(prefix).arg(i).arg(i == frameCount - 1 ? "" : ", ");
-                }
-                arrayPointers += "\n};\n\n";
-            }
-        }
-
-        if (isCpp) {
-            includes = R"(#include <Adafruit_GFX.h>
-#include <Adafruit_ST7735.h> // Example for a TFT display (modify as needed)
-#include <SPI.h>
-
-#define TFT_CS    10
-#define TFT_RST   8
-#define TFT_DC    9
-Adafruit_ST7735 display = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
-
-)";
-            if (exportAnimation) {
-                mainLogic = QString(R"(
-void setup() {
-  display.initR(INITR_BLACKTAB);
-  display.fillScreen(ST77XX_BLACK);
-}
-
-void loop() {
-  for(int i = 0; i < %1; i++) {
-    const uint16_t* current_frame = (const uint16_t*)pgm_read_ptr(&%2frames[i]);
-    drawImage(current_frame, %3 * %4);
-    delay(100);
-  }
-}
-)").arg(QString::number(frameCount), prefix, QString::number(CANVAS_WIDTH), QString::number(CANVAS_HEIGHT));
-            } else {
-                mainLogic = QString(R"(
-void setup() {
-  display.initR(INITR_BLACKTAB);
-  display.fillScreen(ST77XX_BLACK);
-  drawImage(%1color_data, %2 * %3);
-}
-
-void loop() {}
-)").arg(prefix, QString::number(CANVAS_WIDTH), QString::number(CANVAS_HEIGHT));
-            }
-        } else {
-            // Python RGB
-            includes = "import framebuf\nimport time\n\n";
-            mainLogic = exportAnimation ?
-                            QString("while True:\n    for f in %1frames:\n        draw_image(f)\n        time.sleep(0.1)\n").arg(prefix) :
-                            QString("draw_image(%1color_data)\n").arg(prefix);
-        }
-
-        drawCode = generateDrawImageCodeRGB(isCpp);
+        arrayDeclarations = r.arrays;
+        arrayPointers     = r.pointers;
+        sizesArray        = r.sizes;
+        includes          = r.includes;
+        mainLogic         = r.mainLogic;
+        drawCode          = r.drawCode;
     }
+
     // ==========================================
     // BRANCH 2: OLD MONOCHROME MODE (1-bit)
     // ==========================================

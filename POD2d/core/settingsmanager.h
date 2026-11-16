@@ -30,6 +30,14 @@ public:
     static void setShowMiniMap(bool show);
 
     // ==========================================
+    // Export
+    // ==========================================
+
+    static bool getAutoCopy();
+    static void setAutoCopy(bool isAuto);
+    static int getDefaultFormat();
+    static void setDefaultFormat(int defaultFormat);
+    // ==========================================
     // Canvas
     // ==========================================
     static bool getShowGrid();

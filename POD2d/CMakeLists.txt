@@ -30,6 +30,8 @@ set(MODELS_FILES
     models/projectmodel.cpp
     models/codegenerator.h
     models/codegenerator.cpp
+    models/rgbexport.h
+    models/rgbexport.cpp
     models/painttools.h
     models/painttools.cpp
     models/gif.h

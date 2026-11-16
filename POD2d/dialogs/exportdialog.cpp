@@ -11,7 +11,6 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QStandardPaths>
-#include <QSettings>
 #include <QClipboard>
 
 ExportDialog::ExportDialog(ProjectModel *model, const QString &projName, QWidget *parent)
@@ -21,9 +20,8 @@ ExportDialog::ExportDialog(ProjectModel *model, const QString &projName, QWidget
     projectName(projName)
 {
     ui->setupUi(this);
-
-    QSettings settings("POD2d", "EditorSettings");
-    int defaultFormat = settings.value("export/defaultFormat", 0).toInt();
+    int defaultFormat = SettingsManager::getDefaultFormat();
+        //settings.value("export/defaultFormat", 0).toInt();
     ui->cmb_Language->setCurrentIndex(defaultFormat);
 
     ui->cmb_Language->setCurrentIndex(SettingsManager::getSessionExportFormat());
@@ -37,11 +35,8 @@ ExportDialog::ExportDialog(ProjectModel *model, const QString &projName, QWidget
     Q_ASSERT_X(projectModel != nullptr, "ExportDialog", "Critical error: ProjectModel was not passed!");
 
     if (projectModel->getIsRGB()) {
-        ui->chk_Optimize->setEnabled(false);
-        ui->chk_Optimize->setToolTip("Optimization is currently supported only for Monochrome projects.");
-
-        ui->chk_InvertColors->setEnabled(false);
-        ui->chk_InvertColors->setToolTip("Color inversion is supported only for Monochrome projects.");
+        ui->chk_Optimize->setToolTip(tr("Compares RAW, pixel RLE and palette encodings and picks the smallest."));
+        ui->chk_InvertColors->setToolTip(tr("Negative: inverts R, G and B of every pixel."));
     }
 
     // CODE GENERATION
@@ -99,8 +94,7 @@ void ExportDialog::generateCode() {
 
     ui->codeOutputTextEdit->setPlainText(finalCode);
 
-    QSettings settings("POD2d", "EditorSettings");
-    if (settings.value("export/autoCopy", false).toBool()) {
+    if (SettingsManager::getAutoCopy()) {//settings.value("export/autoCopy", false).toBool()) {
         QGuiApplication::clipboard()->setText(finalCode);
     }
 }

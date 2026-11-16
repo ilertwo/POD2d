@@ -43,6 +43,12 @@ void SettingsManager::setShowTools(bool show) { setValue("ui/showTools", show); 
 bool SettingsManager::getShowMiniMap() { return getValue("ui/showMiniMap", true).toBool(); }
 void SettingsManager::setShowMiniMap(bool show) { setValue("ui/showMiniMap", show); }
 
+// Export
+bool SettingsManager::getAutoCopy() { return getValue("export/autoCopy", false).toBool(); }
+void SettingsManager::setAutoCopy(bool isAuto) { setValue("export/autoCopy", isAuto); }
+int SettingsManager::getDefaultFormat() { return getValue("export/defaultFormat", 0).toInt(); }
+void SettingsManager::setDefaultFormat(int defaultFormat) { setValue("export/defaultFormat", defaultFormat); }
+
 // Canvas
 bool SettingsManager::getShowGrid() { return getValue("canvas/showGrid", true).toBool(); }
 QColor SettingsManager::getGridColor() { return QColor(getValue("canvas/gridColor", "#333333").toString()); }
@@ -121,7 +127,7 @@ int SettingsManager::getLastProjectHeight() {
 
 int SettingsManager::getSessionExportFormat() {
     if (m_sessionExportFormat == -1) {
-        return getExportByteFormat();
+        return getValue("export/defaultFormat", 0).toInt();   // 0 = C++, 1 = Python
     }
     return m_sessionExportFormat;
 }
