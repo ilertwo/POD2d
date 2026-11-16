@@ -34,6 +34,7 @@ public:
     void setEraserOnRightClick(bool rightEraser);
     void setPipetteOnRightClick(bool rightPipette);
     DrawTool getCurrentTool() const;
+    void liftSelectionToFloating();
     bool hasActiveSelection() const;
     void clearSelectionContent();
     void resetLastPoint();

@@ -347,6 +347,9 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
 
         activeHandle = getHandleAt(currentPos);
         if (activeHandle != HandleType::None) {
+            if (!isFloating) {
+                liftSelectionToFloating();
+            }
             dragStartMousePos = currentPos;
             dragStartRect = selectionRect;
             dragStartPath = selectionPath;
@@ -354,16 +357,16 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
         } else {
             if (isFloating) {
                 commitFloatingImage();
-            } else {
-                hasSelection = true;
-                selectionRect = QRect(currentPos, QSize(1, 1));
-                selectionPath = QPainterPath();
-                dragStartMousePos = currentPos;
-                dragStartRect = selectionRect;
-                activeHandle = HandleType::BottomRight;
-                isDrawing = true;
-                update();
             }
+            hasSelection = true;
+            isFloating = false;
+            selectionRect = QRect(currentPos, QSize(1, 1));
+            selectionPath = QPainterPath();
+            dragStartMousePos = currentPos;
+            dragStartRect = selectionRect;
+            activeHandle = HandleType::BottomRight;
+            isDrawing = true;
+            update();
         }
         return;
     }
@@ -517,10 +520,16 @@ void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
 
     if (currentTool == DrawTool::Select) {
         activeHandle = HandleType::None;
+        isDrawing = false;
 
+        selectionRect = selectionRect.normalized();
         if (selectionRect.isEmpty()) {
             hasSelection = false;
+        } else if (!isFloating) {
+            liftSelectionToFloating();
         }
+        update();
+        return;
     }
 
     if (currentTool == DrawTool::LassoSelect || currentTool == DrawTool::ShapeSelect) {
@@ -536,7 +545,10 @@ void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
         hasSelection = !selectionRect.isEmpty();
         isDrawing = false;
 
-        if (hasSelection) setTool(DrawTool::Select);
+        if (hasSelection) {
+            setTool(DrawTool::Select);
+            liftSelectionToFloating();
+        }
         update();
         return;
     }
@@ -882,13 +894,14 @@ void PixelCanvas::setTool(DrawTool tool) {
 void PixelCanvas::commitFloatingImage() {
     if (!isFloating || !m_model) return;
 
-    m_model->saveHistoryStep(m_model->getActiveLayerImage());
-
     m_model->commitImageToCurrentLayer(selectionRect.topLeft(), floatingImage);
 
     isFloating = false;
     hasSelection = false;
+    selectionRect = QRect();
+    selectionPath = QPainterPath();
     originalFloatingImage = QImage();
+    floatingImage = QImage();
     update();
 
     m_model->notifyImageChanged();
@@ -1072,6 +1085,55 @@ QRect PixelCanvas::getRotationHandleRect() const {
 
 DrawTool PixelCanvas::getCurrentTool() const {
     return currentTool;
+}
+
+void PixelCanvas::liftSelectionToFloating() {
+    if (!m_model || !hasSelection || selectionRect.isEmpty() || isFloating) return;
+
+    QRect boundedRect = selectionRect.intersected(QRect(0, 0, canvasWidth, canvasHeight));
+    if (boundedRect.isEmpty()) {
+        hasSelection = false;
+        selectionRect = QRect();
+        selectionPath = QPainterPath();
+        return;
+    }
+
+    QImage &layer = m_model->getActiveLayerImage();
+    QImage previousState = layer;
+
+    QImage lifted(boundedRect.size(), QImage::Format_ARGB32);
+    lifted.fill(Qt::transparent);
+
+    QPainter painter(&lifted);
+    painter.setRenderHint(QPainter::Antialiasing, false);
+
+    if (!selectionPath.isEmpty()) {
+        QPainterPath shiftedPath = selectionPath;
+        shiftedPath.translate(-boundedRect.topLeft());
+        painter.setClipPath(shiftedPath);
+    }
+
+    painter.drawImage(0, 0, layer, boundedRect.x(), boundedRect.y(), boundedRect.width(), boundedRect.height());
+    painter.end();
+
+    QPainter clearPainter(&layer);
+    clearPainter.setCompositionMode(QPainter::CompositionMode_Clear);
+    if (!selectionPath.isEmpty()) {
+        clearPainter.fillPath(selectionPath, Qt::transparent);
+    } else {
+        clearPainter.fillRect(boundedRect, Qt::transparent);
+    }
+    clearPainter.end();
+
+    m_model->saveHistoryStep(previousState);
+
+    selectionRect = boundedRect;
+    floatingImage = lifted;
+    originalFloatingImage = lifted;
+    isFloating = true;
+
+    m_model->notifyImageChanged();
+    update();
 }
 
 bool PixelCanvas::hasActiveSelection() const {
