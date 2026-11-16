@@ -12,6 +12,7 @@
 #include <QRegularExpression>
 #include <QPainter>
 #include <QSet>
+#include <QImageReader>
 
 FileController::FileController(ProjectModel *model, QWidget *parentWindow, QObject *parent)
     : QObject(parent), m_model(model), m_parentWindow(parentWindow) {}
@@ -185,38 +186,56 @@ void FileController::saveProject() {
 }
 
 void FileController::openPngAsProject(const QString &path) {
-    QImage img;
-    if (!img.load(path)) {
+    QImageReader reader(path);
+    reader.setAutoTransform(true);
+
+    QList<QImage> frames;
+    while (true) {
+        QImage frame = reader.read();
+        if (frame.isNull()) break;
+        frames.append(frame.convertToFormat(QImage::Format_ARGB32));
+    }
+
+    if (frames.isEmpty()) {
         QMessageBox::warning(m_parentWindow, "Error", "Failed to load the image!");
         return;
     }
 
-    img = img.convertToFormat(QImage::Format_ARGB32);
+    QImage img = frames.first();
     bool isRgbMode = true;
     QSet<QRgb> uniqueColors;
 
-    for (int y = 0; y < img.height(); ++y) {
-        const QRgb *line = reinterpret_cast<const QRgb*>(img.constScanLine(y));
-        for (int x = 0; x < img.width(); ++x) {
-            uniqueColors.insert(line[x]);
+    for (const QImage &f : frames) {
+        for (int y = 0; y < f.height(); ++y) {
+            const QRgb *line = reinterpret_cast<const QRgb*>(f.constScanLine(y));
+            for (int x = 0; x < f.width(); ++x) {
+                uniqueColors.insert(line[x]);
+                if (uniqueColors.size() > 2) break;
+            }
             if (uniqueColors.size() > 2) break;
         }
         if (uniqueColors.size() > 2) break;
     }
     if (uniqueColors.size() <= 2) isRgbMode = false;
 
-    m_currentFilePath = path;
+    m_currentFilePath = path.endsWith(".gif", Qt::CaseInsensitive) ? QString() : path;
     m_currentProjectName = QFileInfo(path).baseName();
     m_projectWidth = img.width();
     m_projectHeight = img.height();
 
     if (m_model) {
         m_model->initDefaultProject(m_projectWidth, m_projectHeight, isRgbMode);
-        QImage &firstLayer = m_model->getActiveLayerImage();
-        QPainter p(&firstLayer);
-        p.setCompositionMode(QPainter::CompositionMode_Source);
-        p.drawImage(0, 0, img);
-        p.end();
+
+        for (int i = 0; i < frames.size(); ++i) {
+            if (i > 0) {
+                m_model->addFrame();
+            }
+            QImage &layer = m_model->getActiveLayerImage();
+            QPainter p(&layer);
+            p.setCompositionMode(QPainter::CompositionMode_Source);
+            p.drawImage(0, 0, frames[i]);
+            p.end();
+        }
 
         m_model->setCanvasSize(m_projectWidth, m_projectHeight);
         m_model->notifyImageChanged();

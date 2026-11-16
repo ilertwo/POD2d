@@ -759,11 +759,12 @@ void MainWindow::updateWindowTitle() {
 }
 
 void MainWindow::openFile(const QString &filePath) {
-    if (!fileController) return;
+    if (!fileController || filePath.isEmpty() || !QFile::exists(filePath)) return;
 
-    if (filePath.endsWith(".png", Qt::CaseInsensitive)) {
+    if (filePath.endsWith(".png", Qt::CaseInsensitive) ||
+        filePath.endsWith(".gif", Qt::CaseInsensitive)) {
         fileController->openPngAsProject(filePath);
-    } else {
+    } else if (filePath.endsWith(".pod2d", Qt::CaseInsensitive)) {
         fileController->loadProjectFromFile(filePath);
     }
 }
