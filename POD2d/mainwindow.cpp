@@ -40,6 +40,7 @@
 #include <QPointer>
 #include <QMouseEvent>
 #include <QScrollBar>
+#include <QStatusBar>
 
 namespace {
 bool shapeWantsHorizontal(QMainWindow *mw, QDockWidget *dock, bool currentHorizontal) {
@@ -54,6 +55,11 @@ bool shapeWantsHorizontal(QMainWindow *mw, QDockWidget *dock, bool currentHorizo
            || area == Qt::BottomDockWidgetArea
            || area == Qt::TopDockWidgetArea
            || area == Qt::NoDockWidgetArea;
+}
+
+void updateBrushSizeLabel(QStatusBar *bar, int value) {
+    if (auto *lbl = bar->findChild<QLabel*>("lbl_BrushSize"))
+        lbl->setText(QObject::tr("Brush Size: %1").arg(value));
 }
 
 constexpr int kDockStateVersion = 2;
@@ -156,6 +162,22 @@ void MainWindow::setupStatusBar() {
     ui->statusbar->addWidget(sep);
 
     ui->statusbar->addWidget(ui->lbl_WidthHeight);
+
+    auto *sepBrush = new QFrame(this);
+    sepBrush->setObjectName("statusSep");
+    sepBrush->setFrameShape(QFrame::VLine);
+    sepBrush->setFixedHeight(14);
+    ui->statusbar->addWidget(sepBrush);
+
+    auto *lblBrush = new QLabel(this);
+    lblBrush->setObjectName("lbl_BrushSize");
+    lblBrush->setMinimumWidth(100);
+    ui->statusbar->addWidget(lblBrush);
+
+    updateBrushSizeLabel(ui->statusbar, ui->slider_BrushSize->value());
+    connect(ui->slider_BrushSize, &QSlider::valueChanged, this, [this](int v) {
+        updateBrushSizeLabel(ui->statusbar, v);
+    });
 }
 
 void MainWindow::setupDocks() {
@@ -1269,6 +1291,7 @@ void MainWindow::selectAll() {
 void MainWindow::on_spin_brushSize_valueChanged(int value) {
     ui->canvasWidget->setBrushSize(value);
     ui->slider_BrushSize->setToolTip(tr("Brush Size: %1").arg(value));
+    updateBrushSizeLabel(ui->statusbar, value);
 }
 
 void MainWindow::chooseAndSetColor() {
