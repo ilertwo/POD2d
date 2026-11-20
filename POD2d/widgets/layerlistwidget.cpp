@@ -1,6 +1,5 @@
 #include "layerlistwidget.h"
 #include "projectmodel.h"
-#include <QSettings>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QAction>
@@ -29,7 +28,7 @@ LayerListWidget::LayerListWidget(QWidget *parent) : QListWidget(parent) {
     this->setViewMode(QListView::ListMode);
     this->setIconSize(QSize(64, 32));
     this->setSpacing(3);
-    this->setDragDropMode(QAbstractItemView::InternalMove);
+    this->setDragDropMode(QAbstractItemView::NoDragDrop);
     this->setResizeMode(QListView::Adjust);
     setItemDelegate(new FullRectDelegate(this));
 
@@ -37,8 +36,6 @@ LayerListWidget::LayerListWidget(QWidget *parent) : QListWidget(parent) {
 
     connect(this, &QWidget::customContextMenuRequested, this, &LayerListWidget::showContextMenu);
     connect(this, &QListWidget::currentRowChanged, this, &LayerListWidget::onCurrentRowChanged);
-
-    connect(this->model(), &QAbstractItemModel::rowsMoved, this, &LayerListWidget::onRowsMoved);
 
     this->viewport()->installEventFilter(this);
 }
@@ -49,6 +46,10 @@ void LayerListWidget::setHorizontal(bool horizontal) {
 
     setViewMode(horizontal ? QListView::IconMode : QListView::ListMode);
     setMovement(QListView::Static);
+    setDragEnabled(false);
+    setAcceptDrops(false);
+    setDragDropMode(QAbstractItemView::NoDragDrop);
+
     setSpacing(horizontal ? 6 : 3);
     setFlow(horizontal ? QListView::LeftToRight : QListView::TopToBottom);
     setWrapping(false);
@@ -180,7 +181,63 @@ void LayerListWidget::onThumbnailUpdated(int index) {
 void LayerListWidget::onRowsMoved(const QModelIndex &, int start, int, const QModelIndex &, int row) {
     if (!m_model) return;
     int toIndex = (row > start) ? row - 1 : row;
-    m_model->moveLayer(start, toIndex);
+    QTimer::singleShot(0, this, [this, start, toIndex]() {
+        if (m_model) m_model->moveLayer(start, toIndex);
+    });
+}
+
+bool LayerListWidget::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == this->viewport()) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto *me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton) {
+                QListWidgetItem *it = itemAt(me->pos());
+                if (it) {
+                    m_dragStartRow = row(it);
+                    m_dragStartPos = me->pos();
+                    m_isDraggingItem = false;
+                }
+            }
+        }
+        else if (event->type() == QEvent::MouseMove) {
+            auto *me = static_cast<QMouseEvent*>(event);
+            if ((me->buttons() & Qt::LeftButton) && m_dragStartRow >= 0 && m_model) {
+                if (!m_isDraggingItem) {
+                    if ((me->pos() - m_dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
+                        m_isDraggingItem = true;
+                        setCursor(Qt::ClosedHandCursor);
+                    }
+                }
+                if (m_isDraggingItem) {
+                    QPoint probe = me->pos();
+                    if (m_horizontal) probe.setY(viewport()->height() / 2);
+                    else              probe.setX(viewport()->width() / 2);
+
+                    QListWidgetItem *target = itemAt(probe);
+                    if (target) {
+                        int targetRow = row(target);
+                        if (targetRow >= 0 && targetRow != m_dragStartRow) {
+                            int from = m_dragStartRow;
+                            m_dragStartRow = targetRow;
+                            m_model->moveLayer(from, targetRow);
+                        }
+                    }
+                    return true;
+                }
+            }
+        }
+        else if (event->type() == QEvent::MouseButtonRelease) {
+            if (m_dragStartRow >= 0) {
+                m_dragStartRow = -1;
+                if (m_isDraggingItem) {
+                    m_isDraggingItem = false;
+                    unsetCursor();
+                    return true;
+                }
+            }
+        }
+    }
+    return QListWidget::eventFilter(watched, event);
 }
 
 void LayerListWidget::rebuildList() {
@@ -193,11 +250,13 @@ void LayerListWidget::rebuildList() {
 
     for (int i = 0; i < layerCount; ++i) {
         auto *item = new QListWidgetItem();
+        item->setFlags(item->flags() | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled);
         item->setSizeHint(kLayerItem);
         addItem(item);
 
         auto *cell = new QWidget();
         cell->setObjectName("layerCell");
+        cell->setAttribute(Qt::WA_TransparentForMouseEvents);
 
         auto *imageLabel = new QLabel();
         imageLabel->setObjectName("layerImage");

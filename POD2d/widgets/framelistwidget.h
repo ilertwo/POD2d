@@ -4,6 +4,7 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QResizeEvent>
+#include <QApplication>
 
 namespace {
 constexpr QSize kFrameThumb(128, 64);
@@ -35,6 +36,10 @@ private slots:
     void onCurrentRowChanged(int row);
 
 private:
+    int m_dragStartRow = -1;
+    QPoint m_dragStartPos;
+    bool m_isDraggingItem = false;
+
     ProjectModel *m_model = nullptr;
 
     void updateItemSizes();

@@ -1,6 +1,5 @@
 #include "framelistwidget.h"
 #include "projectmodel.h"
-#include <QSettings>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -50,6 +49,10 @@ void FrameListWidget::setHorizontal(bool horizontal) {
 
     setViewMode(horizontal ? QListView::IconMode : QListView::ListMode);
     setMovement(QListView::Static);
+    setDragEnabled(false);
+    setAcceptDrops(false);
+    setDragDropMode(QAbstractItemView::NoDragDrop);
+
     setSpacing(horizontal ? 6 : 3);
     setFlow(horizontal ? QListView::LeftToRight : QListView::TopToBottom);
     setWrapping(false);
@@ -181,19 +184,72 @@ void FrameListWidget::onActiveFrameChanged(int index) {
 void FrameListWidget::onRowsMoved(const QModelIndex &, int start, int, const QModelIndex &, int row) {
     if (!m_model) return;
     int toIndex = (row > start) ? row - 1 : row;
-    if (start == toIndex) {
-        rebuildList();
-    } else {
-        m_model->moveFrame(start, toIndex);
-    }
+    QTimer::singleShot(0, this, [this, start, toIndex]() {
+        if (!m_model) return;
+        if (start == toIndex) {
+            rebuildList();
+        } else {
+            m_model->moveFrame(start, toIndex);
+        }
+    });
 }
 
 bool FrameListWidget::eventFilter(QObject *watched, QEvent *event) {
-    if (watched == this->viewport() && event->type() == QEvent::MouseButtonDblClick) {
-        QMouseEvent *me = static_cast<QMouseEvent*>(event);
-        if (!this->itemAt(me->pos()) && m_model) {
-            m_model->duplicateCurrentFrame();
-            return true;
+    if (watched == this->viewport()) {
+        if (event->type() == QEvent::MouseButtonDblClick) {
+            auto *me = static_cast<QMouseEvent*>(event);
+            if (!this->itemAt(me->pos()) && m_model) {
+                m_model->duplicateCurrentFrame();
+                return true;
+            }
+        }
+        else if (event->type() == QEvent::MouseButtonPress) {
+            auto *me = static_cast<QMouseEvent*>(event);
+            if (me->button() == Qt::LeftButton) {
+                QListWidgetItem *it = itemAt(me->pos());
+                if (it) {
+                    m_dragStartRow = row(it);
+                    m_dragStartPos = me->pos();
+                    m_isDraggingItem = false;
+                }
+            }
+        }
+        else if (event->type() == QEvent::MouseMove) {
+            auto *me = static_cast<QMouseEvent*>(event);
+            if ((me->buttons() & Qt::LeftButton) && m_dragStartRow >= 0 && m_model) {
+                if (!m_isDraggingItem) {
+                    if ((me->pos() - m_dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
+                        m_isDraggingItem = true;
+                        setCursor(Qt::ClosedHandCursor);
+                    }
+                }
+                if (m_isDraggingItem) {
+                    QPoint probe = me->pos();
+                    if (m_horizontal) probe.setY(viewport()->height() / 2);
+                    else              probe.setX(viewport()->width() / 2);
+
+                    QListWidgetItem *target = itemAt(probe);
+                    if (target) {
+                        int targetRow = row(target);
+                        if (targetRow >= 0 && targetRow != m_dragStartRow) {
+                            int from = m_dragStartRow;
+                            m_dragStartRow = targetRow;
+                            m_model->moveFrame(from, targetRow);
+                        }
+                    }
+                    return true;
+                }
+            }
+        }
+        else if (event->type() == QEvent::MouseButtonRelease) {
+            if (m_dragStartRow >= 0) {
+                m_dragStartRow = -1;
+                if (m_isDraggingItem) {
+                    m_isDraggingItem = false;
+                    unsetCursor();
+                    return true;
+                }
+            }
         }
     }
     return QListWidget::eventFilter(watched, event);
@@ -209,11 +265,13 @@ void FrameListWidget::rebuildList() {
 
     for (int i = 0; i < frameCount; ++i) {
         auto *item = new QListWidgetItem();
+        item->setFlags(item->flags() | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled);
         item->setSizeHint(kFrameItem);
         addItem(item);
 
         auto *cell = new QFrame();
         cell->setObjectName("frameCell");
+        cell->setAttribute(Qt::WA_TransparentForMouseEvents);
 
         auto *imageLabel = new QLabel();
         imageLabel->setObjectName("frameImage");

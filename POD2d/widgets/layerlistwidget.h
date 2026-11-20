@@ -4,6 +4,7 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QResizeEvent>
+#include <QApplication>
 
 namespace {
 constexpr QSize kLayerThumb(80, 30);
@@ -25,6 +26,7 @@ public:
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event);
 
 private slots:
     void showContextMenu(const QPoint &pos);
@@ -35,6 +37,10 @@ private slots:
     void updateItemSizes();
 
 private:
+    int m_dragStartRow = -1;
+    QPoint m_dragStartPos;
+    bool m_isDraggingItem = false;
+
     ProjectModel *m_model = nullptr;
 };
 
