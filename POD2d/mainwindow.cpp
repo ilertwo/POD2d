@@ -88,8 +88,6 @@ void updateDockTitleBars(QMainWindow *mw, const QList<QDockWidget*> &docks) {
 struct TabDragState {
     QPointer<QDockWidget> pressDock;
     QPoint                pressPos;
-    QPointer<QDockWidget> dragDock;
-    QPoint                offset;
 };
 TabDragState gTabDrag;
 constexpr int kTabPullDistance = 14;
@@ -1135,6 +1133,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         setProperty("_dockTitlePending", true);
         QTimer::singleShot(0, this, [this]() {
             setProperty("_dockTitlePending", false);
+            if (QGuiApplication::mouseButtons() & Qt::LeftButton) return;
             updateDockTitleBars(this, m_docks);
             ui->framesListWidget->reloadTheme();
             ui->layersListWidget->reloadTheme();
@@ -1166,24 +1165,18 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
         break;
     }
     case QEvent::MouseMove: {
-        if (gTabDrag.dragDock) {
-            if (!(QApplication::mouseButtons() & Qt::LeftButton)) {
-                gTabDrag.dragDock->releaseMouse();
-                gTabDrag.dragDock = nullptr;
-                break;
-            }
-            gTabDrag.dragDock->move(QCursor::pos() - gTabDrag.offset);
-            return true;
-        }
         auto *bar = qobject_cast<QTabBar*>(watched);
         if (bar && bar->parentWidget() == this && gTabDrag.pressDock
             && (QApplication::mouseButtons() & Qt::LeftButton)) {
             const QPoint delta = QCursor::pos() - gTabDrag.pressPos;
-            if (qAbs(delta.y()) > kTabPullDistance && qAbs(delta.y()) > qAbs(delta.x())) {
+            if (delta.manhattanLength() > kTabPullDistance) {
                 QDockWidget *dock = gTabDrag.pressDock;
                 gTabDrag.pressDock = nullptr;
 
-                QMouseEvent rel(QEvent::MouseButtonRelease, QPointF(bar->mapFromGlobal(QCursor::pos())),
+                const QPoint globalPos = QCursor::pos();
+                QMouseEvent rel(QEvent::MouseButtonRelease,
+                                QPointF(bar->mapFromGlobal(globalPos)),
+                                QPointF(globalPos),
                                 Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
                 QCoreApplication::sendEvent(bar, &rel);
 
@@ -1191,27 +1184,25 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
                     dock->setTitleBarWidget(nullptr);
                     tb->deleteLater();
                 }
+
                 const QSize keep = dock->size().boundedTo(QSize(480, 360));
                 dock->setFloating(true);
                 dock->resize(keep);
-
-                gTabDrag.offset   = QPoint(keep.width() / 2, 14);
-                gTabDrag.dragDock = dock;
-                dock->move(QCursor::pos() - gTabDrag.offset);
+                dock->move(globalPos - QPoint(keep.width() / 2, 12));
                 dock->raise();
-                dock->grabMouse();
+
+                const QPoint localPress(keep.width() / 2, 12);
+                QMouseEvent press(QEvent::MouseButtonPress,
+                                  QPointF(localPress),
+                                  QPointF(globalPos),
+                                  Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+                QCoreApplication::sendEvent(dock, &press);
                 return true;
             }
         }
         break;
     }
     case QEvent::MouseButtonRelease:
-        if (gTabDrag.dragDock) {
-            gTabDrag.dragDock->releaseMouse();
-            gTabDrag.dragDock = nullptr;
-            gTabDrag.pressDock = nullptr;
-            return true;
-        }
         gTabDrag.pressDock = nullptr;
         break;
     default:
