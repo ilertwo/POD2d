@@ -400,6 +400,7 @@ void MainWindow::connectModelToLists() {
 
     connect(projectModel, &ProjectModel::framesListChanged, this, &MainWindow::updateUiStates);
     connect(projectModel, &ProjectModel::isPlayingChanged, this, [this](bool) { updateUiStates(); });
+    connect(projectModel, &ProjectModel::aboutToChangeContext, ui->canvasWidget, &PixelCanvas::commitFloatingImage);
 }
 
 void MainWindow::connectMiniCanvas() {
@@ -1007,9 +1008,11 @@ void MainWindow::dropEvent(QDropEvent *event) {
 void MainWindow::setEditorUIEnabled(bool enabled) {
     ui->act_Save->setEnabled(enabled);
     ui->act_SaveAs->setEnabled(enabled);
+    ui->act_RenameFile->setEnabled(enabled);
     ui->act_ExportCode->setEnabled(enabled);
     ui->act_ImportCArray->setEnabled(enabled);
     ui->act_ImportPNG->setEnabled(enabled);
+    ui->act_Close->setEnabled(enabled);
     ui->act_Undo->setEnabled(enabled);
     ui->act_Redo->setEnabled(enabled);
     ui->act_Select->setEnabled(enabled);
@@ -1022,6 +1025,8 @@ void MainWindow::setEditorUIEnabled(bool enabled) {
     ui->act_Text->setEnabled(enabled);
     ui->act_Fill->setEnabled(enabled);
     ui->act_Clear->setEnabled(enabled);
+
+    ui->act_SetColor->setEnabled(enabled);
 
     for (QDockWidget *d : m_docks)
         d->toggleViewAction()->setEnabled(enabled);

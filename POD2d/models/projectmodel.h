@@ -110,6 +110,7 @@ signals:
     void activeLayerChanged(int index);
     void activeFrameChanged(int index);
     void projectModified();
+    void aboutToChangeContext();
 
     void imageChanged(const QImage &newImage);
     void frameAdded(const QImage &thumbnail, int index);

@@ -386,7 +386,7 @@ void PixelCanvas::mousePressEvent(QMouseEvent *event) {
 
     if (!m_model) return;
 
-    tempState = m_model->getActiveLayerImage();
+    tempState = m_model->getActiveLayerImage().copy();
     startPoint = currentPos;
     isDrawing = true;
 
@@ -997,20 +997,29 @@ void PixelCanvas::pasteToLayer() {
         commitFloatingImage();
     }
 
-    floatingImage = clip;
-    originalFloatingImage = clip;
+    setTool(DrawTool::Select);
+
+    floatingImage = clip.convertToFormat(QImage::Format_ARGB32);
+    originalFloatingImage = floatingImage.copy();
     isFloating = true;
     hasSelection = true;
+    isRotating = false;
+    activeHandle = HandleType::None;
 
     selectionPath = QPainterPath();
     selectionRect = QRect(0, 0, floatingImage.width(), floatingImage.height());
+    dragStartRect = selectionRect;
 
-    setTool(DrawTool::Select);
     update();
 }
 
 void PixelCanvas::copyLayer() {
     if (!m_model || !hasSelection || selectionRect.isEmpty()) {
+        return;
+    }
+
+    if (isFloating && !floatingImage.isNull()) {
+        m_model->setClipboardImage(floatingImage.copy());
         return;
     }
 
@@ -1039,11 +1048,23 @@ void PixelCanvas::cutLayer() {
 
     copyLayer();
 
-    QImage previousState = m_model->getActiveLayerImage();
+    if (isFloating) {
+        isFloating = false;
+        hasSelection = false;
+        selectionRect = QRect();
+        selectionPath = QPainterPath();
+        floatingImage = QImage();
+        originalFloatingImage = QImage();
+        update();
+        return;
+    }
+
+    QImage previousState = m_model->getActiveLayerImage().copy();
 
     QImage &layer = m_model->getActiveLayerImage();
     QPainter p(&layer);
-    p.setCompositionMode(QPainter::CompositionMode_Clear);
+    p.setRenderHint(QPainter::Antialiasing, false);
+    p.setCompositionMode(QPainter::CompositionMode_Source);
 
     if (!selectionPath.isEmpty()) {
         p.fillPath(selectionPath, Qt::transparent);
@@ -1057,7 +1078,6 @@ void PixelCanvas::cutLayer() {
     selectionPath = QPainterPath();
 
     m_model->saveHistoryStep(previousState);
-
     m_model->notifyImageChanged();
     update();
 }
@@ -1099,7 +1119,7 @@ void PixelCanvas::liftSelectionToFloating() {
     }
 
     QImage &layer = m_model->getActiveLayerImage();
-    QImage previousState = layer;
+    QImage previousState = layer.copy();
 
     QImage lifted(boundedRect.size(), QImage::Format_ARGB32);
     lifted.fill(Qt::transparent);
@@ -1117,7 +1137,8 @@ void PixelCanvas::liftSelectionToFloating() {
     painter.end();
 
     QPainter clearPainter(&layer);
-    clearPainter.setCompositionMode(QPainter::CompositionMode_Clear);
+    clearPainter.setRenderHint(QPainter::Antialiasing, false);
+    clearPainter.setCompositionMode(QPainter::CompositionMode_Source);
     if (!selectionPath.isEmpty()) {
         clearPainter.fillPath(selectionPath, Qt::transparent);
     } else {
@@ -1129,7 +1150,7 @@ void PixelCanvas::liftSelectionToFloating() {
 
     selectionRect = boundedRect;
     floatingImage = lifted;
-    originalFloatingImage = lifted;
+    originalFloatingImage = lifted.copy();
     isFloating = true;
 
     m_model->notifyImageChanged();
@@ -1172,7 +1193,7 @@ void PixelCanvas::clearSelectionContent() {
 
     if (selectionRect.isEmpty()) return;
 
-    QImage previousState = m_model->getActiveLayerImage();
+    QImage previousState = m_model->getActiveLayerImage().copy();
     QImage &layer = m_model->getActiveLayerImage();
     QPainter p(&layer);
     p.setCompositionMode(QPainter::CompositionMode_Clear);

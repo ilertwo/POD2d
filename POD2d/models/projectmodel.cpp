@@ -134,6 +134,8 @@ void ProjectModel::setCurrentFrame(int index) {
         return;
     }
 
+    emit aboutToChangeContext();
+
     currentFrameIndex = index;
     frames[currentFrameIndex].activeLayerIndex = frames[currentFrameIndex].activeLayerIndex;
 
@@ -336,6 +338,8 @@ void ProjectModel::setCurrentLayer(int index) {
         return;
     }
 
+    emit aboutToChangeContext();
+
     frames[currentFrameIndex].activeLayerIndex = index;
 
     emit activeLayerChanged(index);
@@ -505,7 +509,7 @@ void ProjectModel::commitImageToCurrentLayer(const QPoint &pos, const QImage &im
     if (frames.isEmpty() || image.isNull()) return;
 
     QImage &activeLayer = getActiveLayerImage();
-    QImage previousState = activeLayer;
+    QImage previousState = activeLayer.copy();
     QPainter p(&activeLayer);
     p.drawImage(pos, image);
 
@@ -518,7 +522,7 @@ void ProjectModel::clearRectOnCurrentLayer(const QRect &rect) {
 
     QImage &activeLayer = getActiveLayerImage();
 
-    QImage previousState = activeLayer;
+    QImage previousState = activeLayer.copy();
 
     QPainter p(&activeLayer);
     p.setCompositionMode(QPainter::CompositionMode_Source);
