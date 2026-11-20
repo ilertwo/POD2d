@@ -1362,6 +1362,19 @@ QListWidget::item:hover { background: #333333; border-radius: 5px; }</string>
           </widget>
          </item>
          <item>
+         <widget class="QLabel" name="lbl_BrushSizeTitle">
+          <property name="styleSheet">
+           <string notr="true">padding-left: 6px;</string>
+          </property>
+          <property name="text">
+           <string>Brush size</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+          </property>
+         </widget>
+        </item>
+         <item>
           <widget class="QSlider" name="slider_BrushSize">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">

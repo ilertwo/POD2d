@@ -546,6 +546,8 @@ void PixelCanvas::mouseReleaseEvent(QMouseEvent *event) {
         isDrawing = false;
 
         if (hasSelection) {
+            m_returnSelectionTool = currentTool;
+            m_hasReturnSelectionTool = true;
             setTool(DrawTool::Select);
             liftSelectionToFloating();
         }
@@ -894,16 +896,34 @@ void PixelCanvas::setTool(DrawTool tool) {
 void PixelCanvas::commitFloatingImage() {
     if (!isFloating || !m_model) return;
 
-    m_model->commitImageToCurrentLayer(selectionRect.topLeft(), floatingImage);
+    QImage &activeLayer = m_model->getActiveLayerImage();
+    QImage stateBeforeOperation = m_liftedFromCurrentLayer ? m_preLiftLayerState : activeLayer.copy();
+
+    QPainter p(&activeLayer);
+    p.drawImage(selectionRect.topLeft(), floatingImage);
+    p.end();
+
+    m_model->saveHistoryStep(stateBeforeOperation);
 
     isFloating = false;
     hasSelection = false;
+    m_liftedFromCurrentLayer = false;
+    m_preLiftLayerState = QImage();
     selectionRect = QRect();
     selectionPath = QPainterPath();
     originalFloatingImage = QImage();
     floatingImage = QImage();
-    update();
 
+    if (m_returnSelectionTool != DrawTool::Select) {
+        DrawTool prevTool = m_returnSelectionTool;
+        m_returnSelectionTool = DrawTool::Select;
+        currentTool = prevTool;
+    }
+    if (m_hasReturnSelectionTool) {
+        m_hasReturnSelectionTool = false;
+        currentTool = m_returnSelectionTool;
+    }
+    update();
     m_model->notifyImageChanged();
 }
 
@@ -1072,7 +1092,10 @@ void PixelCanvas::cutLayer() {
         p.fillRect(selectionRect, Qt::transparent);
     }
     p.end();
-
+    if (m_hasReturnSelectionTool) {
+        m_hasReturnSelectionTool = false;
+        currentTool = m_returnSelectionTool;
+    }
     hasSelection = false;
     selectionRect = QRect();
     selectionPath = QPainterPath();
@@ -1119,6 +1142,8 @@ void PixelCanvas::liftSelectionToFloating() {
     }
 
     QImage &layer = m_model->getActiveLayerImage();
+    m_preLiftLayerState = layer.copy();
+    m_liftedFromCurrentLayer = true;
     QImage previousState = layer.copy();
 
     QImage lifted(boundedRect.size(), QImage::Format_ARGB32);
@@ -1204,9 +1229,35 @@ void PixelCanvas::clearSelectionContent() {
         p.fillRect(selectionRect, Qt::transparent);
     }
     p.end();
+    if (m_hasReturnSelectionTool) {
+        m_hasReturnSelectionTool = false;
+        currentTool = m_returnSelectionTool;
+    }
 
     m_model->saveHistoryStep(previousState);
     m_model->notifyImageChanged();
+    update();
+}
+
+void PixelCanvas::cancelFloatingSelection() {
+    if (!isFloating || !m_model) return;
+
+    if (m_liftedFromCurrentLayer && !m_preLiftLayerState.isNull()) {
+        m_model->getActiveLayerImage() = m_preLiftLayerState.copy();
+        m_model->notifyImageChanged();
+    }
+    if (m_hasReturnSelectionTool) {
+        m_hasReturnSelectionTool = false;
+        currentTool = m_returnSelectionTool;
+    }
+    isFloating = false;
+    hasSelection = false;
+    m_liftedFromCurrentLayer = false;
+    m_preLiftLayerState = QImage();
+    selectionRect = QRect();
+    selectionPath = QPainterPath();
+    originalFloatingImage = QImage();
+    floatingImage = QImage();
     update();
 }
 
@@ -1237,6 +1288,7 @@ void PixelCanvas::resetToolState() {
     selectionRect = QRect();
     selectionPath = QPainterPath();
     floatingImage = QImage();
+    m_hasReturnSelectionTool = false;
 }
 
 void PixelCanvas::setCanvasSize(int width, int height) {

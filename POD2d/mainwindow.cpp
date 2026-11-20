@@ -161,20 +161,9 @@ void MainWindow::setupStatusBar() {
 
     ui->statusbar->addWidget(ui->lbl_WidthHeight);
 
-    auto *sepBrush = new QFrame(this);
-    sepBrush->setObjectName("statusSep");
-    sepBrush->setFrameShape(QFrame::VLine);
-    sepBrush->setFixedHeight(14);
-    ui->statusbar->addWidget(sepBrush);
-
-    auto *lblBrush = new QLabel(this);
-    lblBrush->setObjectName("lbl_BrushSize");
-    lblBrush->setMinimumWidth(100);
-    ui->statusbar->addWidget(lblBrush);
-
-    updateBrushSizeLabel(ui->statusbar, ui->slider_BrushSize->value());
+    ui->lbl_BrushSizeTitle->setText(tr("Brush size: %1").arg(ui->slider_BrushSize->value()));
     connect(ui->slider_BrushSize, &QSlider::valueChanged, this, [this](int v) {
-        updateBrushSizeLabel(ui->statusbar, v);
+        ui->lbl_BrushSizeTitle->setText(tr("Brush size: %1").arg(v));
     });
 }
 
@@ -1251,7 +1240,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event) {
 // ====================================
 void MainWindow::undo() {
     if (ui->canvasWidget->hasFloatingImage()) {
-        ui->canvasWidget->clearSelectionContent();
+        ui->canvasWidget->cancelFloatingSelection();
         return;
     }
 
@@ -1286,8 +1275,8 @@ void MainWindow::selectAll() {
 
 void MainWindow::on_spin_brushSize_valueChanged(int value) {
     ui->canvasWidget->setBrushSize(value);
-    ui->slider_BrushSize->setToolTip(tr("Brush Size: %1").arg(value));
-    updateBrushSizeLabel(ui->statusbar, value);
+    ui->slider_BrushSize->setToolTip(tr("Brush size: %1").arg(value));
+    ui->lbl_BrushSizeTitle->setText(tr("Brush size: %1").arg(value));
 }
 
 void MainWindow::chooseAndSetColor() {

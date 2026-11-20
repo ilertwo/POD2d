@@ -37,6 +37,7 @@ public:
     void liftSelectionToFloating();
     bool hasActiveSelection() const;
     void clearSelectionContent();
+    void cancelFloatingSelection();
     void resetLastPoint();
     bool hasFloatingImage() const;
 
@@ -128,6 +129,10 @@ private:
     QRect dragStartRect;
     QPoint lastPanPoint;
 
+    QImage m_preLiftLayerState;
+    bool m_liftedFromCurrentLayer = false;
+    DrawTool m_returnSelectionTool = DrawTool::Select;
+    bool m_hasReturnSelectionTool = false;
 };
 
 #endif // PIXELCANVAS_H
